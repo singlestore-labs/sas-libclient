@@ -95,9 +95,8 @@ namespace super_chunk
                         break;
                     }
                     default:
-                        throw S2ClientError(
-                            S2C_ERROR_UNS_DATA_TYPE,
-                            "unsupported data type for column " + std::string(fields[i].name));
+                        column_info[i].type = Unsupported;
+                        break;
                 }
             }
         }

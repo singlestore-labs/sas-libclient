@@ -27,7 +27,8 @@ class ChunkQueue
         S2Client *client,
         const char *resultTableName,
         uint32_t capacity,
-        uint64_t chunkSize);
+        uint64_t chunkSize,
+        bool doesParallelRead);
 
     // Get retrieves one PartitionChunk from the thread safe queue
     PartitionChunk *Get(S2ClientError &error);

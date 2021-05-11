@@ -77,18 +77,21 @@ void *reader_thread(void *input)
     printf("Thread %d allocated chunk %p\n", args->id, chunk);
     int numReceived = 0;
 
+    RowSchema *s = GetRowSchema(args->queue);
+
+    for (int i = 0; i < s->numColumns; ++i)
+    {
+        printf("%d-th row: type %d, name %s; ",
+            i,
+            s->ColumnInfo[i].type,
+            s->ColumnInfo[i].name);
+    }
+    printf("\n");
+    fflush(stdout);
+
     while (GetNextChunk(args->queue, &partitionId, chunk, &err))
     {
-        if (!numReceived)
-        {
-            RowSchema *s = GetRowSchema(args->queue);
-
-            printf("First row inRowSchema: numColumns %d, type %d, name %s\n",
-                s->numColumns,
-                s->ColumnInfo[0].type,
-                s->ColumnInfo[0].name);
-        }
-        assert(err == 0);
+        assert(err == 0 && "GetNextChunk failed");
         numReceived++;
 
         processChunk(chunk, true);
@@ -147,23 +150,30 @@ void *worker(void *input)
     return NULL;
 }
 
-int main(int argc, char *argv[])
+void ddl_test(S2Client *client)
 {
-    if (argc == 4)
+    int err;
+    ExecuteDDLQuery(client, "CREATE TABLE small_test(col_0 INT)", &err);
+    if (err)
     {
-        numWorkers = atoi(argv[1]);
-        threadsPerWorker = atoi(argv[2]);
-        queueCapacity = atoi(argv[3]);
-    }
-    else
-    {
-        if (argc != 1)
-        {
-            printf("Exiting.. Correct usage: parallel_read_test <numWorkers> <threadsPerWorker> <queueCapacity>\n");
-            exit(1);
-        }
+        printf("Error creating table: %s\n", S2Error(client));
     }
 
+    ExecuteDDLQuery(client, "INSERT INTO small_test VALUES (1), (2), (3)", &err);
+    if (err)
+    {
+        printf("Error inserting data: %s\n", S2Error(client));
+    }
+
+    ExecuteDDLQuery(client, "DROP TABLE small_test", &err);
+    if (err)
+    {
+        printf("Error dropping table: %s\n", S2Error(client));
+    }
+}
+
+void parallel_test(S2Client* client)
+{
     int agg_ports[numWorkers];
     // use MA for every connection
     for (int i = 0; i < numWorkers; ++i)
@@ -171,26 +181,12 @@ int main(int argc, char *argv[])
         agg_ports[i] = db_creds.ma_port;
     }
 
-    const char * version = S2GetClientVersion();
-    printf("libs2client version: %s\n", version);
-
-    int err;
-    // init the client
-    S2Client *client = S2ClientInit(
-        db_creds.host, db_creds.ma_port, db_creds.db, db_creds.user, db_creds.password, numWorkers, -1, &err);
-    assert(err == 0 && "Failed to init the client");
-    assert(client != NULL && "S2Client is NULL");
-
-    // check the partition number
-    int p = GetPartitionsNumber(client);
-    printf("Number of partitions: %d\n", p);
     // init the parallel read
     ParallelReadInit(client, resultTable, "SELECT * FROM t", false);
     if (S2Errno(client))
     {
         printf("S2 Error in controller %s\n", S2Error(client));
         fflush(stdout);
-        return 1;
     }
 
     // start "CAS worker" threads
@@ -213,6 +209,106 @@ int main(int argc, char *argv[])
 
     // clean up parallel reading
     ParallelReadFree(client, resultTable);
+}
+
+void non_parallel_test(S2Client* client)
+{
+    const char* query = "select table_name from information_schema.tables";
+
+    ChunkQueue* q = QueryGetQueue(
+        client,
+        query,
+        200,
+        queueCapacity);
+
+    assert(q != NULL && "ChunkQueue is NULL");
+    if (S2Errno(client))
+    {
+        printf("S2 Error in worker %s\n", S2Error(client));
+        fflush(stdout);
+    }
+
+    int dummy_partition;
+    int err;
+    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
+    int numReceived = 0;
+
+    while (GetNextChunk(q, &dummy_partition, chunk, &err))
+    {
+        if (!numReceived)
+        {
+            RowSchema *s = GetRowSchema(q);
+            for (int i = 0; i < s->numColumns; ++i)
+            {
+                printf("%d-th row: type %d, name %s\n",
+                    i,
+                    s->ColumnInfo[0].type,
+                    s->ColumnInfo[0].name);
+            }
+        }
+        assert(err == 0);
+        numReceived++;
+
+        int current_offset = 0;
+        for (int i = 0; i < chunk->row_count; ++i)
+        {
+            int64_t offset, len;
+            memcpy(&offset, chunk->m_ptr + current_offset, 8);
+            memcpy(&len, chunk->m_ptr + current_offset + 8, 8);
+            current_offset += 16;
+            printf("Got table #%d: ", i);
+            for (int j = 0; j < len; j++)
+            {
+                printf("%c", (chunk->m_ptr + offset + j)[0]);
+            }
+            printf("\n");
+        }
+
+        ChunkFree(chunk);
+    }
+    free(chunk);
+
+    // free the queue
+    ChunkQueueFree(q);
+    
+}
+
+int main(int argc, char *argv[])
+{
+    if (argc == 4)
+    {
+        numWorkers = atoi(argv[1]);
+        threadsPerWorker = atoi(argv[2]);
+        queueCapacity = atoi(argv[3]);
+    }
+    else
+    {
+        if (argc != 1)
+        {
+            printf("Exiting.. Correct usage: parallel_read_test <numWorkers> <threadsPerWorker> <queueCapacity>\n");
+            exit(1);
+        }
+    }
+
+    const char * version = S2GetClientVersion();
+    printf("libs2client version: %s\n", version);
+
+    int err;
+    // init the client
+    S2Client *client = S2ClientInit(
+        db_creds.host, db_creds.ma_port, db_creds.db, db_creds.user, db_creds.password, numWorkers, -1, &err);
+    assert(err == 0 && "Failed to init the client");
+    assert(client != NULL && "S2Client is NULL");
+
+    // check the partition number
+    int p = GetPartitionsNumber(client);
+    printf("Number of partitions: %d\n", p);
+
+    ddl_test(client);
+
+    non_parallel_test(client);
+
+    parallel_test(client);
 
     // free the client
     S2ClientFree(client);

@@ -24,8 +24,15 @@ extern "C"
         const char* resultTableName,
         uint64_t chunkSize,
         int queueCapacity);
-    bool
 
+    ChunkQueue*
+    QueryGetQueue(
+        S2Client* client,
+        const char* query,
+        uint64_t chunkSize,
+        int queueCapacity);
+
+    bool
     GetNextChunk(
         ChunkQueue* queue,
         uint32_t* partitionId /*out*/,

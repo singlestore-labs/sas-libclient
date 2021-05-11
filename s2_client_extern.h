@@ -69,6 +69,23 @@ ParallelReadFree(
     S2Client* client,
     const char* resultTableName);
 
+// general query execution functions
+
+// ExecuteDDLQuery is used when no results need to be fetched (DDL or DML query)
+void ExecuteDDLQuery(
+    S2Client* client,
+    const char* query,
+    int* err);
+
+// QueryGetQueue is used to execute queries that are not supported by parallel read.
+// The results are fetched in the same manner as parallel read results
+ChunkQueue*
+QueryGetQueue(
+    S2Client* client,
+    const char* query,
+    uint64_t chunkSize,
+    int queueCapacity);
+
 // metadata functions
 
 // RowSchema returns the types of the columns in the table. The pointer is invalidated and

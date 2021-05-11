@@ -1,8 +1,9 @@
 #ifndef S2_CLIENT_HPP
 #define S2_CLIENT_HPP
 
-#include "s2_connection.hpp"
 #include <mutex>
+
+#include "s2_connection.hpp"
 
 // S2Client saves a global client configurations
 // This is a number of partitions, number of workers, worker index, and connection to S2
@@ -59,6 +60,12 @@ extern "C"
         int* err /*out*/);
 
     void S2ClientFree(S2Client* s2Client);
+
+    void
+    ExecuteDDLQuery(
+        S2Client* client,
+        const char* query,
+        int* err);
 
     int GetPartitionsNumber(S2Client* client);
 

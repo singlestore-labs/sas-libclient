@@ -22,6 +22,16 @@ class ResultTableReader
         std::shared_ptr<std::condition_variable> cv,
         bool row_schema_responsible);
 
+    static std::unique_ptr<ResultTableReader>
+    CreateReaderNonParallel(
+        std::unique_ptr<S2Connection> &conn,
+        ThreadSafeQueue<PartitionChunk *> *q,
+        const char *query,
+        uint64_t size,
+        std::shared_ptr<std::mutex> mu,
+        std::shared_ptr<std::condition_variable> cv,
+        bool row_schema_responsible);
+
     ~ResultTableReader()
     {
         m_stopReading = true;

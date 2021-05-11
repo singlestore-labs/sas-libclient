@@ -1,0 +1,4 @@
+{
+  "project_id" : "sas-libclient",
+  "conduit_uri" : "https:\/\/grizzly.internal.memcompute.com\/api\/"
+}

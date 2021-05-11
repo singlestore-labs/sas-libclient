@@ -60,6 +60,24 @@ extern "C"
         delete s2Client;
     }
 
+    void
+    ExecuteDDLQuery(
+        S2Client* client,
+        const char* query,
+        int* err)
+    {
+        try
+        {
+            client->m_conn->ExecuteDDL(query);
+            *err = 0;
+        }
+        catch (S2ClientError &s2Err)
+        {
+            client->SetError(s2Err);
+            *err = s2Err.m_errorCode;
+        }
+    }
+
     int GetPartitionsNumber(S2Client* client)
     {
         return client->m_numPartitions;

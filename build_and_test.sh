@@ -15,6 +15,7 @@ fi
 # build the library along with memsqld
 if [ $1 = "lib" ]
 then
+    mkdir -p build
     cd "${PATH_TO_LIBCLIENT}"/build
     cmake -DCMAKE_BUILD_TYPE=Debug ..
     cmake --build .

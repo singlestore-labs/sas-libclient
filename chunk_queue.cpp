@@ -6,36 +6,58 @@ ChunkQueue::CreateChunkQueue(
     S2Client *client,
     const char *resultTableName,
     uint32_t capacity,
-    uint64_t chunkSize)
+    uint64_t chunkSize,
+    bool doesParallelRead)
 {
     // allocate a ChunkQueue object
     std::unique_ptr<ChunkQueue> chunkQueue(new ChunkQueue());
     std::shared_ptr<std::condition_variable> row_schema_cv(new std::condition_variable);
     std::shared_ptr<std::mutex> row_schema_mutex(new std::mutex);
 
+    // we use a single dummy partition 0 in case of non-parallel read
+    std::vector<int> partitions {0};
+    if (doesParallelRead)
+    {
+        partitions = super_chunk::utils::AssignedPartitions(client->m_numWorkers, client->m_workerId, client->m_numPartitions);
+    }
+
     // create ThreadSafeQueue
-    std::vector<int> partitions =
-        super_chunk::utils::AssignedPartitions(client->m_numWorkers, client->m_workerId, client->m_numPartitions);
     chunkQueue->m_queue = new ThreadSafeQueue<PartitionChunk *>(capacity, partitions.size());
 
     // we acquire lock before creating readers
     std::unique_lock<std::mutex> row_schema_lock(*row_schema_mutex.get());
     // create Readers
     chunkQueue->m_readers.reserve(partitions.size());
-    for (int i=0; i < partitions.size(); ++i)
+
+    if (doesParallelRead)
     {
-        // client->m_conn is used to find out connection parameters.
-        // ResultTableReader will create its own connection to run queries
+        for (int i=0; i < partitions.size(); ++i)
+        {
+            // client->m_conn is used to find out connection parameters.
+            // ResultTableReader will create its own connection to run queries
+            chunkQueue->m_readers.push_back(
+                ResultTableReader::CreateReader(
+                    client->m_conn,
+                    chunkQueue->m_queue,
+                    resultTableName,
+                    partitions[i],
+                    chunkSize,
+                    row_schema_mutex,
+                    row_schema_cv,
+                    i == 0 /*row_schema_responsible*/));
+        }
+    }
+    else
+    {
         chunkQueue->m_readers.push_back(
-            ResultTableReader::CreateReader(
+            ResultTableReader::CreateReaderNonParallel(
                 client->m_conn,
                 chunkQueue->m_queue,
-                resultTableName,
-                partitions[i],
+                resultTableName /*query*/,
                 chunkSize,
                 row_schema_mutex,
                 row_schema_cv,
-                i == 0 /*row_schema_responsible*/));
+                true /*row_schema_responsible*/));
     }
     // start Readers
     for (auto &reader : chunkQueue->m_readers)

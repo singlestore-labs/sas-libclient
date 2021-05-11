@@ -10,6 +10,7 @@ enum ColumnType
     Double,
     Variable,
     Fixed,
+    Unsupported,
 };
 
 // this Enum will be used if decide to do all the type conversions in libclient

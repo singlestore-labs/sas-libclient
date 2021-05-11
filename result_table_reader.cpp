@@ -29,6 +29,32 @@ ResultTableReader::CreateReader(
     return reader;
 }
 
+std::unique_ptr<ResultTableReader>
+ResultTableReader::CreateReaderNonParallel(
+    std::unique_ptr<S2Connection> &conn,
+    ThreadSafeQueue<PartitionChunk *> *q,
+    const char *query,
+    uint64_t size,
+    std::shared_ptr<std::mutex> mu,
+    std::shared_ptr<std::condition_variable> cv,
+    bool row_schema_responsible)
+{
+    // allocate a ResultTableReader object
+    std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, 0 /* partition */, size));
+
+    // create a new connection
+    reader->m_conn = S2Connection::Connect(conn->m_host, conn->m_port, conn->m_db, conn->m_user, conn->m_password);
+    // prepare a query that will be executed
+    reader->m_query = query;
+
+    reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
+    reader->m_row_schema_mutex = mu;
+    reader->m_row_schema_cv = cv;
+    reader->row_schema_responsible = row_schema_responsible;
+
+    return reader;
+}
+
 void ResultTableReader::StartReading()
 {
     m_reading_thread = std::thread(&ResultTableReader::Read, this);

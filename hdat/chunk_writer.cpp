@@ -163,7 +163,7 @@ SuperChunkWriter::WriteRow(
             }
             default:
             {
-                assert(false);
+                assert(false && "Trying to write unsupported type to the chunk");
             }
         }
     }

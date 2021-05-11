@@ -57,7 +57,31 @@ extern "C"
         client->SetError(S2ClientError(0, ""));
         try
         {
-            return ChunkQueue::CreateChunkQueue(client, resultTableName, queueCapacity, chunkSize).release();
+            return ChunkQueue::CreateChunkQueue(client, resultTableName, queueCapacity, chunkSize, true /* doesParallelRead */).release();
+        }
+        catch (S2ClientError &err)
+        {
+            client->SetError(err);
+            return nullptr;
+        }
+        catch (std::bad_alloc &)
+        {
+            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"));
+            return nullptr;
+        }
+    }
+
+    ChunkQueue*
+    QueryGetQueue(
+        S2Client* client,
+        const char* query,
+        uint64_t chunkSize,
+        int queueCapacity)
+    {
+        client->SetError(S2ClientError(0, ""));
+        try
+        {
+            return ChunkQueue::CreateChunkQueue(client, query, queueCapacity, chunkSize, false /* doesParallelRead */).release();
         }
         catch (S2ClientError &err)
         {
