@@ -1,0 +1,181 @@
+#ifndef CHUNK_WRITER_HPP
+#define CHUNK_WRITER_HPP
+
+#include <vector>
+#include <type_traits>
+#include <memory>
+
+#include "libmysql/mysql.h"
+
+#include "chunk_extern.h"
+#include "hdat/super_chunk.hpp"
+#include "hdat/common.hpp"
+
+class SuperChunkWriter
+{
+  public:
+    SuperChunkWriter()
+        {};
+
+    SuperChunkWriter(
+        Chunk *chunk,
+        RowSchema *rowSchema)
+    {
+        Reset(chunk, rowSchema);
+    }
+
+    // disallow evil constructors
+    SuperChunkWriter(const SuperChunkWriter &) = delete;
+    void operator=(const SuperChunkWriter &) = delete;
+
+    bool
+    Reset(
+        Chunk *chunk,
+        RowSchema *rowSchema)
+    {
+        m_row_schema = rowSchema;
+
+        m_row_fixed_size = 0;
+        m_column_count = 0;
+        m_current_chunk = std::make_unique<SuperChunk>(chunk);
+        m_row_count = 0;
+        m_row_offset = 0;
+        m_row_column_count = 0;
+
+        m_chunk_size = m_current_chunk->m_size;
+        m_variable_offset = m_current_chunk->m_size;
+
+        return true;
+    }
+
+    bool CheckSpace(uint64_t requestedSize);
+
+    bool
+    WriteFixed(
+        const void *val,
+        uint64_t len);
+
+    bool
+    WriteVariable(
+        const void *val,
+        uint64_t len);
+
+    bool
+    WriteInteger(
+        const void *val,
+        uint64_t len);
+
+    bool
+    WriteFloat(
+        const void *val,
+        uint64_t len);
+
+    inline bool WriteVariableMiss()
+    {
+        return WriteVariable(&super_chunk::variableMiss, 0);
+    }
+
+    inline bool WriteIntegerMiss()
+    {
+        RecordColumn();
+        return Write8(&super_chunk::int64Miss);
+    }
+
+    inline bool WriteFloatMiss()
+    {
+        RecordColumn();
+        return Write8(&super_chunk::doubleMiss);
+    }
+
+    template<typename T>
+    inline bool WriteBigIntNumeric(T val)
+    {
+        static_assert(std::is_arithmetic<T>::value, "WriteBigIntNumeric requires a numeric value");
+
+        RecordColumn();
+        auto t = (int64_t)val;
+        return Write8(&t);
+    }
+
+    template<typename T>
+    inline bool WriteFloatNumeric(T val)
+    {
+        static_assert(std::is_arithmetic<T>::value, "WriteFloatNumeric requires a numeric value");
+
+        RecordColumn();
+        auto t = (double)val;
+        return Write8(&t);
+    }
+
+    bool
+    WriteRow(
+        MYSQL_ROW row,
+        unsigned long *lengths);
+
+    // WriteRowEnd must be called after writing the values of each row
+    bool WriteRowEnd();
+
+  private:
+    inline void RecordColumn()
+    {
+        // if we are still outputting the first row that this writer has ever seen
+        // we need to update our metadata regarding column count and variable offsets
+        if (m_row_fixed_size == 0)
+        {
+            m_column_count++;
+        }
+
+        // keep track of the number of columns we have
+        // written for the current row
+        m_row_column_count++;
+    }
+
+    template<typename T>
+    inline bool Write8(const T *val)
+    {
+        m_current_chunk->Write8(val);
+        return true;
+    }
+
+    inline bool Write8(const void *val)
+    {
+        // Write8 can just copy bytes directly since WriteRowEnd will
+        // have already ensured that we don't run out of space
+        m_current_chunk->Write8(val);
+        return true;
+    }
+
+    uint64_t m_chunk_size;
+
+    // m_row_fixed_size is the length of each row in the fixed length section
+    // this value is not computed until the first row has been written
+    // all chunks produced by this Writer will have the same schema so we only
+    // update this value once
+    uint64_t m_row_fixed_size;
+
+    // m_column_count keeps track of the total number of columns in each row
+    // all chunks produced by this Writer will have the same schema so we only
+    // update this value once
+    uint32_t m_column_count;
+
+    // m_current_chunk is a pointer to the current chunk we are writing to
+    std::unique_ptr<SuperChunk> m_current_chunk;
+
+    // m_row_count keeps track of the number of rows in the current chunk
+    uint64_t m_row_count;
+
+    // m_row_offset is the offset of the current row's fixed data in the chunk
+    uint64_t m_row_offset;
+
+    // m_row_column_count keeps track of the number of columns written to the current row
+    uint32_t m_row_column_count;
+
+    // m_variable_offset is the offset of the variable length section in the chunk
+    // each time we write a new variable length value this offset will *decrease*
+    // since we write each variable value in reverse from the end of the chunk
+    uint64_t m_variable_offset;
+
+    RowSchema *m_row_schema;
+};
+
+#endif  // CHUNK_WRITER_HPP

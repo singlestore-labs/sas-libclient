@@ -1,0 +1,93 @@
+#ifndef S2_CLIENT_EXTERN_H
+#define S2_CLIENT_EXTERN_H
+
+#include <stdbool.h>
+#include <stdint.h>
+#include "chunk_extern.h"
+
+typedef struct S2Client S2Client;
+typedef struct ChunkQueue ChunkQueue;
+
+// S2ClientInit can be called both from controller and workers.
+// Controller should put workerId = -1 to distinguish itself from the actual workers
+S2Client*
+S2ClientInit(
+    const char* host,
+    int port,
+    const char* db,
+    const char* user,
+    const char* password,
+    int numWorkers,
+    int workerId,
+    int* errno /*out*/);
+
+// S2ClientFree is used to delete the client object
+void S2ClientFree(S2Client* client);
+
+// parallel read operations
+
+// ParallelReadInit is called once by controller to initiate the processing of selectQuery
+void
+ParallelReadInit(
+    S2Client* client,
+    const char* resultTableName,
+    const char* selectQuery,
+    bool materialized);
+
+// ParallelReadGetQueue is called once per worker. ChunkQueue is a helper object which does all the processing
+// internally. client to process resultTableName must be initialized using S2ClientInit() by the worker before calling
+// this function.
+// chunkSize is the size of the single chunk in bytes
+// queueCapacity is the maximum number of chunks that can be present in a worker's ChunkQueue at the same time
+ChunkQueue*
+ParallelReadGetQueue(
+    S2Client* client,
+    const char* resultTableName,
+    uint64_t chunkSize,
+    int queueCapacity);
+
+// GetNextChunk is called in a loop until false is returned meaning all results have been added to the queue
+// and retrieved from it
+bool
+GetNextChunk(
+    ChunkQueue* queue,
+    uint32_t* partitionId /*out*/,
+    Chunk* chunk /*out*/,
+    int* err);
+
+// functions to free memory
+
+// ChunkQueueFree is used to delete the queue object
+void ChunkQueueFree(ChunkQueue* queue);
+
+// ChunkFree is used to free memory used by the chunk object
+void ChunkFree(Chunk* chunk);
+
+// ParallelReadFree is called by the controller to clean the results of query in the database
+void
+ParallelReadFree(
+    S2Client* client,
+    const char* resultTableName);
+
+// metadata functions
+
+// RowSchema returns the types of the columns in the table. The pointer is invalidated and
+// the memory is released when the corresponding queue object is destroyed by ChunkQueueFree
+RowSchema* GetRowSchema(ChunkQueue* queue);
+
+// GetPartitionsNumber returns the number of partitions in the database specified in S2ClientInit().
+// The total number of parallel S2 readers will be equal to this number
+int GetPartitionsNumber(S2Client* client);
+
+// For the S2Client specified by client, S2Error() returns a null-terminated string
+// containing the error message for the most recently invoked API function that failed
+const char* S2Error(S2Client* client);
+
+// For the S2Client specified by client, S2Errno() returns the error code for the most recently invoked API function.
+// A return value of zero means that no error occurred
+int S2Errno(S2Client* client);
+
+// S2GetClientVersion returns the client version in the format 1.2.33
+const char* S2GetClientVersion();
+
+#endif  // S2_CLIENT_EXTERN_H
