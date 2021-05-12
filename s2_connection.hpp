@@ -64,7 +64,8 @@ class S2Connection
     bool Advance();
 
     // GetRowSchema retrieves the schema of query result
-    RowSchema* GetRowSchema();
+    // If an error occurred, *err is set to 1
+    RowSchema* GetRowSchema(int* err);
 
     // HasNextRow returns true if the result set has a data
     bool HasNextRow();

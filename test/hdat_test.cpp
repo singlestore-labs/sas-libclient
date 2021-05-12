@@ -60,7 +60,8 @@ testRun(
     bool need_to_read)
 {
     conn->Prepare("SELECT * FROM 6_col_test");
-    new_schema = conn->GetRowSchema();
+    int err;
+    new_schema = conn->GetRowSchema(&err);
     Chunk* chunk = nullptr;
 
     try

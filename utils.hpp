@@ -2,7 +2,6 @@
 #define UTILS_HPP
 
 #include <atomic>
-#include <cassert>
 #include <ios>
 #include <memory>
 #include <sstream>

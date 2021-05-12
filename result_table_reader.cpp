@@ -66,20 +66,40 @@ void ResultTableReader::StopReading()
 }
 void ResultTableReader::Read()
 {
-    m_conn->Prepare(m_query.c_str());
+    try
+    {
+        m_conn->Prepare(m_query.c_str());
+    }
+    catch(S2ClientError &s2_err)
+    {
+        std::unique_lock<std::mutex> lock(m_error_mutex);
+        m_error = s2_err;
+    }
+
+    int has_row_schema_failed = 0;
 
     if (row_schema_responsible)
     {
         // this mutex is released when CreateChunkQueue enters "wait" state
         std::unique_lock<std::mutex> row_schema_lock(*m_row_schema_mutex.get());
         // get the row schema
-        m_row_schema = m_conn->GetRowSchema();
+        m_row_schema = m_conn->GetRowSchema(&has_row_schema_failed);
         m_row_schema_cv->notify_one();
         row_schema_lock.unlock();
     }
     else
     {
-        m_row_schema = m_conn->GetRowSchema();
+        m_row_schema = m_conn->GetRowSchema(&has_row_schema_failed);
+    }
+
+    if (m_error.m_errorCode || has_row_schema_failed)
+    {
+        if (!m_error.m_errorCode && has_row_schema_failed)
+        {
+            m_error = S2ClientError(S2C_ERROR_READER_FAILED, "Failed to get row schema from result table metadata");
+        }
+        this->m_queue->DeleteProducer();
+        return;
     }
 
     try
@@ -122,10 +142,10 @@ void ResultTableReader::Read()
         std::unique_lock<std::mutex> lock(m_error_mutex);
         m_error = S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Memory allocation error");
     }
-    catch (S2ClientError &err)
+    catch (S2ClientError &s2_err)
     {
         std::unique_lock<std::mutex> lock(m_error_mutex);
-        m_error = err;
+        m_error = s2_err;
     }
     this->m_queue->DeleteProducer();
 }

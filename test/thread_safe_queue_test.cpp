@@ -1,4 +1,7 @@
 #include "thread_safe_queue.hpp"
+
+#include <cassert>
+#include <iostream>
 #include <thread>
 #include <vector>
 
@@ -52,4 +55,5 @@ int main()
     {
         assert(cnt[i] == threadsCount && "Queue contains wrong elements");
     }
+    std::cout << "Success!" << std::endl;
 }

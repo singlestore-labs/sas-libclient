@@ -112,7 +112,8 @@ class SuperChunkWriter
         MYSQL_ROW row,
         unsigned long *lengths);
 
-    // WriteRowEnd must be called after writing the values of each row
+    // WriteRowEnd must be called after writing the values of each row,
+    // it's called from WriteRow
     bool WriteRowEnd();
 
   private:

@@ -46,11 +46,11 @@ extern "C"
         {
             return S2Client::Connect(workerId, numWorkers, host, port, db, user, password).release();
         }
-        catch (S2ClientError& s2Err)
+        catch (S2ClientError &s2_err)
         {
             // TODO: find a place to save error message
             // in the case, if we failed to create S2Client
-            *errCode = s2Err.m_errorCode;
+            *errCode = s2_err.m_errorCode;
             return nullptr;
         }
     }
@@ -71,10 +71,10 @@ extern "C"
             client->m_conn->ExecuteDDL(query);
             *err = 0;
         }
-        catch (S2ClientError &s2Err)
+        catch (S2ClientError &s2_err)
         {
-            client->SetError(s2Err);
-            *err = s2Err.m_errorCode;
+            client->SetError(s2_err);
+            *err = s2_err.m_errorCode;
         }
     }
 

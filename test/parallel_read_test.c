@@ -32,7 +32,7 @@ struct readerThreadArgs
     ChunkQueue *queue;
 };
 
-void processChunk(Chunk* chunk, bool print)
+void dummyProcessChunk(Chunk* chunk, bool print)
 {
     TOTAL += chunk->row_count;
     if (print)
@@ -78,6 +78,7 @@ void *reader_thread(void *input)
     int numReceived = 0;
 
     RowSchema *s = GetRowSchema(args->queue);
+    assert(s && "GetRowSchema failed");
 
     for (int i = 0; i < s->numColumns; ++i)
     {
@@ -94,39 +95,12 @@ void *reader_thread(void *input)
         assert(err == 0 && "GetNextChunk failed");
         numReceived++;
 
-        processChunk(chunk, true);
+        dummyProcessChunk(chunk, true);
         ChunkFree(chunk);
     }
+    assert(err == 0 && "GetNextChunk failed without reading any chunks");
     free(chunk);
     printf("Thread %d read %d chunks\n", args->id, numReceived);
-}
-
-void worker_read( S2Client *client, int worker_id)
-{
-    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity);
-    assert(q != NULL && "ChunkQueue is NULL");
-    if (S2Errno(client))
-    {
-        printf("S2 Error in worker %s\n", S2Error(client));
-        fflush(stdout);
-    }
-    pthread_t readers[threadsPerWorker];
-    struct readerThreadArgs readerArgs[threadsPerWorker];
-    int i;
-
-    for (i = 0; i < threadsPerWorker; i++)
-    {
-        readerArgs[i].id = i + 1000 * worker_id;
-        readerArgs[i].queue = q;
-        pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
-    }
-
-    for (i = 0; i < threadsPerWorker; i++)
-    {
-        pthread_join(readers[i], NULL);
-    }
-    // free the queue
-    ChunkQueueFree(q);
 }
 
 void *worker(void *input)
@@ -142,7 +116,36 @@ void *worker(void *input)
     printf("Worker %d connected to port %d\n", args->id, args->db_port);
     fflush(stdout);
    
-    worker_read(client, args->id);
+    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity);
+    assert(q != NULL && "ChunkQueue is NULL");
+    if (S2Errno(client))
+    {
+        printf("S2 Error in worker %s\n", S2Error(client));
+        fflush(stdout);
+    }
+    pthread_t readers[threadsPerWorker];
+    struct readerThreadArgs readerArgs[threadsPerWorker];
+    int i;
+
+    for (i = 0; i < threadsPerWorker; i++)
+    {
+        readerArgs[i].id = i + 1000 * args->id;
+        readerArgs[i].queue = q;
+        pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
+    }
+
+    for (i = 0; i < threadsPerWorker; i++)
+    {
+        pthread_join(readers[i], NULL);
+    }
+    // free the queue
+    ChunkQueueFree(q);
+
+    if (S2Errno(client))
+    {
+        printf("S2 Error in controller %s\n", S2Error(client));
+        fflush(stdout);
+    }
 
     // free the client
     S2ClientFree(client);
@@ -181,11 +184,18 @@ void parallel_test(S2Client* client)
         agg_ports[i] = db_creds.ma_port;
     }
 
+    // invalid query
+    ParallelReadInit(client, resultTable, "SELECT * FROM t WHERE non_defined_func(i) = 1", false);
+
+    printf("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
+    assert(S2Errno(client));
+    ParallelReadFree(client, resultTable);
+
     // init the parallel read
     ParallelReadInit(client, resultTable, "SELECT * FROM t", false);
     if (S2Errno(client))
     {
-        printf("S2 Error in controller %s\n", S2Error(client));
+        printf("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
         fflush(stdout);
     }
 
@@ -235,6 +245,7 @@ void non_parallel_test(S2Client* client)
 
     while (GetNextChunk(q, &dummy_partition, chunk, &err))
     {
+        assert(err == 0 && "GetNextChunk failed in non parallel mode");
         if (!numReceived)
         {
             RowSchema *s = GetRowSchema(q);
@@ -285,7 +296,7 @@ int main(int argc, char *argv[])
     {
         if (argc != 1)
         {
-            printf("Exiting.. Correct usage: parallel_read_test <numWorkers> <threadsPerWorker> <queueCapacity>\n");
+            printf("Exiting... Correct usage: parallel_read_test <numWorkers> <threadsPerWorker> <queueCapacity>\n");
             exit(1);
         }
     }

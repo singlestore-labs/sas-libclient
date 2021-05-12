@@ -185,12 +185,13 @@ bool S2Connection::Advance()
     return true;
 }
 
-RowSchema* S2Connection::GetRowSchema()
+RowSchema* S2Connection::GetRowSchema(int* err)
 {
     MySQLResultPtr res(mysql_stmt_result_metadata(m_stmt), &mysql_free_result);
     if (res == nullptr)
     {
-        throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
+        *err = 1;
+        return nullptr;
     }
 
     unsigned int num_fields = mysql_num_fields(res.get());

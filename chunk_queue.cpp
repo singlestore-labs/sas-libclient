@@ -69,20 +69,21 @@ ChunkQueue::CreateChunkQueue(
         return chunkQueue;
     }
 
-    while ((chunkQueue->m_row_schema = chunkQueue->m_readers.front()->GetRowSchema()) == nullptr)
+    while ((chunkQueue->m_row_schema = chunkQueue->m_readers.front()->GetRowSchema()) == nullptr &&
+        !chunkQueue->m_readers.front()->GetError().m_errorCode)
     {
         row_schema_cv->wait_for(row_schema_lock, std::chrono::seconds(10));
     }
     if (chunkQueue->m_row_schema == nullptr)
     {
         client->SetError(
-            S2ClientError(S2C_ERROR_READER_FAILED, "Failed to fetch RowSchema from table reader after 10 seconds")
+            S2ClientError(S2C_ERROR_READER_FAILED, "Failed to fetch row schema from the table reader")
             );
     }
     return chunkQueue;
 }
 
-PartitionChunk *ChunkQueue::Get(S2ClientError &err)
+PartitionChunk* ChunkQueue::Get(S2ClientError &err)
 {
     err = S2ClientError(0, "");
     try

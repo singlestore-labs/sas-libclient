@@ -6,6 +6,8 @@
 #include "hdat/chunk_writer.hpp"
 #include "hdat/common.hpp"
 
+#include "s2_client_error.hpp"
+
 bool
 SuperChunkWriter::WriteFixed(
     const void *val,
@@ -127,7 +129,8 @@ SuperChunkWriter::WriteRow(
         {
             throw std::invalid_argument(
                 "chunk size " + std::to_string(this->m_chunk_size) + " is too small. Required at least " +
-                std::to_string(total_size));
+                std::to_string(total_size)
+                );
         }
         return false;
     }
@@ -163,7 +166,7 @@ SuperChunkWriter::WriteRow(
             }
             default:
             {
-                assert(false && "Trying to write unsupported type to the chunk");
+                throw S2ClientError(S2C_ERROR_UNS_DATA_TYPE, "Trying to write unsupported data type to the chunk. Aborted.");
             }
         }
     }

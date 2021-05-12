@@ -16,9 +16,9 @@ extern "C"
                 super_chunk::sql::MakeCreateResultTableQuery(resultTableName, selectQuery, materialized);
             client->m_conn->ExecuteDDL(std::move(newQuery));
         }
-        catch (S2ClientError &err)
+        catch (S2ClientError &s2_err)
         {
-            client->SetError(err);
+            client->SetError(s2_err);
         }
         catch (std::bad_alloc &)
         {
@@ -37,9 +37,9 @@ extern "C"
             std::string dropQuery = super_chunk::sql::MakeDropQuery(resultTableName);
             client->m_conn->ExecuteDDL(dropQuery);
         }
-        catch (S2ClientError &err)
+        catch (S2ClientError &s2_err)
         {
-            client->SetError(err);
+            client->SetError(s2_err);
         }
         catch (std::bad_alloc &)
         {
@@ -59,9 +59,9 @@ extern "C"
         {
             return ChunkQueue::CreateChunkQueue(client, resultTableName, queueCapacity, chunkSize, true /* doesParallelRead */).release();
         }
-        catch (S2ClientError &err)
+        catch (S2ClientError &s2_err)
         {
-            client->SetError(err);
+            client->SetError(s2_err);
             return nullptr;
         }
         catch (std::bad_alloc &)
@@ -83,9 +83,9 @@ extern "C"
         {
             return ChunkQueue::CreateChunkQueue(client, query, queueCapacity, chunkSize, false /* doesParallelRead */).release();
         }
-        catch (S2ClientError &err)
+        catch (S2ClientError &s2_err)
         {
-            client->SetError(err);
+            client->SetError(s2_err);
             return nullptr;
         }
         catch (std::bad_alloc &)
