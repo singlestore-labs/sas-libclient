@@ -100,12 +100,14 @@ extern "C"
         ChunkQueue *queue,
         uint32_t *partitionId /*out*/,
         Chunk *chunk /*out*/,
-        int *errCode)
+        S2ErrorCallback *cb)
     {
         S2ClientError err(0, "");
         PartitionChunk *res = queue->Get(err);
-        *errCode = err.m_errorCode;
-
+        if (err.m_errorCode)
+        {
+            cb->setError(cb, err.m_errorCode, err.m_errorMessage.c_str());
+        }
         if (!res)
         {
             return false;

@@ -53,7 +53,7 @@ GetNextChunk(
     ChunkQueue* queue,
     uint32_t* partitionId /*out*/,
     Chunk* chunk /*out*/,
-    int* err);
+    S2ErrorCallback* cb);
 
 // functions to free memory
 

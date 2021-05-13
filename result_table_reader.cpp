@@ -96,6 +96,7 @@ void ResultTableReader::Read()
     {
         if (!m_error.m_errorCode && has_row_schema_failed)
         {
+            std::unique_lock<std::mutex> lock(m_error_mutex);
             m_error = S2ClientError(S2C_ERROR_READER_FAILED, "Failed to get row schema from result table metadata");
         }
         this->m_queue->DeleteProducer();

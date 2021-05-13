@@ -1,8 +1,11 @@
 #ifndef PARALLEL_READ_HPP
 #define PARALLEL_READ_HPP
 
-#include "s2_client.hpp"
+#include "chunk_extern.h"
 #include "chunk_queue.hpp"
+#include "s2_client.hpp"
+#include "utils.hpp"
+
 
 extern "C"
 {
@@ -37,7 +40,7 @@ extern "C"
         ChunkQueue* queue,
         uint32_t* partitionId /*out*/,
         Chunk* chunk /*out*/,
-        int* err);
+        S2ErrorCallback* cb);
 
     void ChunkQueueFree(ChunkQueue* queue);
 }

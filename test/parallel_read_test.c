@@ -32,6 +32,23 @@ struct readerThreadArgs
     ChunkQueue *queue;
 };
 
+typedef struct ErrorHandler
+{
+   S2ErrorCallback callback;
+   int errorCode;
+   char* errorString;
+} ErrorHandler;
+
+ErrorHandler EH;
+
+void dummyHandleError(S2ErrorCallback *cb, int error, const char *errorString)
+{
+    ErrorHandler* h = (ErrorHandler*)cb;
+    h->errorCode = error;
+    printf("[DUMMMY ERROR CALLBACK] GetNextChunk failed: %d %s\n", error, errorString);
+    fflush(stdout);
+}
+
 void dummyProcessChunk(Chunk* chunk, bool print)
 {
     TOTAL += chunk->row_count;
@@ -64,6 +81,7 @@ void dummyProcessChunk(Chunk* chunk, bool print)
             printf("%c", (chunk->m_ptr + offset + i)[0]);
         }
         printf("\n");
+        fflush(stdout);
     }
 }
 
@@ -75,6 +93,7 @@ void *reader_thread(void *input)
     int err;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     printf("Thread %d allocated chunk %p\n", args->id, chunk);
+    fflush(stdout);
     int numReceived = 0;
 
     RowSchema *s = GetRowSchema(args->queue);
@@ -90,7 +109,7 @@ void *reader_thread(void *input)
     printf("\n");
     fflush(stdout);
 
-    while (GetNextChunk(args->queue, &partitionId, chunk, &err))
+    while (GetNextChunk(args->queue, &partitionId, chunk, &EH.callback))
     {
         assert(err == 0 && "GetNextChunk failed");
         numReceived++;
@@ -101,6 +120,7 @@ void *reader_thread(void *input)
     assert(err == 0 && "GetNextChunk failed without reading any chunks");
     free(chunk);
     printf("Thread %d read %d chunks\n", args->id, numReceived);
+    fflush(stdout);
 }
 
 void *worker(void *input)
@@ -120,7 +140,7 @@ void *worker(void *input)
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
-        printf("S2 Error in worker %s\n", S2Error(client));
+        printf("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
         fflush(stdout);
     }
     pthread_t readers[threadsPerWorker];
@@ -160,18 +180,21 @@ void ddl_test(S2Client *client)
     if (err)
     {
         printf("Error creating table: %s\n", S2Error(client));
+        fflush(stdout);
     }
 
     ExecuteDDLQuery(client, "INSERT INTO small_test VALUES (1), (2), (3)", &err);
     if (err)
     {
         printf("Error inserting data: %s\n", S2Error(client));
+        fflush(stdout);
     }
 
     ExecuteDDLQuery(client, "DROP TABLE small_test", &err);
     if (err)
     {
         printf("Error dropping table: %s\n", S2Error(client));
+        fflush(stdout);
     }
 }
 
@@ -188,6 +211,8 @@ void parallel_test(S2Client* client)
     ParallelReadInit(client, resultTable, "SELECT * FROM t WHERE non_defined_func(i) = 1", false);
 
     printf("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
+    fflush(stdout);
+
     assert(S2Errno(client));
     ParallelReadFree(client, resultTable);
 
@@ -216,6 +241,7 @@ void parallel_test(S2Client* client)
         pthread_join(workers[i], NULL);
     }
     printf("Processed TOTAL %d rows\n", TOTAL);
+    fflush(stdout);
 
     // clean up parallel reading
     ParallelReadFree(client, resultTable);
@@ -257,7 +283,7 @@ void non_parallel_test(S2Client* client)
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     int numReceived = 0;
 
-    while (GetNextChunk(q, &dummy_partition, chunk, &err))
+    while (GetNextChunk(q, &dummy_partition, chunk, &EH.callback))
     {
         assert(err == 0 && "GetNextChunk failed in non parallel mode");
         if (!numReceived)
@@ -269,6 +295,7 @@ void non_parallel_test(S2Client* client)
                     i,
                     s->ColumnInfo[0].type,
                     s->ColumnInfo[0].name);
+                fflush(stdout);
             }
         }
         assert(err == 0);
@@ -287,6 +314,7 @@ void non_parallel_test(S2Client* client)
                 printf("%c", (chunk->m_ptr + offset + j)[0]);
             }
             printf("\n");
+            fflush(stdout);
         }
 
         ChunkFree(chunk);
@@ -314,6 +342,7 @@ int main(int argc, char *argv[])
             exit(1);
         }
     }
+    EH.callback.setError = dummyHandleError;
 
     const char * version = S2GetClientVersion();
     printf("libs2client version: %s\n", version);

@@ -50,4 +50,17 @@ typedef struct Chunk
     uint64_t row_count;
 } Chunk;
 
+struct S2ErrorCallback;
+
+typedef struct S2ErrorCallback
+{
+    void (*setError)(struct S2ErrorCallback *cb, int error, const char *errorString);
+} S2ErrorCallback;
+
+#define S2C_ERROR_INV_ARG 1            // invalid argument
+#define S2C_ERROR_UNS_DATA_TYPE 2      // unsupported data type
+#define S2C_ERROR_UNKNOWN_FAILURE 3    // unknown failure
+#define S2C_ERROR_MEMORY_ALLOCATION 4  // memory allocation error
+#define S2C_ERROR_READER_FAILED 5      // some of the readers failed
+
 #endif  // CHUNK_EXTERN_H
