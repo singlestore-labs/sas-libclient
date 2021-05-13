@@ -223,9 +223,21 @@ void parallel_test(S2Client* client)
 
 void non_parallel_test(S2Client* client)
 {
-    const char* query = "select table_name from information_schema.tables";
+    const char* query_bad = "select table_name, something_wrong from information_schema.tables";
 
     ChunkQueue* q = QueryGetQueue(
+        client,
+        query_bad,
+        200,
+        queueCapacity);
+
+    assert(S2Errno(client));
+    printf("[EXPECTED] S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+    fflush(stdout);
+
+    const char* query = "select table_name from information_schema.tables";
+
+    ChunkQueue* q_bad = QueryGetQueue(
         client,
         query,
         200,
@@ -234,9 +246,11 @@ void non_parallel_test(S2Client* client)
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
-        printf("S2 Error in worker %s\n", S2Error(client));
+        printf("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
         fflush(stdout);
     }
+    ChunkQueueFree(q_bad);
+
 
     int dummy_partition;
     int err;

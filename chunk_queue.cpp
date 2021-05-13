@@ -76,9 +76,16 @@ ChunkQueue::CreateChunkQueue(
     }
     if (chunkQueue->m_row_schema == nullptr)
     {
-        client->SetError(
-            S2ClientError(S2C_ERROR_READER_FAILED, "Failed to fetch row schema from the table reader")
-            );
+        if (chunkQueue->m_readers.front()->GetError().m_errorCode)
+        {
+            client->SetError(chunkQueue->m_readers.front()->GetError());
+        }
+        else
+        {
+            client->SetError(
+                S2ClientError(S2C_ERROR_READER_FAILED, "Failed to fetch row schema from the table reader")
+                );
+        }
     }
     return chunkQueue;
 }
