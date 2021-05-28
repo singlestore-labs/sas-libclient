@@ -15,8 +15,6 @@
 
 #include "hdat/chunk_writer.hpp"
 
-using super_chunk::structs::PartitionChunk;
-
 // S2Connection represents an actual connection to S2
 // It is a wrapper around mysql client
 class S2Connection

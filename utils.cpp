@@ -118,6 +118,18 @@ namespace super_chunk
 
         extern "C"
         {
+            void
+            CopyChunk(
+                Chunk* out,
+                Chunk* in)
+            {
+                out->m_ptr = in->m_ptr;
+                out->m_size = in->m_size;
+                out->row_count = in->row_count;
+                out->id = in->id;
+                out->partition_id = in->partition_id;
+            }
+
             void ChunkFree(Chunk* chunk)
             {
                 if (chunk)
@@ -130,7 +142,6 @@ namespace super_chunk
             {
                 return S2_CLIENT_VERSION;
             }
-
         }
     }  // namespace utils
 

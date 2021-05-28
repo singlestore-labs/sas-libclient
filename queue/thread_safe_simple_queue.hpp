@@ -1,19 +1,19 @@
-#ifndef THREAD_SAFE_QUEUE_HPP
-#define THREAD_SAFE_QUEUE_HPP
+#ifndef THREAD_SAFE_SIMPLE_QUEUE_HPP
+#define THREAD_SAFE_SIMPLE_QUEUE_HPP
 
+#include <cassert>
 #include <mutex>
 #include <condition_variable>
 #include <queue>
 
+#include "queue/thread_safe_queue.hpp"
 #include "utils.hpp"
 
-using super_chunk::structs::PartitionChunk;
-
-// ThreadSafeQueue is a wrapper around the non-thread-safe std queue
+// ThreadSafeSimpleQueue is a wrapper around the non-thread-safe std queue
 // it allows multiple consumers and multiple producers
 //
 template<typename T>
-class ThreadSafeQueue
+class ThreadSafeSimpleQueue : public ThreadSafeQueue<T>
 {
   private:
     std::queue<T> m_queue;
@@ -24,7 +24,7 @@ class ThreadSafeQueue
     uint32_t m_producers;
 
   public:
-    ThreadSafeQueue(
+    ThreadSafeSimpleQueue(
         uint32_t capacity,
         uint32_t producers)
         :
@@ -33,7 +33,7 @@ class ThreadSafeQueue
     {
     }
 
-    // Push waits while the number of elements in a queue will be less then capacity
+    // Push waits while the number of elements in a queue will be less than capacity
     // then it adds one instance of T to the queue head
     //
     void Push(T const& value)
@@ -71,9 +71,19 @@ class ThreadSafeQueue
         return res;
     }
 
+    T
+    Get(
+        int producerId,
+        int valueId)
+    {
+        assert(false && "Get by id is not supported by ThreadSafeSimpleQueue");
+        T res;
+        return res;
+    };
+
     // DeleteProducer decreases the number of producers by one
     // when no producers left and queue is empty, Pop will throw an exception
-    void DeleteProducer()
+    void DeleteProducer(int producerId)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         m_producers--;
@@ -84,4 +94,4 @@ class ThreadSafeQueue
     }
 };
 
-#endif  // THREAD_SAFE_QUEUE_HPP
+#endif  // THREAD_SAFE_SIMPLE_QUEUE_HPP

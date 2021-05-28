@@ -40,6 +40,12 @@ test_read() {
     ./build/parallel_read_test
 }
 
+test_multi_pass() {
+    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/multi_pass_test.c -o build/multi_pass_test -ls2client -lpthread
+    echo 'Running multi_pass_test...'
+    ./build/multi_pass_test
+}
+
 test_hdat() {
     g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/hdat_test.cpp -o build/hdat_test -ls2client
     echo 'Running hdat_test...'
@@ -50,6 +56,12 @@ test_queue() {
     g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/thread_safe_queue_test.cpp -o build/thread_safe_queue_test -ls2client -lpthread
     echo 'Running thread_safe_queue_test...'
     ./build/thread_safe_queue_test
+}
+
+test_batch_queue() {
+    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/thread_safe_batch_queue_test.cpp -o build/thread_safe_batch_queue_test -ls2client -lpthread
+    echo 'Running thread_safe_batch_queue_test...'
+    ./build/thread_safe_batch_queue_test
 }
 
 for var in "$@"; do

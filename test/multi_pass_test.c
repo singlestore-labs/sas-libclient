@@ -12,7 +12,7 @@
 // #define numWorkers 1
 // #define threadsPerWorker 2
 // #define queueCapacity 2
-#define chunkSize 1048576
+#define chunkSize 10485
 int numWorkers = 1;
 int threadsPerWorker = 2;
 int queueCapacity = 2;
@@ -61,36 +61,26 @@ dummyProcessChunk(
     TOTAL += chunk->row_count;
     if (print)
     {
-        printf( 
-            "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d\n",
+        printf(
+            "Got chunk: %p, m_ptr: %p, m_size: %d, row_count: %d, id: %d, partition_id: %d\n",
             chunk,
             chunk->m_ptr,
-            chunk->partition_id,
             chunk->m_size,
-            chunk->row_count);
+            chunk->row_count,
+            chunk->id,
+            chunk->partition_id);
     }
-    // print the data using the known schema
-    int64_t x, y;
-    memcpy(&x, chunk->m_ptr, 8);
-    memcpy(&y, chunk->m_ptr + 8, 8);
+}
 
-    double u, v;
-    memcpy(&u, chunk->m_ptr + 16, 8);
-    memcpy(&v, chunk->m_ptr + 24, 8);
+void prepare_mult(S2Client *client)
+{
+    int err;
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS t_mult", &err);
+    ExecuteDDLQuery(client, "CREATE TABLE t_mult AS SELECT * FROM t", &err);
 
-    int64_t offset, len;
-    memcpy(&offset, chunk->m_ptr + 32, 8);
-    memcpy(&len, chunk->m_ptr + 40, 8);
-    if (print)
+    for (int i = 0; i < 10; ++i)
     {
-        printf("The numbers in chunk are: %d %d %f %f. ", x, y, u, v);
-        printf("The string is: ");
-        for (int i = 0; i < len; i++)
-        {
-            printf("%c", (chunk->m_ptr + offset + i)[0]);
-        }
-        printf("\n");
-        fflush(stdout);
+        ExecuteDDLQuery(client, "INSERT INTO t_mult (SELECT * FROM t_mult)", &err);
     }
 }
 
@@ -109,7 +99,7 @@ void *reader_thread(void *input)
 
     for (int i = 0; i < s->numColumns; ++i)
     {
-        printf("%d-th column: type %d, name %s; ", i, s->ColumnInfo[i].type, s->ColumnInfo[i].name);
+        printf("%d-th row: type %d, name %s; ", i, s->ColumnInfo[i].type, s->ColumnInfo[i].name);
     }
     printf("\n");
     fflush(stdout);
@@ -146,7 +136,7 @@ void *worker(void *input)
     printf("Worker %d connected to port %d\n", args->id, args->db_port);
     fflush(stdout);
 
-    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity, false);
+    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity, true);
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
@@ -183,31 +173,6 @@ void *worker(void *input)
     return NULL;
 }
 
-void ddl_test(S2Client *client)
-{
-    int err;
-    ExecuteDDLQuery(client, "CREATE TABLE small_test(col_0 INT)", &err);
-    if (err)
-    {
-        printf("Error creating table: %s\n", S2Error(client));
-        fflush(stdout);
-    }
-
-    ExecuteDDLQuery(client, "INSERT INTO small_test VALUES (1), (2), (3)", &err);
-    if (err)
-    {
-        printf("Error inserting data: %s\n", S2Error(client));
-        fflush(stdout);
-    }
-
-    ExecuteDDLQuery(client, "DROP TABLE small_test", &err);
-    if (err)
-    {
-        printf("Error dropping table: %s\n", S2Error(client));
-        fflush(stdout);
-    }
-}
-
 void parallel_test(S2Client *client)
 {
     int agg_ports[numWorkers];
@@ -217,17 +182,8 @@ void parallel_test(S2Client *client)
         agg_ports[i] = db_creds.ma_port;
     }
 
-    // invalid query
-    ParallelReadInit(client, resultTable, "SELECT * FROM t WHERE non_defined_func(i) = 1", false);
-
-    printf("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
-    fflush(stdout);
-
-    assert(S2Errno(client));
-    ParallelReadFree(client, resultTable);
-
-    // init the parallel read
-    ParallelReadInit(client, resultTable, "SELECT * FROM t", false);
+    // init the parallel read in multi-pass mode
+    ParallelReadInit(client, resultTable, "SELECT * FROM t_mult", true);
     if (S2Errno(client))
     {
         printf("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
@@ -255,80 +211,6 @@ void parallel_test(S2Client *client)
 
     // clean up parallel reading
     ParallelReadFree(client, resultTable);
-}
-
-void non_parallel_test(S2Client *client)
-{
-    const char *query_bad = "SELECT table_name, something_wrong FROM information_schema.tables";
-
-    ChunkQueue *q_bad = QueryGetQueue(
-        client,
-        query_bad,
-        200,
-        queueCapacity);
-
-    assert(S2Errno(client));
-    printf("[EXPECTED] S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
-    fflush(stdout);
-    ChunkQueueFree(q_bad);
-
-    const char *query = "SELECT table_name FROM information_schema.tables";
-
-    ChunkQueue *q = QueryGetQueue(
-        client,
-        query,
-        200,
-        queueCapacity);
-    
-    assert(q != NULL && "ChunkQueue is NULL");
-    if (S2Errno(client))
-    {
-        printf("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
-        fflush(stdout);
-    }
-
-    int dummy_partition;
-    int err;
-    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
-    int numReceived = 0;
-
-    while (GetNextChunk(q, &dummy_partition, chunk, &EH.callback))
-    {
-        assert(err == 0 && "GetNextChunk failed in non parallel mode");
-        if (!numReceived)
-        {
-            RowSchema *s = GetRowSchema(q);
-            for (int i = 0; i < s->numColumns; ++i)
-            {
-                printf("%d-th row: type %d, name %s\n", i, s->ColumnInfo[0].type, s->ColumnInfo[0].name);
-                fflush(stdout);
-            }
-        }
-        assert(err == 0);
-        numReceived++;
-
-        int current_offset = 0;
-        for (int i = 0; i < chunk->row_count; ++i)
-        {
-            int64_t offset, len;
-            memcpy(&offset, chunk->m_ptr + current_offset, 8);
-            memcpy(&len, chunk->m_ptr + current_offset + 8, 8);
-            current_offset += 16;
-            printf("Got table #%d: ", i);
-            for (int j = 0; j < len; j++)
-            {
-                printf("%c", (chunk->m_ptr + offset + j)[0]);
-            }
-            printf("\n");
-            fflush(stdout);
-        }
-
-        ChunkFree(chunk);
-    }
-    free(chunk);
-
-    // free the queue
-    ChunkQueueFree(q);
 }
 
 int
@@ -373,9 +255,7 @@ main(
     int p = GetPartitionsNumber(client);
     printf("Number of partitions: %d\n", p);
 
-    ddl_test(client);
-
-    non_parallel_test(client);
+    prepare_mult(client);
 
     parallel_test(client);
 

@@ -1,11 +1,11 @@
-#include "thread_safe_queue.hpp"
+#include "queue/thread_safe_simple_queue.hpp"
 
 #include <cassert>
 #include <iostream>
 #include <thread>
 #include <vector>
 
-const int pushesInOneThread = 100000;
+const int pushesInOneThread = 10000;
 const int threadsCount = 5;
 const int queueCapacity = 20;
 int cnt[pushesInOneThread];
@@ -17,7 +17,7 @@ void pushToQueue(ThreadSafeQueue<int> *q)
     {
         q->Push(i);
     }
-    q->DeleteProducer();
+    q->DeleteProducer(0);
 }
 
 void popFromQueue(ThreadSafeQueue<int> *q)
@@ -34,7 +34,7 @@ void popFromQueue(ThreadSafeQueue<int> *q)
 
 int main()
 {
-    ThreadSafeQueue<int> q(queueCapacity, threadsCount);
+    ThreadSafeSimpleQueue<int> q(queueCapacity, threadsCount);
 
     std::vector<std::thread> threads;
     for (int i = 0; i < threadsCount; i++)

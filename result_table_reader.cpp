@@ -5,7 +5,7 @@
 std::unique_ptr<ResultTableReader>
 ResultTableReader::CreateReader(
     std::unique_ptr<S2Connection> &conn,
-    ThreadSafeQueue<PartitionChunk *> *q,
+    ThreadSafeQueue<Chunk *> *q,
     const char *resultTableName,
     uint32_t partition,
     uint64_t size,
@@ -32,7 +32,7 @@ ResultTableReader::CreateReader(
 std::unique_ptr<ResultTableReader>
 ResultTableReader::CreateReaderNonParallel(
     std::unique_ptr<S2Connection> &conn,
-    ThreadSafeQueue<PartitionChunk *> *q,
+    ThreadSafeQueue<Chunk *> *q,
     const char *query,
     uint64_t size,
     std::shared_ptr<std::mutex> mu,
@@ -64,13 +64,14 @@ void ResultTableReader::StopReading()
 {
     m_stopReading = true;
 }
+
 void ResultTableReader::Read()
 {
     try
     {
         m_conn->Prepare(m_query.c_str());
     }
-    catch(S2ClientError &s2_err)
+    catch (S2ClientError &s2_err)
     {
         std::unique_lock<std::mutex> lock(m_error_mutex);
         m_error = s2_err;
@@ -99,38 +100,37 @@ void ResultTableReader::Read()
             std::unique_lock<std::mutex> lock(m_error_mutex);
             m_error = S2ClientError(S2C_ERROR_READER_FAILED, "Failed to get row schema from result table metadata");
         }
-        this->m_queue->DeleteProducer();
+        this->m_queue->DeleteProducer(m_partition);
         return;
     }
 
     try
     {
+        int chunkId = 0;
         while (!m_stopReading && this->m_conn->HasNextRow())
         {
             // initialize the chunk to fill
             char *ptr = (char *)malloc(m_chunk_size);
-            std::unique_ptr<Chunk> chunk = std::make_unique<Chunk>();
+            Chunk *chunk = new Chunk();
             chunk->m_ptr = ptr;
             chunk->m_size = m_chunk_size;
             chunk->row_count = 0;
+            chunk->id = chunkId;
+            chunk->partition_id = m_partition;
 
-            this->m_conn->NextChunk(m_chunk_writer, chunk.get(), m_row_schema);
+            this->m_conn->NextChunk(m_chunk_writer, chunk, m_row_schema);
 
             if (chunk->row_count == 0)
             {
+                // in case chunk is not pushed to the queue, we need to
+                // free it here
+                free(ptr);
+                delete chunk;
                 break;
             }
 
-            PartitionChunk *pc = new PartitionChunk
-                {
-                    this->m_partition,
-                    std::move(chunk)
-                };
-            if (pc->chunk->row_count == 0)
-            {
-                break;
-            }
-            this->m_queue->Push(pc);
+            this->m_queue->Push(chunk);
+            ++chunkId;
         }
     }
     catch (std::invalid_argument &err)
@@ -148,7 +148,7 @@ void ResultTableReader::Read()
         std::unique_lock<std::mutex> lock(m_error_mutex);
         m_error = s2_err;
     }
-    this->m_queue->DeleteProducer();
+    this->m_queue->DeleteProducer(m_partition);
 }
 
 S2ClientError ResultTableReader::GetError()

@@ -2,10 +2,9 @@
 #define PARALLEL_READ_HPP
 
 #include "chunk_extern.h"
-#include "chunk_queue.hpp"
+#include "queue/chunk_queue.hpp"
 #include "s2_client.hpp"
 #include "utils.hpp"
-
 
 extern "C"
 {
@@ -26,7 +25,8 @@ extern "C"
         S2Client* client,
         const char* resultTableName,
         uint64_t chunkSize,
-        int queueCapacity);
+        int queueCapacity,
+        bool isMultiPass);
 
     ChunkQueue*
     QueryGetQueue(
@@ -39,6 +39,14 @@ extern "C"
     GetNextChunk(
         ChunkQueue* queue,
         uint32_t* partitionId /*out*/,
+        Chunk* chunk /*out*/,
+        S2ErrorCallback* cb);
+
+    bool
+    GetChunkMulti(
+        ChunkQueue* queue,
+        uint32_t partitionId,
+        uint32_t chunkId,
         Chunk* chunk /*out*/,
         S2ErrorCallback* cb);
 

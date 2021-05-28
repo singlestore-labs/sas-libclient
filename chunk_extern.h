@@ -48,13 +48,15 @@ typedef struct Chunk
     char* m_ptr;
     uint64_t m_size;
     uint64_t row_count;
+    uint64_t id;
+    uint32_t partition_id;
 } Chunk;
 
 struct S2ErrorCallback;
 
 typedef struct S2ErrorCallback
 {
-    void (*setError)(struct S2ErrorCallback *cb, int error, const char *errorString);
+    void (*setError)(struct S2ErrorCallback* cb, int error, const char* errorString);
 } S2ErrorCallback;
 
 #define S2C_ERROR_INV_ARG 1            // invalid argument

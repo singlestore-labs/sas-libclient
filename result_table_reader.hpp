@@ -4,7 +4,7 @@
 #include <thread>
 
 #include "s2_client.hpp"
-#include "thread_safe_queue.hpp"
+#include "queue/thread_safe_queue.hpp"
 
 // ResultTableReader is responsible for reading chunks from one partition and add them to the thread safe queue
 class ResultTableReader
@@ -14,7 +14,7 @@ class ResultTableReader
     static std::unique_ptr<ResultTableReader>
     CreateReader(
         std::unique_ptr<S2Connection> &conn,
-        ThreadSafeQueue<PartitionChunk *> *q,
+        ThreadSafeQueue<Chunk *> *q,
         const char *resultTableName,
         uint32_t partition,
         uint64_t size,
@@ -25,7 +25,7 @@ class ResultTableReader
     static std::unique_ptr<ResultTableReader>
     CreateReaderNonParallel(
         std::unique_ptr<S2Connection> &conn,
-        ThreadSafeQueue<PartitionChunk *> *q,
+        ThreadSafeQueue<Chunk *> *q,
         const char *query,
         uint64_t size,
         std::shared_ptr<std::mutex> mu,
@@ -63,7 +63,7 @@ class ResultTableReader
 
   private:
     ResultTableReader(
-        ThreadSafeQueue<PartitionChunk *> *q,
+        ThreadSafeQueue<Chunk *> *q,
         uint32_t partition,
         uint64_t size)
         :
@@ -77,7 +77,7 @@ class ResultTableReader
 
     std::thread m_reading_thread;
     std::unique_ptr<S2Connection> m_conn = nullptr;
-    ThreadSafeQueue<PartitionChunk *> *m_queue;
+    ThreadSafeQueue<Chunk *> *m_queue;
 
     uint32_t m_partition;
     std::string m_query;

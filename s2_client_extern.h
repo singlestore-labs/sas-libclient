@@ -34,24 +34,53 @@ ParallelReadInit(
     const char* selectQuery,
     bool materialized);
 
-// ParallelReadGetQueue is called once per worker. ChunkQueue is a helper object which does all the processing
-// internally. client to process resultTableName must be initialized using S2ClientInit() by the worker before calling
-// this function.
-// chunkSize is the size of the single chunk in bytes
-// queueCapacity is the maximum number of chunks that can be present in a worker's ChunkQueue at the same time
+// ParallelReadGetQueue is called once per worker.
+// ChunkQueue is a helper object
+// which does all the processing internally.
+// client to process resultTableName
+// must be initialized using S2ClientInit() by the worker
+// before calling this function.
+// chunkSize is the size of the single chunk in bytes.
+// queueCapacity is the maximum number of chunks
+// that can be present in a worker's ChunkQueue at
+// the same time.
+// isMultiPass is set to true if resultTableName
+// will be read in multi-pass mode
 ChunkQueue*
 ParallelReadGetQueue(
     S2Client* client,
     const char* resultTableName,
     uint64_t chunkSize,
-    int queueCapacity);
+    int queueCapacity,
+    bool isMultiPass);
 
-// GetNextChunk is called in a loop until false is returned meaning all results have been added to the queue
-// and retrieved from it
+// GetNextChunk is called in a loop until false is returned meaning all results
+// have been added to the queue and retrieved from it. This is used in
+// single-pass and the first pass in multi-pass
 bool
 GetNextChunk(
     ChunkQueue* queue,
     uint32_t* partitionId /*out*/,
+    Chunk* chunk /*out*/,
+    S2ErrorCallback* cb);
+
+// GetChunkMulti is called in a loop in the same way as GetNextChunk.
+// It is used starting from the second pass in multi-pass
+bool
+GetChunkMulti(
+    ChunkQueue* queue,
+    uint32_t partitionId,
+    uint32_t chunkId,
+    Chunk* chunk /*out*/,
+    S2ErrorCallback* cb);
+
+// TODO: implement
+bool
+GetChunkRow(
+    ChunkQueue* queue,
+    uint32_t partitionId,
+    uint32_t chunkId,
+    int64_t rowNum,
     Chunk* chunk /*out*/,
     S2ErrorCallback* cb);
 
@@ -72,7 +101,8 @@ ParallelReadFree(
 // general query execution functions
 
 // ExecuteDDLQuery is used when no results need to be fetched (DDL or DML query)
-void ExecuteDDLQuery(
+void
+ExecuteDDLQuery(
     S2Client* client,
     const char* query,
     int* err);

@@ -22,6 +22,11 @@ class S2ClientError : public std::exception
     {
     }
 
+    S2ClientError()
+    {
+        S2ClientError(0, "");
+    }
+
     const char* what() const noexcept override
     {
         return m_errorMessage.c_str();

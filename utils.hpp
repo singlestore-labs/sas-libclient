@@ -30,25 +30,20 @@ namespace super_chunk
             MYSQL_FIELD* fields,
             RowSchema* rowSchema /*out*/);
 
-        void
-        RowSchemaFree(RowSchema* schema);
+        void RowSchemaFree(RowSchema* schema);
 
         extern "C"
         {
+            void
+            CopyChunk(
+                Chunk* out,
+                Chunk* in);
+
             void ChunkFree(Chunk* chunk);
 
             const char* S2GetClientVersion();
         }
     }  // namespace utils
-
-    namespace structs
-    {
-        struct PartitionChunk
-        {
-            const uint32_t partitionId;
-            std::unique_ptr<Chunk> chunk;
-        };
-    }  // namespace structs
 
     namespace sql
     {

@@ -129,8 +129,7 @@ SuperChunkWriter::WriteRow(
         {
             throw std::invalid_argument(
                 "chunk size " + std::to_string(this->m_chunk_size) + " is too small. Required at least " +
-                std::to_string(total_size)
-                );
+                std::to_string(total_size));
         }
         return false;
     }
@@ -166,7 +165,9 @@ SuperChunkWriter::WriteRow(
             }
             default:
             {
-                throw S2ClientError(S2C_ERROR_UNS_DATA_TYPE, "Trying to write unsupported data type to the chunk. Aborted.");
+                throw S2ClientError(
+                    S2C_ERROR_UNS_DATA_TYPE,
+                    "Trying to write unsupported data type to the chunk. Aborted.");
             }
         }
     }
