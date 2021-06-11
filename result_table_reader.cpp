@@ -66,6 +66,11 @@ void ResultTableReader::StopReading()
     m_stopReading = true;
 }
 
+void ResultTableReader::NotifyConnUnfinishedStmt()
+{
+    m_conn->DiscardStmtClose();
+}
+
 void ResultTableReader::Read()
 {
     try
@@ -102,6 +107,7 @@ void ResultTableReader::Read()
             m_error = S2ClientError(S2C_ERROR_READER_FAILED, "Failed to get row schema from result table metadata");
         }
         this->m_queue->DeleteProducer(m_reader_id);
+        SetActive(false);
         return;
     }
 
@@ -150,6 +156,7 @@ void ResultTableReader::Read()
         m_error = s2_err;
     }
     this->m_queue->DeleteProducer(m_reader_id);
+    SetActive(false);
 }
 
 S2ClientError ResultTableReader::GetError()

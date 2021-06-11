@@ -18,24 +18,34 @@ class ChunkQueue
   public:
     virtual ~ChunkQueue()
     {
+        bool is_read_finished = true;
         for (auto &reader : m_readers)
         {
+            if (reader->IsActive())
+            {
+                is_read_finished = false;
+            }
             reader->StopReading();
         }
-        if (m_queue)
+
+        if (!is_read_finished)
+        {
+            for (auto &reader : m_readers)
+            {
+                reader->NotifyConnUnfinishedStmt();
+            }
+        }
+        if (m_ts_queue)
         {
             // delete all chunks that are saved in queue
             S2ClientError err(0, "");
             while (Chunk *c = Get(err))
             {
-                if (c)
-                {
-                    super_chunk::utils::ChunkFree(c);
-                }
+                super_chunk::utils::ChunkFree(c);
                 delete c;
             }
-            delete m_queue;
-            m_queue = nullptr;
+            delete m_ts_queue;
+            m_ts_queue = nullptr;
         }
     };
 
@@ -45,7 +55,7 @@ class ChunkQueue
         err = S2ClientError(0, "");
         try
         {
-            return m_queue->Pop();
+            return m_ts_queue->Pop();
         }
         catch (std::out_of_range &ex)
         {
@@ -99,7 +109,7 @@ class ChunkQueue
     std::unordered_map<int, int> m_partition_reader;
 
     std::vector<std::unique_ptr<ResultTableReader>> m_readers;
-    ThreadSafeQueue<Chunk *> *m_queue;
+    ThreadSafeQueue<Chunk *> *m_ts_queue;
 };
 
 #endif  // CHUNK_QUEUE_HPP

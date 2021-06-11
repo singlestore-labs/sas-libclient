@@ -23,7 +23,7 @@ MultiPassQueue::CreateChunkQueue(
         client->m_numPartitions);
 
     // create ThreadSafeQueue
-    chunkQueue->m_queue = new ThreadSafeBatchQueue<Chunk *>(capacity, partitions.size());
+    chunkQueue->m_ts_queue = new ThreadSafeBatchQueue<Chunk *>(capacity, partitions.size());
 
     // we acquire lock before creating readers
     std::unique_lock<std::mutex> row_schema_lock(*row_schema_mutex.get());
@@ -37,7 +37,7 @@ MultiPassQueue::CreateChunkQueue(
         chunkQueue->m_readers.push_back(
             ResultTableReader::CreateReader(
                 client->m_conn,
-                chunkQueue->m_queue,
+                chunkQueue->m_ts_queue,
                 resultTableName,
                 i,
                 partitions[i],
@@ -101,7 +101,7 @@ MultiPassQueue::GetById(
     }
     try
     {
-        return m_queue->Get(producerId, chunkId);
+        return m_ts_queue->Get(producerId, chunkId);
     }
     catch (std::out_of_range &ex)
     {

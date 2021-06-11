@@ -38,7 +38,11 @@ class S2Connection
     ~S2Connection()
     {
         freeResult();
-        if (m_stmt)
+        // if the flag m_need_stmt_close is set to true (default behavior)
+        // we close the statement before closing the connection.
+        // Otherwise we close the statement after connection, this
+        // only frees the memory on the client side
+        if (m_stmt && m_need_stmt_close)
         {
             mysql_stmt_close(m_stmt);
             m_stmt = nullptr;
@@ -47,6 +51,11 @@ class S2Connection
         {
             mysql_close(m_conn);
             m_conn = nullptr;
+        }
+        if (m_stmt)
+        {
+            mysql_stmt_close(m_stmt);
+            m_stmt = nullptr;
         }
     }
 
@@ -78,9 +87,20 @@ class S2Connection
     // GetPartitionsNumber returns the number of partitions in the table
     int GetPartitionsNumber();
 
+    // DiscardStmtClose sets the flag that indicates that we skip
+    // closing the prepared statement which is being processed.
+    // This results in slight memory leaks, but allows us to
+    // destroy ChunkQueue object fast
+    void DiscardStmtClose()
+    {
+        m_need_stmt_close = false;
+    }
+
   private:
     MYSQL* m_conn = nullptr;
     MYSQL_STMT* m_stmt = nullptr;
+    bool m_need_stmt_close = true;
+
     MYSQL_ROW last_fetched_row = nullptr;
     unsigned long* last_fetched_lengths = nullptr;
     int last_columns_num = 0;

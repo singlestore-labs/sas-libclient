@@ -23,7 +23,7 @@ StreamingQueue::CreateChunkQueue(
             super_chunk::utils::AssignedPartitions(client->m_numWorkers, client->m_workerId, client->m_numPartitions);
     }
     // create ThreadSafeQueue
-    chunkQueue->m_queue = new ThreadSafeSimpleQueue<Chunk *>(capacity, partitions.size());
+    chunkQueue->m_ts_queue = new ThreadSafeSimpleQueue<Chunk *>(capacity, partitions.size());
 
     // we acquire lock before creating readers
     std::unique_lock<std::mutex> row_schema_lock(*row_schema_mutex.get());
@@ -39,7 +39,7 @@ StreamingQueue::CreateChunkQueue(
             chunkQueue->m_readers.push_back(
                 ResultTableReader::CreateReader(
                     client->m_conn,
-                    chunkQueue->m_queue,
+                    chunkQueue->m_ts_queue,
                     resultTableName,
                     i,
                     partitions[i],
@@ -54,7 +54,7 @@ StreamingQueue::CreateChunkQueue(
         chunkQueue->m_readers.push_back(
             ResultTableReader::CreateReaderNonParallel(
                 client->m_conn,
-                chunkQueue->m_queue,
+                chunkQueue->m_ts_queue,
                 resultTableName /*query*/,
                 chunkSize,
                 row_schema_mutex,

@@ -40,6 +40,8 @@ class ThreadSafeQueue
     // When no producers are left and queue is empty, Pop will throw an exception
     //
     virtual void DeleteProducer(int producerId) = 0;
+
+    std::queue<T> m_queue;
 };
 
 #endif  // THREAD_SAFE_QUEUE_HPP

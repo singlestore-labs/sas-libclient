@@ -21,15 +21,14 @@ template<typename T>
 class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
 {
   private:
+    std::queue<T> m_queue;
+
     const int m_totalProducers;
     int m_activeProducers;
     // m_producerActiveArray contains the state of producers
     std::vector<bool> m_producerActiveArray;
     // m_dataArray stores the data that is written to/read from the queue
     std::vector<DataContainer<T>> m_dataArray;
-    // m_dataQueue stores m_dataArray elements that are used
-    // in the first pass of multi-pass
-    std::queue<T> m_dataQueue;
 
     // m_batchSize indicates how many items from each producer can push
     // at a single stage of processing
@@ -137,7 +136,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
 
         m_dataArray[valueIndex].valuePtr = val;
         m_dataArray[valueIndex].isSet = true;
-        m_dataQueue.push(val);
+        m_queue.push(val);
 
         ++m_itemsToRead;
         m_emptyCV.notify_one();
@@ -158,10 +157,10 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
             throw std::out_of_range("Queue is empty");
         }
 
-        T res = m_dataQueue.front();
+        T res = m_queue.front();
         int valueIndex = targetIndex(res->producer_id, res->id);
         readValue(valueIndex);
-        m_dataQueue.pop();
+        m_queue.pop();
 
         if (isBatchFinished())
         {
@@ -204,7 +203,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
 
         // we pop the value from the queue in order not to accumulate all values there
         // m_dataQueue is not used in subsequent passes of multi-pass
-        m_dataQueue.pop();
+        m_queue.pop();
 
         if (isBatchFinished())
         {

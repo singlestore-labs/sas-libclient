@@ -62,6 +62,18 @@ class ResultTableReader
         return this->m_row_schema;
     }
 
+    bool IsActive() const
+    {
+        return m_active;
+    }
+
+    void SetActive(const bool active)
+    {
+        m_active = active;
+    }
+
+    void NotifyConnUnfinishedStmt();
+
   private:
     ResultTableReader(
         ThreadSafeQueue<Chunk *> *q,
@@ -84,6 +96,8 @@ class ResultTableReader
 
     uint32_t m_reader_id;
     uint32_t m_partition;
+
+    std::atomic<bool> m_active = ATOMIC_VAR_INIT(true);
 
     std::string m_query;
     const uint64_t m_chunk_size;

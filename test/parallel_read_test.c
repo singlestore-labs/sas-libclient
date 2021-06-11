@@ -17,6 +17,7 @@ int numWorkers = 1;
 int threadsPerWorker = 2;
 int queueCapacity = 2;
 
+const char* queryMain = "SELECT * FROM t";
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
 
@@ -167,6 +168,8 @@ void *worker(void *input)
         pthread_join(readers[i], NULL);
     }
     // free the queue
+    printf("Calling ChunkQueueFree...\n");
+    fflush(stdout);
     ChunkQueueFree(q);
 
     if (S2Errno(client))
@@ -225,7 +228,7 @@ void parallel_test(S2Client *client)
     ParallelReadFree(client, resultTable);
 
     // init the parallel read
-    ParallelReadInit(client, resultTable, "SELECT * FROM t", false);
+    ParallelReadInit(client, resultTable, queryMain, false);
     if (S2Errno(client))
     {
         printf("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
