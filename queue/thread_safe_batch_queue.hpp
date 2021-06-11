@@ -76,8 +76,13 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
         {
             m_readInBatch[i] = 0;
         }
-        m_currentBatch += 1;
+        ++m_currentBatch;
+
         m_busyCV.notify_all();
+        for (int i = 0; i < m_totalProducers; ++i)
+        {
+            m_dataNotReadyCV[i]->notify_all();
+        }
     }
 
     T readValue(int idx)
@@ -121,7 +126,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         int batchNum = val->id / m_batchSize;
-        int valueIndex = targetIndex(val->partition_id, val->id);
+        int valueIndex = targetIndex(val->producer_id, val->id);
 
         while (batchNum > m_currentBatch)
         {
@@ -136,7 +141,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
 
         ++m_itemsToRead;
         m_emptyCV.notify_one();
-        m_dataNotReadyCV[val->partition_id]->notify_all();
+        m_dataNotReadyCV[val->producer_id]->notify_all();
     }
 
     T Pop()
@@ -154,7 +159,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
         }
 
         T res = m_dataQueue.front();
-        int valueIndex = targetIndex(res->partition_id, res->id);
+        int valueIndex = targetIndex(res->producer_id, res->id);
         readValue(valueIndex);
         m_dataQueue.pop();
 
@@ -179,12 +184,27 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
         }
 
         int valueIndex = targetIndex(producerId, valueId);
-        while (!m_dataArray[valueIndex].isSet || valueId / m_batchSize != m_currentBatch)
+
+        // we should wait until:
+        // - the corresponding value has been pushed
+        // - m_currentBatch is the batch to which valueId belongs
+        // if producerId is not active, we should not wait anymore
+        while ((!m_dataArray[valueIndex].isSet ||
+                valueId / m_batchSize != m_currentBatch) &&
+               m_producerActiveArray[producerId])
         {
             m_dataNotReadyCV[producerId]->wait(lock);
         }
+        if (!m_dataArray[valueIndex].isSet)
+        {
+            throw std::out_of_range("Asking for non-existsent chunk");
+        }
 
         T res = readValue(valueIndex);
+
+        // we pop the value from the queue in order not to accumulate all values there
+        // m_dataQueue is not used in subsequent passes of multi-pass
+        m_dataQueue.pop();
 
         if (isBatchFinished())
         {
@@ -200,6 +220,10 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
         m_producerActiveArray[producerId] = false;
         --m_activeProducers;
 
+        if (isBatchFinished())
+        {
+            resetBatch();
+        }
         if (!m_activeProducers)
         {
             m_emptyCV.notify_all();

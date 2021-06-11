@@ -22,7 +22,6 @@ StreamingQueue::CreateChunkQueue(
         partitions =
             super_chunk::utils::AssignedPartitions(client->m_numWorkers, client->m_workerId, client->m_numPartitions);
     }
-
     // create ThreadSafeQueue
     chunkQueue->m_queue = new ThreadSafeSimpleQueue<Chunk *>(capacity, partitions.size());
 
@@ -42,6 +41,7 @@ StreamingQueue::CreateChunkQueue(
                     client->m_conn,
                     chunkQueue->m_queue,
                     resultTableName,
+                    i,
                     partitions[i],
                     chunkSize,
                     row_schema_mutex,

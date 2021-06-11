@@ -8,7 +8,6 @@
 #include "result_table_reader.hpp"
 #include "queue/thread_safe_batch_queue.hpp"
 
-
 class MultiPassQueue : public ChunkQueue
 {
   private:

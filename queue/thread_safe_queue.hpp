@@ -15,7 +15,7 @@ class ThreadSafeQueue
 {
   public:
     virtual ~ThreadSafeQueue()
-    {};
+        {};
     // Push waits while the number of elements in a queue will be less than capacity
     // then it adds one instance of T to the queue head
     //
@@ -29,7 +29,7 @@ class ThreadSafeQueue
 
     // Get waits until the element number valueId
     // is added by producerId. When it's added,
-    // it return this element
+    // it returns this element
     //
     virtual T
     Get(

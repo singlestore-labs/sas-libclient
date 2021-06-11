@@ -8,7 +8,6 @@
 #include "queue/thread_safe_queue.hpp"
 #include "queue/thread_safe_simple_queue.hpp"
 
-
 class StreamingQueue : public ChunkQueue
 {
   private:

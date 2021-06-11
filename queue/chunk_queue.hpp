@@ -1,6 +1,7 @@
 #ifndef CHUNK_QUEUE_HPP
 #define CHUNK_QUEUE_HPP
 
+#include <unordered_map>
 #include <vector>
 
 #include "result_table_reader.hpp"
@@ -86,12 +87,16 @@ class ChunkQueue
     }
 
   protected:
-    ChunkQueue()
-    {}
+    ChunkQueue() = default;
 
     RowSchema *m_row_schema = nullptr;
     S2ClientError m_error;
     std::mutex m_error_mutex;
+
+    // m_partition_reader stores partition -> reader_id correspondence.
+    // reader ids are required to be 0, 1 , ..., m_readers.size() - 1
+    // for the batch queue to work
+    std::unordered_map<int, int> m_partition_reader;
 
     std::vector<std::unique_ptr<ResultTableReader>> m_readers;
     ThreadSafeQueue<Chunk *> *m_queue;

@@ -61,7 +61,7 @@ dummyProcessChunk(
     TOTAL += chunk->row_count;
     if (print)
     {
-        printf( 
+        printf(
             "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d\n",
             chunk,
             chunk->m_ptr,
@@ -130,7 +130,6 @@ void *worker(void *input)
 {
     // init the client
     struct workerArgs *args = (struct workerArgs *)input;
-    int err;
     S2Client *client = S2ClientInit(
         db_creds.host,
         args->db_port,
@@ -139,8 +138,7 @@ void *worker(void *input)
         db_creds.password,
         numWorkers,
         args->id,
-        &err);
-    assert(err == 0 && "Failed to init the client");
+        &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
     printf("Worker %d connected to port %d\n", args->id, args->db_port);
@@ -279,7 +277,7 @@ void non_parallel_test(S2Client *client)
         query,
         200,
         queueCapacity);
-    
+
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
@@ -355,7 +353,6 @@ main(
     const char *version = S2GetClientVersion();
     printf("libs2client version: %s\n", version);
 
-    int err;
     // init the client
     S2Client *client = S2ClientInit(
         db_creds.host,
@@ -365,8 +362,7 @@ main(
         db_creds.password,
         numWorkers,
         -1,
-        &err);
-    assert(err == 0 && "Failed to init the client");
+        &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
     // check the partition number

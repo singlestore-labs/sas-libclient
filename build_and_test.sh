@@ -35,31 +35,31 @@ export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}/build"
 mkdir -p "${LD_LIBRARY_PATH}"
 
 test_read() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/parallel_read_test.c -o build/parallel_read_test -ls2client -lpthread
+    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/parallel_read_test.c -o build/parallel_read_test -ls2client -lpthread -g
     echo 'Running parallel_read_test...'
     ./build/parallel_read_test
 }
 
 test_multi_pass() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/multi_pass_test.c -o build/multi_pass_test -ls2client -lpthread
+    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/multi_pass_test.c -o build/multi_pass_test -ls2client -lpthread -g
     echo 'Running multi_pass_test...'
     ./build/multi_pass_test
 }
 
 test_hdat() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/hdat_test.cpp -o build/hdat_test -ls2client
+    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/hdat_test.cpp -o build/hdat_test -ls2client -g
     echo 'Running hdat_test...'
     ./build/hdat_test
 }
 
 test_queue() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/thread_safe_queue_test.cpp -o build/thread_safe_queue_test -ls2client -lpthread
+    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/thread_safe_queue_test.cpp -o build/thread_safe_queue_test -ls2client -lpthread -g
     echo 'Running thread_safe_queue_test...'
     ./build/thread_safe_queue_test
 }
 
 test_batch_queue() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/thread_safe_batch_queue_test.cpp -o build/thread_safe_batch_queue_test -ls2client -lpthread
+    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/thread_safe_batch_queue_test.cpp -o build/thread_safe_batch_queue_test -ls2client -lpthread -g
     echo 'Running thread_safe_batch_queue_test...'
     ./build/thread_safe_batch_queue_test
 }

@@ -2,7 +2,7 @@
 #define CLIENT_CONFIG_H
 
 #define S2_SERVER_VERSION "7.5.1"
-#define S2_CLIENT_VERSION "0.1.0"
+#define S2_CLIENT_VERSION "0.1.1"
 
 // #define REGULAR_TABLE_MODE
 

@@ -57,7 +57,7 @@ extern "C"
         const char* password,
         int numWorkers,
         int workerId,
-        int* err /*out*/);
+        S2ErrorCallback* cb);
 
     void S2ClientFree(S2Client* s2Client);
 

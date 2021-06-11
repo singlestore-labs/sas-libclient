@@ -20,7 +20,7 @@ typedef struct intContainer
 {
     int val;
     int id;
-    int partition_id;
+    int producer_id;
 } intContainer;
 
 void
@@ -35,7 +35,7 @@ pushToQueue(
             {
                 .val = value,
                 .id = i,
-                .partition_id = selfId
+                .producer_id = selfId
             };
 
         q->Push(data);
@@ -57,7 +57,7 @@ popFromQueue(
             cur = q->Pop();
             (*received).push_back(cur);
             std::unique_lock<std::mutex> lock(cnt_mutex);
-            ++cnt_pop[cur->partition_id];
+            ++cnt_pop[cur->producer_id];
             lock.unlock();
         }
         catch (const std::out_of_range &e)
@@ -81,11 +81,11 @@ getFromQueue(
     {
         try
         {
-            val = q->Get(item->partition_id, item->id);
+            val = q->Get(item->producer_id, item->id);
             received2.push_back(val);
             {
                 std::unique_lock<std::mutex> lock(cnt_mutex);
-                cnt_get[item->partition_id]++;
+                cnt_get[item->producer_id]++;
             }
         }
         catch (const std::out_of_range &e)
@@ -97,7 +97,7 @@ getFromQueue(
     {
         if (!(((*received)[i]->val == received2[i]->val) &&
               ((*received)[i]->id == received2[i]->id) &&
-              ((*received)[i]->partition_id == received2[i]->partition_id)))
+              ((*received)[i]->producer_id == received2[i]->producer_id)))
         {
             printf(
                 "%d %d\t%d %d\t%d %d\n",
@@ -105,13 +105,13 @@ getFromQueue(
                 received2[i]->val,
                 (*received)[i]->id,
                 received2[i]->id,
-                (*received)[i]->partition_id,
-                received2[i]->partition_id);
+                (*received)[i]->producer_id,
+                received2[i]->producer_id);
         }
         assert(
             ((*received)[i]->val == received2[i]->val) &&
             ((*received)[i]->id == received2[i]->id) &&
-            ((*received)[i]->partition_id == received2[i]->partition_id));
+            ((*received)[i]->producer_id == received2[i]->producer_id));
     }
     printf("Getting finished for %d! Got %d items\n", selfId, received2.size());
 }

@@ -49,7 +49,8 @@ typedef struct Chunk
     uint64_t m_size;
     uint64_t row_count;
     uint64_t id;
-    uint32_t partition_id;
+    uint32_t partition_id;  // S2 partition, serves as a part of key in multi-pass
+    uint32_t producer_id;   // internal libclient id
 } Chunk;
 
 struct S2ErrorCallback;

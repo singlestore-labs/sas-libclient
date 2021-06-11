@@ -5,17 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdatomic.h>
+#include <unistd.h>
 
 #include "s2_client_extern.h"
 #include "test/db_creds.h"
 
-// #define numWorkers 1
-// #define threadsPerWorker 2
-// #define queueCapacity 2
 #define chunkSize 10485
-int numWorkers = 1;
-int threadsPerWorker = 2;
-int queueCapacity = 2;
+
+int numWorkers = 3;
+int threadsPerWorker = 5;
+int batchSize = 2;
 
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
@@ -26,11 +25,21 @@ struct workerArgs
     int db_port;
 };
 
-struct readerThreadArgs
+typedef struct ReceivedChunk
+{
+    int chunk_id;
+    int partition_id;
+    int row_count;
+} ReceivedChunk;
+
+typedef struct ReaderThreadArgs
 {
     int id;
     ChunkQueue *queue;
-};
+    bool is_first_pass;
+    int n_chunks_read;
+    ReceivedChunk *chunks_read;
+} ReaderThreadArgs;
 
 typedef struct ErrorHandler
 {
@@ -56,9 +65,20 @@ dummyHandleError(
 void
 dummyProcessChunk(
     Chunk *chunk,
-    bool print)
+    bool print,
+    ReaderThreadArgs *args)
 {
+    if (args->is_first_pass)
+    {
+        (args->chunks_read)[args->n_chunks_read].chunk_id = chunk->id;
+        (args->chunks_read)[args->n_chunks_read].partition_id = chunk->partition_id;
+        (args->chunks_read)[args->n_chunks_read].row_count = chunk->row_count;
+
+        (args->n_chunks_read)++;
+    }
+
     TOTAL += chunk->row_count;
+
     if (print)
     {
         printf(
@@ -86,32 +106,68 @@ void prepare_mult(S2Client *client)
 
 void *reader_thread(void *input)
 {
-    struct readerThreadArgs *args = (struct readerThreadArgs *)input;
+    ReaderThreadArgs *args = (struct ReaderThreadArgs *)input;
 
     int partitionId;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
-    printf("Thread %d allocated chunk %p\n", args->id, chunk);
-    fflush(stdout);
+
     int numReceived = 0;
 
-    RowSchema *s = GetRowSchema(args->queue);
-    assert(s && "GetRowSchema failed");
-
-    for (int i = 0; i < s->numColumns; ++i)
+    if (args->is_first_pass)
     {
-        printf("%d-th row: type %d, name %s; ", i, s->ColumnInfo[i].type, s->ColumnInfo[i].name);
-    }
-    printf("\n");
-    fflush(stdout);
+        printf("Thread %d allocated chunk %p\n", args->id, chunk);
+        fflush(stdout);
+        RowSchema *s = GetRowSchema(args->queue);
+        assert(s && "GetRowSchema failed");
 
-    while (GetNextChunk(args->queue, &partitionId, chunk, &EH.callback))
+        for (int i = 0; i < s->numColumns; ++i)
+        {
+            printf("%d-th row: type %d, name %s; ", i, s->ColumnInfo[i].type, s->ColumnInfo[i].name);
+        }
+        printf("\n");
+        fflush(stdout);
+
+        while (GetNextChunk(args->queue, &partitionId, chunk, &EH.callback))
+        {
+            numReceived++;
+
+            dummyProcessChunk(chunk, false, args);
+            ChunkFree(chunk);
+        }
+
+        free(chunk);
+    }
+    else
     {
-        numReceived++;
+        printf("Starting GetChunkMulti in %d\n", args->id);
 
-        dummyProcessChunk(chunk, true);
-        ChunkFree(chunk);
+        while (GetChunkMulti(
+                   args->queue,
+                   (args->chunks_read)[numReceived].partition_id,
+                   (args->chunks_read)[numReceived].chunk_id,
+                   chunk,
+                   &EH.callback) &&
+               numReceived < args->n_chunks_read)
+        {
+            if (!(chunk->row_count == args->chunks_read[numReceived].row_count))
+            {
+                printf(
+                    "[ERROR]: got %d rows, expected %d, thread %d\n ",
+                    chunk->row_count,
+                    args->chunks_read[numReceived].row_count,
+                    args->id);
+            }
+            assert(chunk->row_count == args->chunks_read[numReceived].row_count);
+            numReceived++;
+
+            ChunkFree(chunk);
+        }
+
+        assert(numReceived == args->n_chunks_read);
+
+        free(chunk);
     }
-    free(chunk);
+
     printf("Thread %d read %d chunks\n", args->id, numReceived);
     fflush(stdout);
 }
@@ -120,7 +176,6 @@ void *worker(void *input)
 {
     // init the client
     struct workerArgs *args = (struct workerArgs *)input;
-    int err;
     S2Client *client = S2ClientInit(
         db_creds.host,
         args->db_port,
@@ -129,14 +184,13 @@ void *worker(void *input)
         db_creds.password,
         numWorkers,
         args->id,
-        &err);
-    assert(err == 0 && "Failed to init the client");
+        &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
     printf("Worker %d connected to port %d\n", args->id, args->db_port);
     fflush(stdout);
 
-    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity, true);
+    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, batchSize, true);
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
@@ -144,13 +198,17 @@ void *worker(void *input)
         fflush(stdout);
     }
     pthread_t readers[threadsPerWorker];
-    struct readerThreadArgs readerArgs[threadsPerWorker];
+    ReaderThreadArgs readerArgs[threadsPerWorker];
     int i;
 
     for (i = 0; i < threadsPerWorker; i++)
     {
         readerArgs[i].id = i + 1000 * args->id;
         readerArgs[i].queue = q;
+        readerArgs[i].is_first_pass = true;
+        readerArgs[i].n_chunks_read = 0;
+        readerArgs[i].chunks_read = (ReceivedChunk *)malloc(100 * sizeof(ReceivedChunk));
+
         pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
     }
 
@@ -158,8 +216,36 @@ void *worker(void *input)
     {
         pthread_join(readers[i], NULL);
     }
+
     // free the queue
     ChunkQueueFree(q);
+
+    if (S2Errno(client))
+    {
+        printf("S2 Error in controller %s\n", S2Error(client));
+        fflush(stdout);
+    }
+
+    printf("...Starting second pass in %d\n", args->id);
+
+    // read the second time
+    ChunkQueue *q_multi = ParallelReadGetQueue(client, resultTable, chunkSize, batchSize, true);
+
+    for (i = 0; i < threadsPerWorker; i++)
+    {
+        readerArgs[i].queue = q_multi;
+        readerArgs[i].is_first_pass = false;
+
+        pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
+    }
+
+    for (i = 0; i < threadsPerWorker; i++)
+    {
+        pthread_join(readers[i], NULL);
+    }
+
+    // free the queue
+    ChunkQueueFree(q_multi);
 
     if (S2Errno(client))
     {
@@ -173,7 +259,7 @@ void *worker(void *input)
     return NULL;
 }
 
-void parallel_test(S2Client *client)
+void main_test(S2Client *client)
 {
     int agg_ports[numWorkers];
     // use MA for every connection
@@ -222,13 +308,13 @@ main(
     {
         numWorkers = atoi(argv[1]);
         threadsPerWorker = atoi(argv[2]);
-        queueCapacity = atoi(argv[3]);
+        batchSize = atoi(argv[3]);
     }
     else
     {
         if (argc != 1)
         {
-            printf("Exiting... Correct usage: parallel_read_test <numWorkers> <threadsPerWorker> <queueCapacity>\n");
+            printf("Exiting... Correct usage: multi_pass_test <numWorkers> <threadsPerWorker> <batchSize>\n");
             exit(1);
         }
     }
@@ -237,7 +323,6 @@ main(
     const char *version = S2GetClientVersion();
     printf("libs2client version: %s\n", version);
 
-    int err;
     // init the client
     S2Client *client = S2ClientInit(
         db_creds.host,
@@ -247,8 +332,7 @@ main(
         db_creds.password,
         numWorkers,
         -1,
-        &err);
-    assert(err == 0 && "Failed to init the client");
+        &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
     // check the partition number
@@ -257,7 +341,7 @@ main(
 
     prepare_mult(client);
 
-    parallel_test(client);
+    main_test(client);
 
     // free the client
     S2ClientFree(client);

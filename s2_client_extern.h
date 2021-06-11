@@ -19,7 +19,7 @@ S2ClientInit(
     const char* password,
     int numWorkers,
     int workerId,
-    int* errno /*out*/);
+    S2ErrorCallback* cb);
 
 // S2ClientFree is used to delete the client object
 void S2ClientFree(S2Client* client);

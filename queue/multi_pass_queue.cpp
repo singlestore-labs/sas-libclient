@@ -39,11 +39,13 @@ MultiPassQueue::CreateChunkQueue(
                 client->m_conn,
                 chunkQueue->m_queue,
                 resultTableName,
+                i,
                 partitions[i],
                 chunkSize,
                 row_schema_mutex,
                 row_schema_cv,
                 i == 0 /*row_schema_responsible*/));
+        chunkQueue->m_partition_reader[partitions[i]] = i;
     }
 
     // start Readers
@@ -80,14 +82,26 @@ MultiPassQueue::CreateChunkQueue(
 // Get retrieves the Chunk number chunkId read from partiotionId
 Chunk *
 MultiPassQueue::GetById(
-    int partiotionId,
+    int partitionId,
     int chunkId,
     S2ClientError &err)
 {
     err = S2ClientError(0, "");
+    int producerId;
+
+    auto iter = this->m_partition_reader.find(partitionId);
+
+    if (iter != (this->m_partition_reader).end())
+    {
+        producerId = iter->second;
+    }
+    else
+    {
+        return nullptr;
+    }
     try
     {
-        return m_queue->Get(partiotionId, chunkId);
+        return m_queue->Get(producerId, chunkId);
     }
     catch (std::out_of_range &ex)
     {

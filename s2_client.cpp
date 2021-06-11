@@ -39,9 +39,8 @@ extern "C"
         const char* password,
         int numWorkers,
         int workerId,
-        int* errCode /*out*/)
+        S2ErrorCallback* cb)
     {
-        *errCode = 0;
         try
         {
             return S2Client::Connect(workerId, numWorkers, host, port, db, user, password).release();
@@ -50,7 +49,7 @@ extern "C"
         {
             // TODO: find a place to save error message
             // in the case, if we failed to create S2Client
-            *errCode = s2_err.m_errorCode;
+            cb->setError(cb, s2_err.m_errorCode, std::move(s2_err.m_errorMessage.c_str()));
             return nullptr;
         }
     }

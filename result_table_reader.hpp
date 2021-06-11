@@ -16,6 +16,7 @@ class ResultTableReader
         std::unique_ptr<S2Connection> &conn,
         ThreadSafeQueue<Chunk *> *q,
         const char *resultTableName,
+        uint32_t id,
         uint32_t partition,
         uint64_t size,
         std::shared_ptr<std::mutex> mu,
@@ -64,10 +65,12 @@ class ResultTableReader
   private:
     ResultTableReader(
         ThreadSafeQueue<Chunk *> *q,
+        uint32_t id,
         uint32_t partition,
         uint64_t size)
         :
         m_queue(q),
+        m_reader_id(id),
         m_partition(partition),
         m_query(""),
         m_chunk_size(size),
@@ -79,7 +82,9 @@ class ResultTableReader
     std::unique_ptr<S2Connection> m_conn = nullptr;
     ThreadSafeQueue<Chunk *> *m_queue;
 
+    uint32_t m_reader_id;
     uint32_t m_partition;
+
     std::string m_query;
     const uint64_t m_chunk_size;
 
