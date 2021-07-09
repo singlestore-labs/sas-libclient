@@ -1,9 +1,5 @@
-//
-// Created by amakarovych-ua on 4/2/21.
-//
-
-#ifndef MEMSQL_S2_CLIENT_ERROR_HPP
-#define MEMSQL_S2_CLIENT_ERROR_HPP
+#ifndef S2_CLIENT_ERROR_HPP
+#define S2_CLIENT_ERROR_HPP
 
 #include <string>
 

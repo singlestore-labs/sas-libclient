@@ -33,8 +33,7 @@ namespace super_chunk
             {
                 case Variable:
                 {
-                    total_size += current_size;
-                    total_size += 2 * defaultAlignmentSize;
+                    total_size += current_size + 2 * defaultAlignmentSize;
                     break;
                 }
                 case Fixed:

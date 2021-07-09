@@ -50,7 +50,7 @@ dummyHandleError(
 {
     ErrorHandler *h = (ErrorHandler *)cb;
     h->errorCode = error;
-    printf("[DUMMMY ERROR CALLBACK] GetNextChunk failed: %d %s\n", error, errorString);
+    printf("[DUMMMY ERROR CALLBACK] Got error: %d %s\n", error, errorString);
     fflush(stdout);
 }
 
@@ -63,12 +63,13 @@ dummyProcessChunk(
     if (print)
     {
         printf(
-            "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d\n",
+            "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d, consumed_size: %d\n",
             chunk,
             chunk->m_ptr,
             chunk->partition_id,
             chunk->m_size,
-            chunk->row_count);
+            chunk->row_count,
+            chunk->consumed_size);
     }
     // print the data using the known schema
     int64_t x, y;

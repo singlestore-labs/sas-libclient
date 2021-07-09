@@ -1,5 +1,5 @@
-#ifndef CHUNK_WRITER_HPP
-#define CHUNK_WRITER_HPP
+#ifndef HDAT_CHUNK_WRITER_HPP
+#define HDAT_CHUNK_WRITER_HPP
 
 #include <vector>
 #include <type_traits>
@@ -14,8 +14,7 @@
 class SuperChunkWriter
 {
   public:
-    SuperChunkWriter()
-        {};
+    SuperChunkWriter() = default;
 
     SuperChunkWriter(
         Chunk *chunk,
@@ -28,7 +27,7 @@ class SuperChunkWriter
     SuperChunkWriter(const SuperChunkWriter &) = delete;
     void operator=(const SuperChunkWriter &) = delete;
 
-    bool
+    void
     Reset(
         Chunk *chunk,
         RowSchema *rowSchema)
@@ -38,17 +37,14 @@ class SuperChunkWriter
         m_row_fixed_size = 0;
         m_column_count = 0;
         m_current_chunk = std::make_unique<SuperChunk>(chunk);
-        m_row_count = 0;
         m_row_offset = 0;
         m_row_column_count = 0;
 
-        m_chunk_size = m_current_chunk->m_size;
-        m_variable_offset = m_current_chunk->m_size;
-
-        return true;
+        m_chunk_size = chunk->m_size;
+        m_variable_offset = chunk->m_size;
     }
 
-    bool CheckSpace(uint64_t requestedSize);
+    bool HasEnoughSpace(uint64_t requestedSize);
 
     bool
     WriteFixed(
@@ -88,9 +84,9 @@ class SuperChunkWriter
     }
 
     template<typename T>
-    inline bool WriteBigIntNumeric(T val)
+    inline bool WriteIntegerNumeric(T val)
     {
-        static_assert(std::is_arithmetic<T>::value, "WriteBigIntNumeric requires a numeric value");
+        static_assert(std::is_arithmetic<T>::value, "WriteIntegerNumeric requires a numeric value");
 
         RecordColumn();
         auto t = (int64_t)val;
@@ -112,9 +108,16 @@ class SuperChunkWriter
         MYSQL_ROW row,
         unsigned long *lengths);
 
-    // WriteRowEnd must be called after writing the values of each row,
-    // it's called from WriteRow
-    bool WriteRowEnd();
+    // WriteRowEnd must be called after writing the values of each row.
+    // When values are written to the chunk during parallel read, it's called from WriteRow
+    void WriteRowEnd();
+
+    void WriteRowCount();
+
+    uint64_t RowCount()
+    {
+        return m_current_chunk->RowCount();
+    }
 
   private:
     inline void RecordColumn()
@@ -162,9 +165,6 @@ class SuperChunkWriter
     // m_current_chunk is a pointer to the current chunk we are writing to
     std::unique_ptr<SuperChunk> m_current_chunk;
 
-    // m_row_count keeps track of the number of rows in the current chunk
-    uint64_t m_row_count;
-
     // m_row_offset is the offset of the current row's fixed data in the chunk
     uint64_t m_row_offset;
 
@@ -179,4 +179,23 @@ class SuperChunkWriter
     RowSchema *m_row_schema;
 };
 
-#endif  // CHUNK_WRITER_HPP
+extern "C"
+{
+    SuperChunkWriter* CreateWriter(Chunk* chunk, RowSchema* schema, S2ErrorCallback* cb);
+
+    void ResetWriter(SuperChunkWriter* writer, Chunk* chunk, RowSchema* schema);
+
+    void WriterFree(SuperChunkWriter* writer);
+
+    bool WriteInteger(SuperChunkWriter* writer, int64_t val);
+
+    bool WriteFloat(SuperChunkWriter* writer, double val);
+
+    bool WriteFixed(SuperChunkWriter* writer, const void *val, uint64_t len);
+
+    bool WriteVariable(SuperChunkWriter* writer, const void *val, uint64_t len);
+
+    void WriteRowEnd(SuperChunkWriter* writer);
+}
+
+#endif  // HDAT_CHUNK_WRITER_HPP

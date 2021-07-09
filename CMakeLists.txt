@@ -8,7 +8,7 @@ ENDIF(COMMAND cmake_policy)
 SET(LIBCLIENT_SOURCES
     hdat/chunk_reader.cpp
     hdat/chunk_writer.cpp
-    hdat/super_chunk.cpp
+    hdat/super_chunk.hpp
     parallel_read.cpp
     result_table_reader.cpp
     s2_connection.cpp
@@ -19,7 +19,9 @@ SET(LIBCLIENT_SOURCES
     queue/thread_safe_queue.hpp
     queue/thread_safe_batch_queue.hpp
     queue/thread_safe_simple_queue.hpp
-    utils.cpp)
+    table_writer.cpp
+    utils.cpp
+)
 
 ADD_LIBRARY(s2client SHARED ${LIBCLIENT_SOURCES})
 

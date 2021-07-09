@@ -29,7 +29,6 @@ MultiPassQueue::CreateChunkQueue(
     std::unique_lock<std::mutex> row_schema_lock(*row_schema_mutex.get());
     // create Readers
     chunkQueue->m_readers.reserve(partitions.size());
-
     for (int i = 0; i < partitions.size(); ++i)
     {
         // client->m_conn is used to find out connection parameters.

@@ -14,6 +14,7 @@ class S2Client
     uint32_t m_workerId;
     uint32_t m_numWorkers;
     std::unique_ptr<S2Connection> m_conn;
+    std::unique_ptr<SuperChunkReader> m_chunk_reader;
 
     S2ClientError m_error;
     std::mutex m_error_mutex;
@@ -32,6 +33,12 @@ class S2Client
 
     void SetError(S2ClientError);
 
+    void
+    LoadDataWrite(
+        Chunk* chunk,
+        RowSchema* schema,
+        const char* table);
+
   private:
     S2Client(
         uint32_t workerId,
@@ -41,6 +48,7 @@ class S2Client
         m_workerId(workerId),
         m_numWorkers(numWorkers),
         m_conn(nullptr),
+        m_chunk_reader(nullptr),
         m_error(0, "")
     {
     }
@@ -68,6 +76,17 @@ extern "C"
         int* err);
 
     int GetPartitionsNumber(S2Client* client);
+
+    void
+    LoadDataWrite(
+        S2Client* client,
+        Chunk* chunk,
+        RowSchema* schema,
+        const char* table,
+        S2ErrorCallback* cb);
+
+    RowSchema*
+    GetTableRowSchema(S2Client* client, const char* table, S2ErrorCallback* cb);
 
     const char* S2Error(S2Client* client);
 

@@ -131,7 +131,7 @@ extern "C"
         Chunk *res = queue->Get(err);
         if (err.m_errorCode)
         {
-            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage.c_str()));
+            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str());
         }
         if (!res)
         {
@@ -158,7 +158,7 @@ extern "C"
 
         if (err.m_errorCode)
         {
-            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage.c_str()));
+            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str());
         }
         if (!res)
         {

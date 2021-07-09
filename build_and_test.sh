@@ -19,13 +19,13 @@ then
     cd "${PATH_TO_LIBCLIENT}"/build
     cmake -DCMAKE_BUILD_TYPE=Debug ..
     cmake --build .
-    cd "${PATH_TO_LIBCLIENT}"
+    cd $PATH_TO_LIBCLIENT
 fi
 
 if [ $1 = "share" ]; then
-    cd "${PATH_TO_LIBCLIENT}"
+    cd $PATH_TO_LIBCLIENT
     mkdir -p build/share
-    cp test/parallel_read_test.c test/db_creds.h s2_client_extern.h chunk_extern.h build/libs2client.so build/share/
+    cp test/parallel_read_test.c test/write_test.c test/db_creds.h s2_client_extern.h chunk_extern.h hdat_write_extern.h build/libs2client.so build/share/
     echo 'gcc -I "${PATH_TO_HEADERS}"/ -L "${PATH_TO_LIBS2CLIENT_SO}" test/parallel_read_test.c -o parallel_read_test -ls2client -lpthread
 ./parallel_read_test' > build/share/run_test.sh
 fi
@@ -46,10 +46,22 @@ test_multi_pass() {
     ./build/multi_pass_test
 }
 
+test_write() {
+    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/write_test.c -o build/write_test -ls2client -lpthread -g
+    echo 'Running write_test...'
+    ./build/write_test
+}
+
 test_hdat() {
     g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/hdat_test.cpp -o build/hdat_test -ls2client -g
     echo 'Running hdat_test...'
     ./build/hdat_test
+}
+
+test_write_cpp() {
+    g++ -I "${PATH_TO_LIBCLIENT}"/ -L "${LD_LIBRARY_PATH}" test/write_test.cpp -o build/write_test_cpp -ls2client -g
+    echo 'Running write_test_cpp...'
+    ./build/write_test_cpp
 }
 
 test_queue() {

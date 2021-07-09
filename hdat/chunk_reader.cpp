@@ -43,7 +43,7 @@ SuperChunkReader::ReadVariable(
 {
     if (!CanRead(16))
     {
-        m_error = "no space available to read Varable length and offset";
+        m_error = "no space available to read Variable length and offset";
         return false;
     }
 

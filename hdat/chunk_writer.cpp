@@ -15,8 +15,6 @@ SuperChunkWriter::WriteFixed(
 {
     RecordColumn();
 
-    // WriteFixed can just copy bytes directly since CheckFixedSpace will
-    // have already ensured that we don't run out of space
     return m_current_chunk->WriteAligned8(val, len) >= 0;
 }
 
@@ -31,8 +29,34 @@ SuperChunkWriter::WriteInteger(
         return Write8(val);
     }
     int64_t int8Bytes = 0;
-    // TODO: check if it works for 4 and 2 byte integers
-    memcpy(&int8Bytes, (void *)val, len);
+    switch(len)
+    {
+        case 4:
+        {
+            int32_t int4 = 0;
+            memcpy(&int4, (void *)val, len);
+            int8Bytes = int4;
+            break;
+        }
+        case 2:
+        {
+            int16_t int2 = 0;
+            memcpy(&int2, (void *)val, len);
+            int8Bytes = int2;
+            break;
+        }
+        case 1:
+        {
+            int8_t int1 = 0;
+            memcpy(&int1, (void *)val, len);
+            int8Bytes = int1;
+            break;
+        }
+        default:
+        {
+            return false;
+        }
+    }
 
     return Write8(&int8Bytes);
 }
@@ -47,11 +71,15 @@ SuperChunkWriter::WriteFloat(
     {
         return Write8(val);
     }
-    double double8Bytes = 0;
-    memcpy(&double8Bytes, (void *)val, len);
-    // TODO: check if memcpy can be replaced by more robust method
-
-    return Write8(&double8Bytes);
+    if (len == 4)
+    {
+        float val4;
+        double val8;
+        memcpy(&val4, (void *)val, len);
+        val8 = val4;
+        return Write8(&val8);
+    }
+    return false;
 }
 
 bool
@@ -86,7 +114,7 @@ SuperChunkWriter::WriteVariable(
     return true;
 }
 
-bool SuperChunkWriter::CheckSpace(uint64_t requestedSize)
+bool SuperChunkWriter::HasEnoughSpace(uint64_t requestedSize)
 {
     assert(m_row_offset <= m_variable_offset);
     if (m_variable_offset - m_row_offset < requestedSize)
@@ -98,7 +126,7 @@ bool SuperChunkWriter::CheckSpace(uint64_t requestedSize)
     return true;
 }
 
-bool SuperChunkWriter::WriteRowEnd()
+void SuperChunkWriter::WriteRowEnd()
 {
     // if we haven't calculated the fixed size of each row, do so now
     if (m_row_fixed_size == 0)
@@ -107,13 +135,11 @@ bool SuperChunkWriter::WriteRowEnd()
         m_row_fixed_size = m_current_chunk->Offset();
     }
     // update the row count
-    m_row_count += 1;
+    m_current_chunk->IncrRowCount();
     // update the current row offset for the next row
     m_row_offset = m_current_chunk->Offset();
     // reset the column counter for the next row
     m_row_column_count = 0;
-
-    return true;
 }
 
 bool
@@ -123,9 +149,9 @@ SuperChunkWriter::WriteRow(
 {
     uint64_t total_size = super_chunk::rowSize(m_row_schema, lengths);
 
-    if (!CheckSpace(total_size))
+    if (!HasEnoughSpace(total_size))
     {
-        if (!m_row_count)
+        if (!RowCount())
         {
             throw std::invalid_argument(
                 "chunk size " + std::to_string(this->m_chunk_size) + " is too small. Required at least " +
@@ -175,4 +201,75 @@ SuperChunkWriter::WriteRow(
     WriteRowEnd();
 
     return true;
+}
+
+extern "C"
+{
+    SuperChunkWriter* CreateWriter(Chunk* chunk, RowSchema* schema, S2ErrorCallback* cb)
+    {
+        if (!chunk || !schema)
+        {
+            cb->setError(cb, S2C_ERROR_INV_ARG, "NULL pointer passed as Chunk* or RowSchema*");
+        }
+        try
+        {
+            return new SuperChunkWriter(chunk, schema);
+        }
+        catch (std::bad_alloc &e)
+        {
+            cb->setError(cb, S2C_ERROR_MEMORY_ALLOCATION, "Memory allocation error in CreateWriter");
+        }
+    }
+
+    void WriterFree(SuperChunkWriter* writer)
+    {
+        delete writer;
+    }
+
+    void ResetWriter(SuperChunkWriter* writer, Chunk* chunk, RowSchema* schema)
+    {
+        writer->Reset(chunk, schema);
+    }
+
+    bool WriteInteger(SuperChunkWriter* writer, int64_t val)
+    {
+        if(!writer->HasEnoughSpace(super_chunk::defaultAlignmentSize))
+        {
+            return false;
+        }
+        return writer->WriteIntegerNumeric(val);
+    }
+
+    bool WriteFloat(SuperChunkWriter* writer, double val)
+    {
+        if(!writer->HasEnoughSpace(super_chunk::defaultAlignmentSize))
+        {
+            return false;
+        }
+        return writer->WriteFloatNumeric(val);
+    }
+
+    bool WriteFixed(SuperChunkWriter* writer, const void *val, uint64_t len)
+    {
+        if(!writer->HasEnoughSpace(super_chunk::sizeofAligned8(len)))
+        {
+            return false;
+        }
+        return writer->WriteFixed(val, len);
+    }
+
+    bool WriteVariable(SuperChunkWriter* writer, const void *val, uint64_t len)
+    {
+        int space_needed = len + 2 * super_chunk::defaultAlignmentSize;
+        if(!writer->HasEnoughSpace(space_needed))
+        {
+            return false;
+        }
+        return writer->WriteVariable(val, len);
+    }
+
+    void WriteRowEnd(SuperChunkWriter* writer)
+    {
+        writer->WriteRowEnd();
+    }
 }

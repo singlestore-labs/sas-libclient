@@ -28,16 +28,27 @@ RowSchema true_schema =
         .numColumns = 6,
 };
 
+std::string IN_TABLE = "6_col_test";
+std::string OUT_TABLE = "6_col_dupl";
+
 std::unique_ptr<S2Connection> PrepareDB()
 {
-    std::string stmts[] =
+    std::string ddl_stmts[] =
         {
             "DROP TABLE IF EXISTS 6_col_test",
+            "DROP TABLE IF EXISTS 6_col_dupl",
+
             "CREATE TABLE 6_col_test (i bigint(20), i2 bigint(20), d double, d2 double, t text, t2 text);",
+            "CREATE TABLE 6_col_dupl (i bigint(20), i2 bigint(20), d double, d2 double, t text, t2 text);",
+        };
+
+    std::string insert_stmts[] =
+        {
             "INSERT INTO 6_col_test VALUES (1, 2, 3.4, 5.6, 'abc', 'de');",
             "INSERT INTO 6_col_test VALUES (2, 3, 4.5, 6.7, 'a', 'b');",
             "INSERT INTO 6_col_test VALUES (3, 4, 5.6, 7.8, 'xxxxx', 'ccccc');",
         };
+
     auto conn = S2Connection::Connect(
         db_creds.host,
         db_creds.ma_port,
@@ -50,23 +61,44 @@ std::unique_ptr<S2Connection> PrepareDB()
         return NULL;
     }
     printf("connected!\n");
-    for (auto st : stmts)
+    for (auto st : ddl_stmts)
     {
         conn->Prepare(st.c_str());
+    }
+
+    for (int i = 0; i < 100; ++i)
+    {
+        for (auto st : insert_stmts)
+        {
+            conn->Prepare(st.c_str());
+        }
     }
 
     return conn;
 }
 
+void CleanDB(S2Connection* conn)
+{
+    std::string ddl_stmts[] =
+        {
+            "DROP TABLE IF EXISTS 6_col_test",
+            "DROP TABLE IF EXISTS 6_col_dupl",
+        };
+
+    for (auto st : ddl_stmts)
+    {
+        conn->ExecuteDDL(st.c_str());
+    }
+}
+
 void
 testRun(
     int size,
-    S2Connection* conn,
-    bool need_to_read)
+    S2Connection* conn)
 {
-    conn->Prepare("SELECT * FROM 6_col_test");
+    conn->Prepare((std::string("SELECT * FROM ") + IN_TABLE).c_str());
     int err;
-    auto new_schema = conn->GetRowSchema(&err);
+    RowSchema* schema = conn->GetRowSchema(&err);
     Chunk* chunk = nullptr;
 
     try
@@ -79,9 +111,9 @@ testRun(
         chunk->row_count = 0;
 
         auto writer = std::make_unique<SuperChunkWriter>();
-        writer->Reset(chunk, new_schema);
+        writer->Reset(chunk, schema);
 
-        conn->NextChunk(writer, chunk, new_schema);
+        conn->NextChunk(writer, chunk, schema);
     }
     catch (std::invalid_argument err)
     {
@@ -92,45 +124,23 @@ testRun(
     std::cout << "Chunk size: " << chunk->m_size << std::endl;
     std::cout << "Chunk row_count: " << chunk->row_count << std::endl;
 
-    if (need_to_read)
+    auto reader = std::make_unique<SuperChunkReader>(chunk, schema);
+
+    for (int i = 0; i < 10; ++i)
     {
-        bool is_null;
-        SuperChunkReader* reader = new SuperChunkReader(chunk, new_schema);
-        for (int row_num = 0; row_num < chunk->row_count; ++row_num)
+        try
         {
-            std::cout << "Row " << row_num << ":\n";
-            for (int col_num = 0; col_num < new_schema->numColumns; ++col_num)
-            {
-                switch (new_schema->ColumnInfo[col_num].type)
-                {
-                    case BigInt:
-                        int64_t int_val;
-                        reader->ReadInteger(&int_val, &is_null);
-                        std::cout << int_val << " ";
-                        break;
-                    case Double:
-                        double float_val;
-                        reader->ReadFloat(&float_val, &is_null);
-                        std::cout << float_val << " ";
-                        break;
-                    case Variable:
-                        const char* buf;
-                        uint64_t len;
-                        reader->ReadVariable(&buf, &len, &is_null);
-                        for (int i = 0; i < len; ++i)
-                        {
-                            std::cout << buf[i];
-                        }
-                        std::cout << " ";
-                        break;
-                    default:
-                        throw "unsupported data type";
-                }
-            }
-            std::cout << std::endl;
+            conn->WriteChunk(reader, chunk, schema, OUT_TABLE);
+            std::cout << "Written!\n";
         }
+        catch(S2ClientError& e)
+        {
+            std::cerr << e.m_errorCode << ' ' << e.m_errorMessage << '\n';
+        }
+        
     }
     super_chunk::utils::ChunkFree(chunk);
+    free(chunk);
 }
 
 int
@@ -143,10 +153,10 @@ main(
     {
         return 1;
     }
-    for (auto chunk_size = 1; chunk_size < 1 << 8; ++chunk_size)
-    {
-        testRun(chunk_size, conn.get(), false);
-    }
-    testRun(1 << 12, conn.get(), true);
+
+    testRun(1 << 24, conn.get());
+
+    CleanDB(conn.get());
+
     return 0;
 }

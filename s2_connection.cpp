@@ -1,8 +1,9 @@
 #include "memory"
-
-#include "s2_connection.hpp"
+#include <sstream>
 
 #include "hdat/chunk_writer.hpp"
+#include "s2_connection.hpp"
+#include "table_writer.hpp"
 
 using MySQLResultPtr = std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)>;
 
@@ -231,7 +232,6 @@ S2Connection::NextChunk(
     Chunk* chunk,
     RowSchema* rowSchema)
 {
-    // TODO: handle the result
     writer->Reset(chunk, rowSchema);
 
     uint64_t row_count = 0;
@@ -249,4 +249,46 @@ S2Connection::NextChunk(
         }
     }
     chunk->row_count = row_count;
+}
+
+void
+S2Connection::WriteChunk(
+    std::unique_ptr<SuperChunkReader>& reader,
+    Chunk* chunk,
+    RowSchema* schema,
+    std::string table)
+{
+    int is_infile_enabled;
+    if (mysql_get_option(m_conn, MYSQL_OPT_LOCAL_INFILE, &is_infile_enabled))
+    {
+        freeResult();
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+    if (!is_infile_enabled)
+    {
+        freeResult();
+        throw S2ClientError(S2C_ERROR_BAD_CONNECTION, "LOAD DATA INFILE LOCAL is disabled on the server side");
+    }
+
+    reader->Reset(chunk, schema);
+
+    std::stringstream tsv_output;
+    TableWriter tw(&tsv_output);
+
+    tw.ChunkToTSV(reader, chunk->row_count);
+
+    mysql_set_local_infile_handler(
+        m_conn,
+        tw.ss_local_infile_init,
+        tw.ss_local_infile_read,
+        tw.ss_local_infile_end,
+        tw.ss_local_infile_error,
+        &tsv_output);
+
+    std::string query = super_chunk::sql::MakeLoadDataQuery(table);
+
+    if (mysql_query(m_conn, query.c_str()))
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
 }

@@ -14,6 +14,7 @@
 #include "utils.hpp"
 
 #include "hdat/chunk_writer.hpp"
+#include "hdat/chunk_reader.hpp"
 
 // S2Connection represents an actual connection to S2
 // It is a wrapper around mysql client
@@ -95,6 +96,13 @@ class S2Connection
     {
         m_need_stmt_close = false;
     }
+    // WriteChunk executes LOAD DATA INFILE
+    void
+    WriteChunk(
+        std::unique_ptr<SuperChunkReader>& reader,
+        Chunk* chunk,
+        RowSchema* schema,
+        std::string table);
 
   private:
     MYSQL* m_conn = nullptr;

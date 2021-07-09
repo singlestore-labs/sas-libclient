@@ -11,14 +11,27 @@
 class SuperChunkReader
 {
   public:
-    SuperChunkReader(Chunk *chunk)
+    SuperChunkReader() = default;
+
+    SuperChunkReader(
+        Chunk *chunk,
+        RowSchema *rowSchema)
     {
-        m_current_chunk = new SuperChunk(chunk);
-    };
+        Reset(chunk, rowSchema);
+    }
 
     // disallow evil constructors
     SuperChunkReader(const SuperChunkReader &) = delete;
     void operator=(const SuperChunkReader &) = delete;
+
+    void
+    Reset(
+        Chunk *chunk,
+        RowSchema *rowSchema)
+    {
+        m_current_chunk = std::make_unique<SuperChunk>(chunk);
+        m_row_schema = rowSchema;
+    }
 
     // read operations
     inline bool CanRead(uint64_t len)
@@ -42,16 +55,16 @@ class SuperChunkReader
         uint64_t *len,
         bool *isnull);
 
-    void ReadRows();
-
-    std::string get_error()
+    std::string GetError()
     {
         return m_error;
     }
 
+    RowSchema *m_row_schema;
+
   private:
     // m_current_chunk is a pointer to the current chunk we are reading from
-    SuperChunk *m_current_chunk;
+    std::unique_ptr<SuperChunk> m_current_chunk;
 
     std::string m_error;
 };

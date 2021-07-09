@@ -116,11 +116,24 @@ QueryGetQueue(
     uint64_t chunkSize,
     int queueCapacity);
 
+// LoadDataWrite takes a chunk along with its Row Schema
+// and writes it to the table using simulated LOAD DATA LOCAL INFILE statement
+void
+LoadDataWrite(
+    S2Client* client,
+    Chunk* chunk,
+    RowSchema* schema,
+    const char* table,
+    S2ErrorCallback* cb);
+
 // metadata functions
 
 // RowSchema returns the types of the columns in the table. The pointer is invalidated and
 // the memory is released when the corresponding queue object is destroyed by ChunkQueueFree
 RowSchema* GetRowSchema(ChunkQueue* queue);
+
+// GetTableRowSchema returns the types of the columns in the table
+RowSchema* GetTableRowSchema(S2Client* client, const char* table, S2ErrorCallback* cb);
 
 // GetPartitionsNumber returns the number of partitions in the database specified in S2ClientInit().
 // The total number of parallel S2 readers will be equal to this number

@@ -1,8 +1,11 @@
 #include <string.h>
-#include <iostream>
 
-#include "utils.hpp"
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+
 #include "client_config.h"
+#include "utils.hpp"
 
 namespace super_chunk
 {
@@ -128,6 +131,7 @@ namespace super_chunk
                 out->row_count = in->row_count;
                 out->id = in->id;
                 out->partition_id = in->partition_id;
+                out->consumed_size = in->consumed_size;
             }
 
             void ChunkFree(Chunk* chunk)
@@ -148,6 +152,14 @@ namespace super_chunk
     namespace sql
     {
         std::string
+        QuotedTable(const std::string& table)
+        {
+            std::stringstream out;
+            out << std::quoted(table, '`', '`');
+            return out.str();
+        }
+
+        std::string
         MakeCreateResultTableQuery(
             const char* resultTableName,
             const char* selectQuery,
@@ -167,7 +179,7 @@ namespace super_chunk
             resultQuery = "CREATE TABLE ";
 #endif
 
-            resultQuery += resultTableName;
+            resultQuery += QuotedTable(resultTableName);
             resultQuery += " AS ";
             resultQuery += selectQuery;
             return resultQuery;
@@ -175,14 +187,13 @@ namespace super_chunk
 
         std::string MakeDropQuery(const char* resultTableName)
         {
-            std::string resultQuery;
-            resultQuery += "DROP RESULT TABLE ";
+            std::string resultQuery = "DROP RESULT TABLE ";
 
 #ifdef REGULAR_TABLE_MODE
             resultQuery = "DROP TABLE ";
 #endif
 
-            resultQuery += resultTableName;
+            resultQuery += QuotedTable(resultTableName);
 
             return resultQuery;
         }
@@ -192,17 +203,26 @@ namespace super_chunk
             const char* resultTableName,
             uint32_t partition)
         {
-            std::string resultQuery;
-            resultQuery += "SELECT * FROM ";
+            std::string resultQuery = "SELECT * FROM ";
 
 #ifndef REGULAR_TABLE_MODE
             resultQuery += "::";
 #endif
-            resultQuery += resultTableName;
+            resultQuery += QuotedTable(resultTableName);
 
             resultQuery += " WHERE partition_id() = ";
             resultQuery += std::to_string(partition);
             return resultQuery;
+        }
+
+        std::string MakeLoadDataQuery(const std::string &tableName)
+        {
+            return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedTable(tableName);
+        }
+
+        std::string MakeSelectQueryMeta(const std::string &tableName)
+        {
+            return "SELECT * FROM " + QuotedTable(tableName) + " WHERE 1 = 0";
         }
     }  // namespace sql
 }  // namespace super_chunk

@@ -60,6 +60,11 @@ namespace super_chunk
             const char* resultTableName,
             uint32_t partition);
 
+        std::string MakeLoadDataQuery(
+            const std::string &tableName);
+
+        std::string MakeSelectQueryMeta(
+            const std::string &tableName);
     }  // namespace sql
 }  // namespace super_chunk
 

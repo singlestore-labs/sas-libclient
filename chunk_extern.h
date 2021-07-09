@@ -48,6 +48,7 @@ typedef struct Chunk
     char* m_ptr;
     uint64_t m_size;
     uint64_t row_count;
+    uint64_t consumed_size;
     uint64_t id;
     uint32_t partition_id;  // S2 partition, serves as a part of key in multi-pass
     uint32_t producer_id;   // internal libclient id
@@ -65,5 +66,7 @@ typedef struct S2ErrorCallback
 #define S2C_ERROR_UNKNOWN_FAILURE 3    // unknown failure
 #define S2C_ERROR_MEMORY_ALLOCATION 4  // memory allocation error
 #define S2C_ERROR_READER_FAILED 5      // some of the readers failed
+#define S2C_ERROR_BAD_CONNECTION 6     // wrong connection options have been used
+#define S2_IO_ERROR 7                  // error during processing bytes on LOAD DATA
 
 #endif  // CHUNK_EXTERN_H
