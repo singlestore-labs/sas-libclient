@@ -50,7 +50,7 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 default:
-                    throw S2ClientError(S2C_ERROR_UNS_DATA_TYPE, "data type Fixed is not supported yet");
+                    throw S2ClientError(S2C_ERROR_UNS_DATA_TYPE, "data type not supported yet");
             }
         }
     }
@@ -78,7 +78,7 @@ TableWriter::ss_local_infile_read(
     char *buf,
     unsigned int buf_len)
 {
-    std::stringstream *ss = static_cast<std::stringstream*>(ptr);
+    std::stringstream *ss = static_cast<std::stringstream *>(ptr);
     ss->read(buf, buf_len);
 
     if (ss->bad())
@@ -108,7 +108,7 @@ TableWriter::ss_local_infile_error(
         strncpy(error_msg, "invalid *caller_data pointer", error_msg_len);
         return S2C_ERROR_INV_ARG;
     }
-    std::stringstream *ss = static_cast<std::stringstream*>(ptr);
+    std::stringstream *ss = static_cast<std::stringstream *>(ptr);
 
     if (ss->bad())
     {

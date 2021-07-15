@@ -68,7 +68,7 @@ class S2Connection
     void ExecuteDDL(std::string query);
 
     // Advance retrieves the next row from the result set and saves a result in the
-    // last_fetched_row, last_fetched_lengths, last_columns_num variables
+    // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
     bool Advance();
 
     // GetRowSchema retrieves the schema of query result
@@ -109,9 +109,9 @@ class S2Connection
     MYSQL_STMT* m_stmt = nullptr;
     bool m_need_stmt_close = true;
 
-    MYSQL_ROW last_fetched_row = nullptr;
-    unsigned long* last_fetched_lengths = nullptr;
-    int last_columns_num = 0;
+    MYSQL_ROW m_last_fetched_row = nullptr;
+    unsigned long* m_last_fetched_lengths = nullptr;
+    int m_last_columns_num = 0;
 
     S2Connection(
         const char* host,

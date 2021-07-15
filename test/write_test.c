@@ -35,18 +35,18 @@ dummyHandleError(
 
 void write_test(S2Client *client)
 {
-    const char* query = "CREATE TABLE IF NOT EXISTS `test write`(col_int BIGINT, col_double DOUBLE, col_text TEXT)";
+    const char *query = "CREATE TABLE IF NOT EXISTS `test write`(col_int BIGINT, col_double DOUBLE, col_text TEXT)";
 
     int err = 0;
     ExecuteDDLQuery(client, query, &err);
     assert(!err && "CREATE TABLE failed");
 
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
-    char* chunk_data = (char *)malloc(chunkSize);
+    char *chunk_data = (char *)malloc(chunkSize);
     chunk->m_ptr = chunk_data;
     chunk->m_size = chunkSize;
 
-    RowSchema* schema = GetTableRowSchema(client, "test write", &EH.callback);
+    RowSchema *schema = GetTableRowSchema(client, "test write", &EH.callback);
 
     for (int i = 0; i < schema->numColumns; ++i)
     {
@@ -54,7 +54,7 @@ void write_test(S2Client *client)
     }
     printf("\n");
 
-    SuperChunkWriter* w = CreateWriter(chunk, schema, &EH.callback);
+    SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
     for (int i = 0; i < 100; ++i)
     {
         char i_str[3] = "txt";
@@ -76,7 +76,6 @@ main(
     int argc,
     char *argv[])
 {
-
     EH.callback.setError = dummyHandleError;
 
     const char *version = S2GetClientVersion();

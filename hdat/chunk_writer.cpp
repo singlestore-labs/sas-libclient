@@ -8,6 +8,35 @@
 
 #include "s2_client_error.hpp"
 
+void
+SuperChunkWriter::Reset(
+    Chunk *chunk,
+    RowSchema *rowSchema)
+{
+    m_row_schema = rowSchema;
+
+    m_row_fixed_size = 0;
+    m_column_count = 0;
+    m_current_chunk = std::make_unique<SuperChunk>(chunk);
+    m_row_offset = 0;
+    m_row_column_count = 0;
+
+    m_chunk_size = chunk->m_size;
+    m_variable_offset = chunk->m_size;
+}
+
+bool SuperChunkWriter::HasEnoughSpace(uint64_t requestedSize)
+{
+    assert(m_row_offset <= m_variable_offset);
+    if (m_variable_offset - m_row_offset < requestedSize)
+    {
+        // not enough space
+        return false;
+    }
+
+    return true;
+}
+
 bool
 SuperChunkWriter::WriteFixed(
     const void *val,
@@ -26,10 +55,11 @@ SuperChunkWriter::WriteInteger(
     RecordColumn();
     if (len == super_chunk::defaultAlignmentSize)
     {
-        return Write8(val);
+        m_current_chunk->Write8(val);
+        return true;
     }
     int64_t int8Bytes = 0;
-    switch(len)
+    switch (len)
     {
         case 4:
         {
@@ -58,7 +88,8 @@ SuperChunkWriter::WriteInteger(
         }
     }
 
-    return Write8(&int8Bytes);
+    m_current_chunk->Write8(&int8Bytes);
+    return true;
 }
 
 bool
@@ -69,7 +100,8 @@ SuperChunkWriter::WriteFloat(
     RecordColumn();
     if (len == super_chunk::defaultAlignmentSize)
     {
-        return Write8(val);
+        m_current_chunk->Write8(val);
+        return true;
     }
     if (len == 4)
     {
@@ -77,7 +109,8 @@ SuperChunkWriter::WriteFloat(
         double val8;
         memcpy(&val4, (void *)val, len);
         val8 = val4;
-        return Write8(&val8);
+        m_current_chunk->Write8(&val8);
+        return true;
     }
     return false;
 }
@@ -93,14 +126,8 @@ SuperChunkWriter::WriteVariable(
     m_variable_offset -= len;
 
     // write offset and length
-    if (!Write8(&m_variable_offset))
-    {
-        return false;
-    }
-    if (!Write8(&len))
-    {
-        return false;
-    }
+    m_current_chunk->Write8(&m_variable_offset);
+    m_current_chunk->Write8(&len);
 
     // write the value into the variable length region if it's nonempty
     if (len > 0)
@@ -114,15 +141,52 @@ SuperChunkWriter::WriteVariable(
     return true;
 }
 
-bool SuperChunkWriter::HasEnoughSpace(uint64_t requestedSize)
+inline void SuperChunkWriter::WriteIntegerNull()
 {
-    assert(m_row_offset <= m_variable_offset);
-    if (m_variable_offset - m_row_offset < requestedSize)
-    {
-        // not enough space
-        return false;
-    }
+    RecordColumn();
+    return m_current_chunk->Write8(&int64Null);
+}
 
+inline void SuperChunkWriter::WriteFloatNull()
+{
+    RecordColumn();
+    return m_current_chunk->Write8(&doubleNull);
+}
+
+inline bool SuperChunkWriter::WriteFixedNull(int len)
+{
+    char tmp[len];
+    for (int i = 0; i < len; ++i)
+    {
+        tmp[i] = ' ';
+    }
+    return WriteFixed(tmp, len);
+}
+
+inline bool SuperChunkWriter::WriteVariableNull()
+{
+    return WriteVariable(&variableNull, 0);
+}
+
+template<typename T>
+inline bool SuperChunkWriter::WriteIntegerNumeric(T val)
+{
+    static_assert(std::is_arithmetic<T>::value, "WriteIntegerNumeric requires a numeric value");
+
+    RecordColumn();
+    auto t = (int64_t)val;
+    m_current_chunk->Write8(&t);
+    return true;
+}
+
+template<typename T>
+inline bool SuperChunkWriter::WriteFloatNumeric(T val)
+{
+    static_assert(std::is_arithmetic<T>::value, "WriteFloatNumeric requires a numeric value");
+
+    RecordColumn();
+    auto t = (double)val;
+    m_current_chunk->Write8(&t);
     return true;
 }
 
@@ -171,22 +235,50 @@ SuperChunkWriter::WriteRow(
         {
             case BigInt:
             {
-                WriteInteger(column_value, column_length);
+                if (!column_value)
+                {
+                    WriteIntegerNull();
+                }
+                else
+                {
+                    WriteInteger(column_value, column_length);
+                }
                 break;
             }
             case Double:
             {
-                WriteFloat(column_value, column_length);
+                if (!column_value)
+                {
+                    WriteFloatNull();
+                }
+                else
+                {
+                    WriteFloat(column_value, column_length);
+                }
                 break;
             }
             case Fixed:
             {
-                WriteFixed(column_value, column_length);
+                if (!column_value)
+                {
+                    WriteFixedNull(column_length);
+                }
+                else
+                {
+                    WriteFixed(column_value, column_length);
+                }
                 break;
             }
             case Variable:
             {
-                WriteVariable(column_value, column_length);
+                if (!column_value)
+                {
+                    WriteVariableNull();
+                }
+                else
+                {
+                    WriteVariable(column_value, column_length);
+                }
                 break;
             }
             default:
@@ -205,11 +297,16 @@ SuperChunkWriter::WriteRow(
 
 extern "C"
 {
-    SuperChunkWriter* CreateWriter(Chunk* chunk, RowSchema* schema, S2ErrorCallback* cb)
+    SuperChunkWriter *
+    CreateWriter(
+        Chunk *chunk,
+        RowSchema *schema,
+        S2ErrorCallback *cb)
     {
         if (!chunk || !schema)
         {
             cb->setError(cb, S2C_ERROR_INV_ARG, "NULL pointer passed as Chunk* or RowSchema*");
+            return nullptr;
         }
         try
         {
@@ -218,57 +315,76 @@ extern "C"
         catch (std::bad_alloc &e)
         {
             cb->setError(cb, S2C_ERROR_MEMORY_ALLOCATION, "Memory allocation error in CreateWriter");
+            return nullptr;
         }
     }
 
-    void WriterFree(SuperChunkWriter* writer)
+    void WriterFree(SuperChunkWriter *writer)
     {
         delete writer;
     }
 
-    void ResetWriter(SuperChunkWriter* writer, Chunk* chunk, RowSchema* schema)
+    void
+    ResetWriter(
+        SuperChunkWriter *writer,
+        Chunk *chunk,
+        RowSchema *schema)
     {
         writer->Reset(chunk, schema);
     }
 
-    bool WriteInteger(SuperChunkWriter* writer, int64_t val)
+    bool
+    WriteInteger(
+        SuperChunkWriter *writer,
+        int64_t val)
     {
-        if(!writer->HasEnoughSpace(super_chunk::defaultAlignmentSize))
+        if (!writer->HasEnoughSpace(super_chunk::defaultAlignmentSize))
         {
             return false;
         }
         return writer->WriteIntegerNumeric(val);
     }
 
-    bool WriteFloat(SuperChunkWriter* writer, double val)
+    bool
+    WriteFloat(
+        SuperChunkWriter *writer,
+        double val)
     {
-        if(!writer->HasEnoughSpace(super_chunk::defaultAlignmentSize))
+        if (!writer->HasEnoughSpace(super_chunk::defaultAlignmentSize))
         {
             return false;
         }
         return writer->WriteFloatNumeric(val);
     }
 
-    bool WriteFixed(SuperChunkWriter* writer, const void *val, uint64_t len)
+    bool
+    WriteFixed(
+        SuperChunkWriter *writer,
+        const void *val,
+        uint64_t len)
     {
-        if(!writer->HasEnoughSpace(super_chunk::sizeofAligned8(len)))
+        if (!writer->HasEnoughSpace(super_chunk::sizeofAligned8(len)))
         {
             return false;
         }
         return writer->WriteFixed(val, len);
     }
 
-    bool WriteVariable(SuperChunkWriter* writer, const void *val, uint64_t len)
+    bool
+    WriteVariable(
+        SuperChunkWriter *writer,
+        const void *val,
+        uint64_t len)
     {
         int space_needed = len + 2 * super_chunk::defaultAlignmentSize;
-        if(!writer->HasEnoughSpace(space_needed))
+        if (!writer->HasEnoughSpace(space_needed))
         {
             return false;
         }
         return writer->WriteVariable(val, len);
     }
 
-    void WriteRowEnd(SuperChunkWriter* writer)
+    void WriteRowEnd(SuperChunkWriter *writer)
     {
         writer->WriteRowEnd();
     }

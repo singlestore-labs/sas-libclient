@@ -15,7 +15,7 @@ SuperChunkReader::ReadFloat(
     }
 
     m_current_chunk->Read8(out);
-    *isnull = (*out == super_chunk::doubleMiss);
+    *isnull = (*out == doubleNull);
     return true;
 }
 
@@ -31,7 +31,7 @@ SuperChunkReader::ReadInteger(
     }
 
     m_current_chunk->Read8(out);
-    *isnull = (*out == super_chunk::int64Miss);
+    *isnull = (*out == int64Null);
     return true;
 }
 

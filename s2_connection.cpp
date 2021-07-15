@@ -92,20 +92,20 @@ void S2Connection::Prepare(
 void S2Connection::freeResult()
 {
     // delete actual fields of the result
-    for (int i = 0; i < last_columns_num; i++)
+    for (int i = 0; i < m_last_columns_num; i++)
     {
-        delete[] last_fetched_row[i];
-        last_fetched_row[i] = nullptr;
+        delete[] m_last_fetched_row[i];
+        m_last_fetched_row[i] = nullptr;
     }
-    delete[] last_fetched_row;
-    last_fetched_row = nullptr;
+    delete[] m_last_fetched_row;
+    m_last_fetched_row = nullptr;
 
     // delete lengths array
-    delete[] last_fetched_lengths;
-    last_fetched_lengths = nullptr;
+    delete[] m_last_fetched_lengths;
+    m_last_fetched_lengths = nullptr;
 
     // reset columns number
-    last_columns_num = 0;
+    m_last_columns_num = 0;
 }
 
 bool S2Connection::Advance()
@@ -114,7 +114,7 @@ bool S2Connection::Advance()
     freeResult();
 
     // find the columns number
-    last_columns_num = mysql_stmt_field_count(m_stmt);
+    m_last_columns_num = mysql_stmt_field_count(m_stmt);
 
     // find the length of each field
     MySQLResultPtr metadata(mysql_stmt_result_metadata(m_stmt), &mysql_free_result);
@@ -131,23 +131,25 @@ bool S2Connection::Advance()
         throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get result set metadata fields");
     }
 
-    last_fetched_lengths = new unsigned long[last_columns_num];
-    last_fetched_row = new char*[last_columns_num];
-    memset(last_fetched_row, 0, sizeof(char*) * last_columns_num);
+    m_last_fetched_lengths = new unsigned long[m_last_columns_num];
+    m_last_fetched_row = new char*[m_last_columns_num];
+    memset(m_last_fetched_row, 0, sizeof(char*) * m_last_columns_num);
 
-    std::unique_ptr<MYSQL_BIND[]> bind = std::make_unique<MYSQL_BIND[]>(last_columns_num);
-    memset(bind.get(), 0, sizeof(MYSQL_BIND) * last_columns_num);
+    std::unique_ptr<MYSQL_BIND[]> bind = std::make_unique<MYSQL_BIND[]>(m_last_columns_num);
+    memset(bind.get(), 0, sizeof(MYSQL_BIND) * m_last_columns_num);
 
-    for (int i = 0; i < last_columns_num; i++)
+    my_bool is_null_arr[m_last_columns_num];
+    for (int i = 0; i < m_last_columns_num; i++)
     {
         // according to mysql C API docs we are able to pass zero length buffer in order to determine the actual
         // field lengths but it doesn't work, so we are passing 8 bytes buffer (it is the minimal buffer length
         // which is enough for all numeric data types)
-        last_fetched_row[i] = new char[8];
-        bind[i].buffer = last_fetched_row[i];
+        m_last_fetched_row[i] = new char[8];
+        bind[i].buffer = m_last_fetched_row[i];
         bind[i].buffer_length = 8;
-        bind[i].length = &last_fetched_lengths[i];
+        bind[i].length = &m_last_fetched_lengths[i];
         bind[i].buffer_type = fields[i].type;
+        bind[i].is_null = &is_null_arr[i];
     }
 
     if (mysql_stmt_bind_result(m_stmt, bind.get()))
@@ -169,12 +171,22 @@ bool S2Connection::Advance()
     }
 
     // fetch actual fields
-    for (int i = 0; i < last_columns_num; i++)
+    for (int i = 0; i < m_last_columns_num; i++)
     {
-        delete[] last_fetched_row[i];
-        last_fetched_row[i] = new char[last_fetched_lengths[i]];
-        bind[i].buffer = last_fetched_row[i];
-        bind[i].buffer_length = last_fetched_lengths[i];
+        delete[] m_last_fetched_row[i];
+        if (*bind[i].is_null)
+        {
+            m_last_fetched_row[i] = nullptr;
+            m_last_fetched_lengths[i] = 0;
+            continue;
+        }
+        else
+        {
+            m_last_fetched_row[i] = new char[m_last_fetched_lengths[i]];
+        }
+
+        bind[i].buffer = m_last_fetched_row[i];
+        bind[i].buffer_length = m_last_fetched_lengths[i];
         bind[i].length = nullptr;
         if (mysql_stmt_fetch_column(m_stmt, &bind[i], i, 0))
         {
@@ -223,7 +235,7 @@ RowSchema* S2Connection::GetRowSchema(int* err)
 
 bool S2Connection::HasNextRow()
 {
-    return last_fetched_row;
+    return m_last_fetched_row;
 }
 
 void
@@ -237,13 +249,13 @@ S2Connection::NextChunk(
     uint64_t row_count = 0;
     while (HasNextRow())
     {
-        bool was_row_written = writer->WriteRow(this->last_fetched_row, this->last_fetched_lengths);
+        bool was_row_written = writer->WriteRow(this->m_last_fetched_row, this->m_last_fetched_lengths);
         if (was_row_written)
         {
             row_count++;
             Advance();
         }
-        else  // if WriteRow returned false, the last_fetched_row has not been written to the current chunk
+        else  // if WriteRow returned false, the m_last_fetched_row has not been written to the current chunk
         {
             break;
         }

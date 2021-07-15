@@ -61,6 +61,10 @@ typedef struct S2ErrorCallback
     void (*setError)(struct S2ErrorCallback* cb, int error, const char* errorString);
 } S2ErrorCallback;
 
+static const int64_t int64Null = 0x8000000000000000;
+static const double doubleNull = 0xfffffe0000000000;
+static const char* variableNull = "";
+
 #define S2C_ERROR_INV_ARG 1            // invalid argument
 #define S2C_ERROR_UNS_DATA_TYPE 2      // unsupported data type
 #define S2C_ERROR_UNKNOWN_FAILURE 3    // unknown failure

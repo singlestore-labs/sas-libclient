@@ -133,7 +133,11 @@ LoadDataWrite(
 RowSchema* GetRowSchema(ChunkQueue* queue);
 
 // GetTableRowSchema returns the types of the columns in the table
-RowSchema* GetTableRowSchema(S2Client* client, const char* table, S2ErrorCallback* cb);
+RowSchema*
+GetTableRowSchema(
+    S2Client* client,
+    const char* table,
+    S2ErrorCallback* cb);
 
 // GetPartitionsNumber returns the number of partitions in the database specified in S2ClientInit().
 // The total number of parallel S2 readers will be equal to this number

@@ -47,15 +47,6 @@ class SuperChunk
         m_chunk->row_count++;
     }
 
-    template<typename T>
-    inline void Write8(const T *src)
-    {
-        static_assert(sizeof(T) == 8, "Write8 can only write 8 bytes");
-        *((T *)(m_chunk->m_ptr + m_offset)) = *src;
-        m_offset += 8;
-        m_chunk->consumed_size += 8;
-    }
-
     int64_t
     WriteAt(
         uint64_t offset,

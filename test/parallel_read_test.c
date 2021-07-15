@@ -17,7 +17,7 @@ int numWorkers = 1;
 int threadsPerWorker = 2;
 int queueCapacity = 2;
 
-const char* queryMain = "SELECT * FROM t";
+const char *queryMain = "SELECT * FROM t_copy";
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
 
@@ -85,7 +85,7 @@ dummyProcessChunk(
     memcpy(&len, chunk->m_ptr + 40, 8);
     if (print)
     {
-        printf("The numbers in chunk are: %d %d %f %f. ", x, y, u, v);
+        printf("The numbers in chunk are: %ld %ld %f %f. ", x, y, u, v);
         printf("The string is: ");
         for (int i = 0; i < len; i++)
         {
@@ -203,6 +203,90 @@ void ddl_test(S2Client *client)
     }
 
     ExecuteDDLQuery(client, "DROP TABLE small_test", &err);
+    if (err)
+    {
+        printf("Error dropping table: %s\n", S2Error(client));
+        fflush(stdout);
+    }
+}
+
+void null_test(S2Client *client)
+{
+    int err;
+    ExecuteDDLQuery(client, "CREATE TABLE null_test(i INT, d DOUBLE, t TEXT)", &err);
+    if (err)
+    {
+        printf("Error creating table: %s\n", S2Error(client));
+        fflush(stdout);
+    }
+
+    ExecuteDDLQuery(client, "INSERT INTO null_test VALUES (NULL, NULL, NULL)", &err);
+    if (err)
+    {
+        printf("Error inserting data: %s\n", S2Error(client));
+        fflush(stdout);
+    }
+
+    const char *query = "SELECT * FROM null_test";
+
+    ChunkQueue *q = QueryGetQueue(
+        client,
+        query,
+        200,
+        queueCapacity);
+
+    assert(q != NULL && "ChunkQueue is NULL");
+    if (S2Errno(client))
+    {
+        printf("S2 Error in null_test: %d %s\n", S2Errno(client), S2Error(client));
+        fflush(stdout);
+    }
+
+    int dummy_partition;
+    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
+    int numReceived = 0;
+
+    while (GetNextChunk(q, &dummy_partition, chunk, &EH.callback))
+    {
+        assert(err == 0 && "GetNextChunk failed in null_test in non parallel mode");
+        if (!numReceived)
+        {
+            RowSchema *s = GetRowSchema(q);
+            for (int i = 0; i < s->numColumns; ++i)
+            {
+                printf("%d-th row: type %d, name %s\n", i, s->ColumnInfo[0].type, s->ColumnInfo[0].name);
+                fflush(stdout);
+            }
+        }
+        assert(err == 0);
+        numReceived++;
+
+        int current_offset = 0;
+        for (int i = 0; i < chunk->row_count; ++i)
+        {
+            int64_t int_val, offset, len;
+            double double_val;
+
+            memcpy(&int_val, chunk->m_ptr + current_offset, 8);
+            memcpy(&double_val, chunk->m_ptr + current_offset + 8, 8);
+            memcpy(&offset, chunk->m_ptr + current_offset + 16, 8);
+            memcpy(&len, chunk->m_ptr + current_offset + 24, 8);
+            current_offset += 32;
+            assert(len == 0);
+            assert(int_val == int64Null);
+            assert(double_val == doubleNull);
+
+            printf("Read NULL from chunk: %ld %f %ld\n",  int_val, double_val, len);
+        }
+
+        ChunkFree(chunk);
+    }
+    free(chunk);
+
+    // free the queue
+    ChunkQueueFree(q);
+
+    ExecuteDDLQuery(client, "DROP TABLE null_test", &err);
     if (err)
     {
         printf("Error dropping table: %s\n", S2Error(client));
@@ -376,6 +460,8 @@ main(
     ddl_test(client);
 
     non_parallel_test(client);
+
+    null_test(client);
 
     parallel_test(client);
 

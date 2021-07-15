@@ -8,10 +8,6 @@
 
 namespace super_chunk
 {
-    static const int64_t int64Miss = 0x8000000000000000;
-    static const double doubleMiss = 0xfffffe0000000000;
-    static const char* variableMiss = "";
-
     static const int defaultAlignmentSize = 8;
 
     inline uint64_t sizeofAligned8(uint64_t len)

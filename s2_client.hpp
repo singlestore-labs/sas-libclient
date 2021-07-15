@@ -86,7 +86,10 @@ extern "C"
         S2ErrorCallback* cb);
 
     RowSchema*
-    GetTableRowSchema(S2Client* client, const char* table, S2ErrorCallback* cb);
+    GetTableRowSchema(
+        S2Client* client,
+        const char* table,
+        S2ErrorCallback* cb);
 
     const char* S2Error(S2Client* client);
 

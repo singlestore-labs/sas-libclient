@@ -133,11 +133,10 @@ testRun(
             conn->WriteChunk(reader, chunk, schema, OUT_TABLE);
             std::cout << "Written!\n";
         }
-        catch(S2ClientError& e)
+        catch (S2ClientError& e)
         {
             std::cerr << e.m_errorCode << ' ' << e.m_errorMessage << '\n';
         }
-        
     }
     super_chunk::utils::ChunkFree(chunk);
     free(chunk);

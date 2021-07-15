@@ -17,5 +17,6 @@ INSERT INTO t VALUES (10, 202, 5.1111, 10.8, 'xxxxx', 'cccccccc');
 INSERT INTO t VALUES (11, 303, 5.11111, 11.8, 'xxxxx', 'ccccccccc');
 INSERT INTO t VALUES (12, 404, 5.111111, 12.8, 'xxxxx', 'cccccccccc');
 INSERT INTO t VALUES (13, 505, 5.1111111, 12.8, 'xxxxx', 'ccccccccc');
+INSERT INTO t VALUES (NULL, NULL, NULL, NULL, NULL, NULL);
 
 SELECT *, partition_id() FROM t;

@@ -30,19 +30,7 @@ class SuperChunkWriter
     void
     Reset(
         Chunk *chunk,
-        RowSchema *rowSchema)
-    {
-        m_row_schema = rowSchema;
-
-        m_row_fixed_size = 0;
-        m_column_count = 0;
-        m_current_chunk = std::make_unique<SuperChunk>(chunk);
-        m_row_offset = 0;
-        m_row_column_count = 0;
-
-        m_chunk_size = chunk->m_size;
-        m_variable_offset = chunk->m_size;
-    }
+        RowSchema *rowSchema);
 
     bool HasEnoughSpace(uint64_t requestedSize);
 
@@ -66,42 +54,19 @@ class SuperChunkWriter
         const void *val,
         uint64_t len);
 
-    inline bool WriteVariableMiss()
-    {
-        return WriteVariable(&super_chunk::variableMiss, 0);
-    }
+    inline void WriteIntegerNull();
 
-    inline bool WriteIntegerMiss()
-    {
-        RecordColumn();
-        return Write8(&super_chunk::int64Miss);
-    }
+    inline void WriteFloatNull();
 
-    inline bool WriteFloatMiss()
-    {
-        RecordColumn();
-        return Write8(&super_chunk::doubleMiss);
-    }
+    inline bool WriteFixedNull(int len);
+
+    inline bool WriteVariableNull();
 
     template<typename T>
-    inline bool WriteIntegerNumeric(T val)
-    {
-        static_assert(std::is_arithmetic<T>::value, "WriteIntegerNumeric requires a numeric value");
-
-        RecordColumn();
-        auto t = (int64_t)val;
-        return Write8(&t);
-    }
+    inline bool WriteIntegerNumeric(T val);
 
     template<typename T>
-    inline bool WriteFloatNumeric(T val)
-    {
-        static_assert(std::is_arithmetic<T>::value, "WriteFloatNumeric requires a numeric value");
-
-        RecordColumn();
-        auto t = (double)val;
-        return Write8(&t);
-    }
+    inline bool WriteFloatNumeric(T val);
 
     bool
     WriteRow(
@@ -132,21 +97,6 @@ class SuperChunkWriter
         // keep track of the number of columns we have
         // written for the current row
         m_row_column_count++;
-    }
-
-    template<typename T>
-    inline bool Write8(const T *val)
-    {
-        m_current_chunk->Write8(val);
-        return true;
-    }
-
-    inline bool Write8(const void *val)
-    {
-        // Write8 can just copy bytes directly since WriteRowEnd will
-        // have already ensured that we don't run out of space
-        m_current_chunk->Write8(val);
-        return true;
     }
 
     uint64_t m_chunk_size;
@@ -181,21 +131,43 @@ class SuperChunkWriter
 
 extern "C"
 {
-    SuperChunkWriter* CreateWriter(Chunk* chunk, RowSchema* schema, S2ErrorCallback* cb);
+    SuperChunkWriter *
+    CreateWriter(
+        Chunk *chunk,
+        RowSchema *schema,
+        S2ErrorCallback *cb);
 
-    void ResetWriter(SuperChunkWriter* writer, Chunk* chunk, RowSchema* schema);
+    void
+    ResetWriter(
+        SuperChunkWriter *writer,
+        Chunk *chunk,
+        RowSchema *schema);
 
-    void WriterFree(SuperChunkWriter* writer);
+    void WriterFree(SuperChunkWriter *writer);
 
-    bool WriteInteger(SuperChunkWriter* writer, int64_t val);
+    bool
+    WriteInteger(
+        SuperChunkWriter *writer,
+        int64_t val);
 
-    bool WriteFloat(SuperChunkWriter* writer, double val);
+    bool
+    WriteFloat(
+        SuperChunkWriter *writer,
+        double val);
 
-    bool WriteFixed(SuperChunkWriter* writer, const void *val, uint64_t len);
+    bool
+    WriteFixed(
+        SuperChunkWriter *writer,
+        const void *val,
+        uint64_t len);
 
-    bool WriteVariable(SuperChunkWriter* writer, const void *val, uint64_t len);
+    bool
+    WriteVariable(
+        SuperChunkWriter *writer,
+        const void *val,
+        uint64_t len);
 
-    void WriteRowEnd(SuperChunkWriter* writer);
+    void WriteRowEnd(SuperChunkWriter *writer);
 }
 
 #endif  // HDAT_CHUNK_WRITER_HPP

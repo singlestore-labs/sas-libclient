@@ -112,7 +112,11 @@ extern "C"
         }
     }
 
-    RowSchema* GetTableRowSchema(S2Client* client, const char* table, S2ErrorCallback* cb)
+    RowSchema*
+    GetTableRowSchema(
+        S2Client* client,
+        const char* table,
+        S2ErrorCallback* cb)
     {
         std::string query = super_chunk::sql::MakeSelectQueryMeta(table);
         try

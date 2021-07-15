@@ -151,8 +151,7 @@ namespace super_chunk
 
     namespace sql
     {
-        std::string
-        QuotedTable(const std::string& table)
+        std::string QuotedTable(const std::string& table)
         {
             std::stringstream out;
             out << std::quoted(table, '`', '`');
@@ -215,12 +214,12 @@ namespace super_chunk
             return resultQuery;
         }
 
-        std::string MakeLoadDataQuery(const std::string &tableName)
+        std::string MakeLoadDataQuery(const std::string& tableName)
         {
             return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedTable(tableName);
         }
 
-        std::string MakeSelectQueryMeta(const std::string &tableName)
+        std::string MakeSelectQueryMeta(const std::string& tableName)
         {
             return "SELECT * FROM " + QuotedTable(tableName) + " WHERE 1 = 0";
         }
