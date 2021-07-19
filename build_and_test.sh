@@ -1,5 +1,8 @@
 #!/bin/bash
 set -euo pipefail
+PATH_TO_LIBCLIENT=$(pwd) 
+
+echo $PATH_TO_LIBCLIENT
 
 display_usage() { 
 	echo -e "Usage: $0 [lib|test_name...]. \n\tUse 'lib' to build sources, 'share' to copy headers to /build directory

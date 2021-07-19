@@ -17,7 +17,7 @@ int numWorkers = 1;
 int threadsPerWorker = 2;
 int queueCapacity = 2;
 
-const char *queryMain = "SELECT * FROM t_copy";
+const char *queryMain = "SELECT * FROM t";
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
 
@@ -187,7 +187,7 @@ void *worker(void *input)
 
 void ddl_test(S2Client *client)
 {
-    int err;
+    int err = 0;
     ExecuteDDLQuery(client, "CREATE TABLE small_test(col_0 INT)", &err);
     if (err)
     {
@@ -212,7 +212,7 @@ void ddl_test(S2Client *client)
 
 void null_test(S2Client *client)
 {
-    int err;
+    int err = 0;
     ExecuteDDLQuery(client, "CREATE TABLE null_test(i INT, d DOUBLE, t TEXT)", &err);
     if (err)
     {
@@ -374,7 +374,7 @@ void non_parallel_test(S2Client *client)
     }
 
     int dummy_partition;
-    int err;
+    int err = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     int numReceived = 0;
 
