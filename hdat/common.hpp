@@ -17,8 +17,8 @@ namespace super_chunk
 
     inline uint64_t
     rowSize(
-        RowSchema* schema,
-        unsigned long* lengths)
+        const RowSchema* schema,
+        const unsigned long* lengths)
     {
         uint64_t total_size = 0;
         uint64_t current_size;

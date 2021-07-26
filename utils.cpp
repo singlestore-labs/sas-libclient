@@ -214,6 +214,18 @@ namespace super_chunk
             return resultQuery;
         }
 
+        std::string
+        MakePointInTimeQuery(
+            const char* table,
+            int partition_id,
+            int row_id)
+        {
+            std::string resultQuery = "SELECT * FROM ::" + QuotedTable(table);
+            resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
+            resultQuery += " AND partition_row_id() = " + std::to_string(row_id);
+            return resultQuery;
+        }
+
         std::string MakeLoadDataQuery(const std::string& tableName)
         {
             return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedTable(tableName);

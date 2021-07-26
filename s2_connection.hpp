@@ -22,16 +22,18 @@ class S2Connection
 {
   public:
     const char* m_host;
-    uint32_t m_port;
+    const uint32_t m_port;
     const char* m_db;
     const char* m_user;
     const char* m_password;
+
+    static std::unique_ptr<S2Connection> Connect(const super_chunk::credentials& creds);
 
     // Connect creates an instance of S2Connection and connects to the S2 using mysql C client lib
     static std::unique_ptr<S2Connection>
     Connect(
         const char* host,
-        uint32_t port,
+        const uint32_t port,
         const char* db,
         const char* user,
         const char* password);
@@ -42,7 +44,7 @@ class S2Connection
         // if the flag m_need_stmt_close is set to true (default behavior)
         // we close the statement before closing the connection.
         // Otherwise we close the statement after connection, this
-        // only frees the memory on the client side
+        // // only frees the memory on the client side
         if (m_stmt && m_need_stmt_close)
         {
             mysql_stmt_close(m_stmt);
@@ -65,7 +67,7 @@ class S2Connection
     void Prepare(const char* query);
 
     // ExecuteDDL runs a ddl query through text protocol
-    void ExecuteDDL(std::string query);
+    void ExecuteDDL(const std::string query);
 
     // Advance retrieves the next row from the result set and saves a result in the
     // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
@@ -85,6 +87,14 @@ class S2Connection
         Chunk* chunk,
         RowSchema* schema);
 
+    Chunk*
+    GetSingleRow(
+        SuperChunkWriter* writer,
+        RowSchema* schema,
+        const std::string resultTable,
+        const uint32_t partitionId,
+        const int partitionRowId);
+
     // GetPartitionsNumber returns the number of partitions in the table
     int GetPartitionsNumber();
 
@@ -102,7 +112,7 @@ class S2Connection
         std::unique_ptr<SuperChunkReader>& reader,
         Chunk* chunk,
         RowSchema* schema,
-        std::string table);
+        const std::string table);
 
   private:
     MYSQL* m_conn = nullptr;
@@ -115,7 +125,7 @@ class S2Connection
 
     S2Connection(
         const char* host,
-        uint32_t port,
+        const uint32_t port,
         const char* db,
         const char* user,
         const char* password)

@@ -87,6 +87,14 @@ class SuperChunk
         Write(src, 8);
     }
 
+    template<typename T>
+    inline void Write8Typed(const T val) {
+        static_assert(sizeof(T) == 8, "Write8Typed can only write 8 bytes");
+        *((T *)(m_chunk->m_ptr + m_offset)) = val;
+        m_chunk->consumed_size += 8;
+        m_offset += 8;
+    }
+
     int64_t
     WriteAligned8(
         const void *src,

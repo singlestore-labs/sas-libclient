@@ -13,7 +13,7 @@ enum ColumnType
     Unsupported,
 };
 
-// this Enum will be used if decide to do all the type conversions in libclient
+// this Enum will be used if we decide to do more type conversions in libclient
 // enum ColumnType
 // {
 //     Int64,  // supported

@@ -40,6 +40,7 @@ StreamingQueue::CreateChunkQueue(
                 ResultTableReader::CreateReader(
                     client->m_conn,
                     chunkQueue->m_ts_queue,
+                    nullptr,
                     resultTableName,
                     i,
                     partitions[i],
@@ -101,3 +102,15 @@ StreamingQueue::GetById(
     SetError(S2ClientError(S2C_ERROR_INV_ARG, "Cannot use streaming queue in multi-pass mode"));
     return nullptr;
 };
+
+Chunk *
+StreamingQueue::GetSingleRow(
+    uint32_t partitionId,
+    uint32_t chunkId,
+    int64_t rowNum,
+    int threadId,
+    S2ClientError &error)
+{
+    SetError(S2ClientError(S2C_ERROR_INV_ARG, "Cannot use streaming queue in random read mode"));
+    return nullptr;
+}

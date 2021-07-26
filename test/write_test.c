@@ -7,6 +7,8 @@
 #include <unistd.h>
 
 #include "s2_client_extern.h"
+#include "chunk_extern.h"
+
 #include "hdat_write_extern.h"
 #include "test/db_creds.h"
 
@@ -69,6 +71,34 @@ void write_test(S2Client *client)
 
     free(chunk);
     free(chunk_data);
+    printf("Write success!\n");
+}
+
+void chunk_test()
+{
+    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
+    char *chunk_data = (char *)malloc(32);
+    chunk->m_ptr = chunk_data;
+    chunk->m_size = 32;
+    chunk->consumed_size = 0;
+
+    Column* cols = (Column *)malloc(3 * sizeof(Column));
+
+    RowSchema schema = {.numColumns = 3, .ColumnInfo = cols};
+
+    SuperChunkWriter *w = CreateWriter(chunk, &schema, &EH.callback);
+    int written = 0;
+    for (int j = 0; j < 3; ++j)
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            bool res = WriteFloat(w, (double)i);
+            written += res;
+            //printf("Written: %d, m_size: %d, consumed_size: %d\n", res, chunk->m_size, chunk->consumed_size);
+        }
+        WriteRowEnd(w);
+    }
+    assert(written == 4);
 }
 
 int
@@ -94,6 +124,7 @@ main(
     assert(client != NULL && "S2Client is NULL");
 
     write_test(client);
+    chunk_test();
 
     // free the client
     S2ClientFree(client);

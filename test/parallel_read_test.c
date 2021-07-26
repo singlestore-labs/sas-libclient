@@ -146,7 +146,7 @@ void *worker(void *input)
     printf("Worker %d connected to port %d\n", args->id, args->db_port);
     fflush(stdout);
 
-    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity, false);
+    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity, 0, false);
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
@@ -275,8 +275,6 @@ void null_test(S2Client *client)
             assert(len == 0);
             assert(int_val == int64Null);
             assert(double_val == doubleNull);
-
-            printf("Read NULL from chunk: %ld %f %ld\n",  int_val, double_val, len);
         }
 
         ChunkFree(chunk);

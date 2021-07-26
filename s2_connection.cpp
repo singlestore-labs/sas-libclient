@@ -5,7 +5,12 @@
 #include "s2_connection.hpp"
 #include "table_writer.hpp"
 
-using MySQLResultPtr = std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)>;
+#define MySQLResultPtr std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)>
+
+std::unique_ptr<S2Connection> S2Connection::Connect(const super_chunk::credentials& creds)
+{
+    return Connect(creds.host.c_str(), creds.port, creds.db.c_str(), creds.user.c_str(), creds.password.c_str());
+}
 
 std::unique_ptr<S2Connection>
 S2Connection::Connect(
@@ -263,12 +268,40 @@ S2Connection::NextChunk(
     chunk->row_count = row_count;
 }
 
+Chunk*
+S2Connection::GetSingleRow(
+    SuperChunkWriter* writer,
+    RowSchema* schema,
+    const std::string resultTable,
+    const uint32_t partitionId,
+    const int partitionRowId)
+{
+    std::string query = super_chunk::sql::MakePointInTimeQuery(resultTable.c_str(), partitionId, partitionRowId);
+    Prepare(query.c_str());
+
+    uint64_t chunk_size = super_chunk::rowSize(schema, m_last_fetched_lengths);
+
+    char *ptr = (char *)malloc(chunk_size);
+
+    Chunk *chunk = new Chunk();
+    chunk->m_ptr = ptr;
+    chunk->m_size = chunk_size;
+    chunk->row_count = 0;
+    chunk->partition_id = partitionId;
+    chunk->consumed_size = 0;
+
+    writer->Reset(chunk, schema);
+    writer->WriteRow(this->m_last_fetched_row, this->m_last_fetched_lengths);
+
+    return chunk;
+}
+
 void
 S2Connection::WriteChunk(
     std::unique_ptr<SuperChunkReader>& reader,
     Chunk* chunk,
     RowSchema* schema,
-    std::string table)
+    const std::string table)
 {
     int is_infile_enabled;
     if (mysql_get_option(m_conn, MYSQL_OPT_LOCAL_INFILE, &is_infile_enabled))

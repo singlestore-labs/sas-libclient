@@ -16,6 +16,15 @@
 
 namespace super_chunk
 {
+    typedef struct credentials
+    {
+        std::string host;
+        uint32_t port;
+        std::string db;
+        std::string user;
+        std::string password;
+    } credentials;
+
     namespace utils
     {
         std::vector<int>
@@ -59,6 +68,12 @@ namespace super_chunk
         MakeReadResultTableQuery(
             const char* resultTableName,
             uint32_t partition);
+
+        std::string
+        MakePointInTimeQuery(
+            const char* table,
+            int partition_id,
+            int row_id);
 
         std::string MakeLoadDataQuery(
             const std::string& tableName);

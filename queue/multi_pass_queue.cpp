@@ -10,18 +10,30 @@ MultiPassQueue::CreateChunkQueue(
     S2Client *client,
     const char *resultTableName,
     uint32_t capacity,
-    uint64_t chunkSize)
+    uint64_t chunkSize,
+    int nReaderThreads)
 {
     // allocate a ChunkQueue object
     std::unique_ptr<MultiPassQueue> chunkQueue(new MultiPassQueue);
     std::shared_ptr<std::condition_variable> row_schema_cv(new std::condition_variable);
     std::shared_ptr<std::mutex> row_schema_mutex(new std::mutex);
 
+    chunkQueue->m_credentials.db = client->m_conn->m_db;
+    chunkQueue->m_credentials.host = client->m_conn->m_host;
+    chunkQueue->m_credentials.port = client->m_conn->m_port;
+    chunkQueue->m_credentials.user = client->m_conn->m_user;
+    chunkQueue->m_credentials.password = client->m_conn->m_password;
+
+    chunkQueue->m_result_table = resultTableName;
+
     std::vector<int> partitions = super_chunk::utils::AssignedPartitions(
         client->m_numWorkers,
         client->m_workerId,
         client->m_numPartitions);
 
+    // initialize the object to store chunk sizes
+    std::shared_ptr<ChunksInfo> chunks_info(new ChunksInfo(partitions));
+    chunkQueue->m_chunks_info = chunks_info;
     // create ThreadSafeQueue
     chunkQueue->m_ts_queue = new ThreadSafeBatchQueue<Chunk *>(capacity, partitions.size());
 
@@ -37,6 +49,7 @@ MultiPassQueue::CreateChunkQueue(
             ResultTableReader::CreateReader(
                 client->m_conn,
                 chunkQueue->m_ts_queue,
+                chunkQueue->m_chunks_info,
                 resultTableName,
                 i,
                 partitions[i],
@@ -75,10 +88,19 @@ MultiPassQueue::CreateChunkQueue(
                 S2ClientError(S2C_ERROR_READER_FAILED, "Failed to fetch row schema from the table reader"));
         }
     }
+
+    chunkQueue->m_consumer_threads_num = nReaderThreads;
+    chunkQueue->m_consumers.reserve(nReaderThreads);
+    for (int i = 0; i < nReaderThreads; ++i)
+    {
+        std::unique_ptr<S2Connection> tmp = std::unique_ptr<S2Connection>(nullptr);
+        chunkQueue->m_consumers.emplace_back(std::move(tmp), std::make_unique<SuperChunkWriter>());
+    }
+
     return chunkQueue;
 };
 
-// Get retrieves the Chunk number chunkId read from partiotionId
+// GetById retrieves the Chunk number chunkId read from partiotionId
 Chunk *
 MultiPassQueue::GetById(
     int partitionId,
@@ -121,4 +143,39 @@ MultiPassQueue::GetById(
         }
         return nullptr;
     }
+}
+
+Chunk *
+MultiPassQueue::GetSingleRow(
+    uint32_t partitionId,
+    uint32_t chunkId,
+    int64_t rowNum,
+    int threadId,
+    S2ClientError &err)
+{
+    err = S2ClientError(0, "");
+    if (threadId >= m_consumer_threads_num)
+    {
+        err.m_errorCode = S2C_ERROR_INV_ARG;
+        err.m_errorMessage = "threadId " + std::to_string(threadId) + " is too large";
+        return nullptr;
+    }
+    if (!m_consumers[threadId].conn)
+    {
+        m_consumers[threadId].conn = S2Connection::Connect(m_credentials);
+        m_consumers[threadId].writer = std::make_unique<SuperChunkWriter>();
+    }
+
+    try
+    {
+        int partitionRowId = m_chunks_info->PartitionRowId(partitionId, chunkId, rowNum);
+        return m_consumers[threadId].conn->GetSingleRow(
+            m_consumers[threadId].writer.get(), m_row_schema, m_result_table, partitionId, partitionRowId);
+    }
+    catch (S2ClientError &s2_err)
+    {
+        err.m_errorCode = s2_err.m_errorCode;
+        err.m_errorMessage = s2_err.m_errorMessage;
+    }
+    return nullptr;
 }
