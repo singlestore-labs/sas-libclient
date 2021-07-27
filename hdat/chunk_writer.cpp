@@ -27,8 +27,8 @@ SuperChunkWriter::Reset(
 
 bool SuperChunkWriter::HasEnoughSpace(uint64_t requestedSize)
 {
-    assert(m_row_offset <= m_variable_offset);
-    if (m_variable_offset - m_row_offset < requestedSize)
+    assert(m_current_chunk->Offset() <= m_variable_offset);
+    if (m_variable_offset - m_current_chunk->Offset() < requestedSize)
     {
         // not enough space
         return false;
