@@ -26,13 +26,21 @@ void S2ClientFree(S2Client* client);
 
 // parallel read operations
 
-// ParallelReadInit is called once by controller to initiate the processing of selectQuery
+// ParallelReadInit is called once by controller to initiate the processing of `selectQuery`
+// `resultTableName` is used as an identifier in ParallelReadGetQueue
+// `materialized` is set to true for multi-pass reading
+// `partitionByCols` is a pointer to an array of C strings indicating column names that are used for
+// partitioning of the result table
+// `partitionByColsNumber` is the number of columns used for partitioning,
+// where 0 stands for no specific partitioning
 void
 ParallelReadInit(
     S2Client* client,
     const char* resultTableName,
     const char* selectQuery,
-    bool materialized);
+    bool materialized,
+    const char* const* const partitionByCols,
+    int partitionByColsNumber);
 
 // ParallelReadGetQueue is called once per worker.
 // ChunkQueue is a helper object
@@ -80,6 +88,7 @@ GetChunkMulti(
 // GetChunkRow can be called after a queue for multi-pass has been created and
 // chunk with id `chunkId` has been read from partition `partitionId` by thread
 // number `threadId`.
+// `rowNum` is the number of the row in the chunk `chunkId`
 // `threadId` must be between 0 and `nReaderThreads` - 1, where
 // `nReaderThreads` is the value that has been passed to ParallelReadGetQueue
 bool

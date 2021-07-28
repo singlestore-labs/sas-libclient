@@ -88,7 +88,8 @@ class SuperChunk
     }
 
     template<typename T>
-    inline void Write8Typed(const T val) {
+    inline void Write8Typed(const T val)
+    {
         static_assert(sizeof(T) == 8, "Write8Typed can only write 8 bytes");
         *((T *)(m_chunk->m_ptr + m_offset)) = val;
         m_chunk->consumed_size += 8;

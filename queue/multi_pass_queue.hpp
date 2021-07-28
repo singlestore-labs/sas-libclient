@@ -8,15 +8,16 @@
 #include "result_table_reader.hpp"
 #include "queue/thread_safe_batch_queue.hpp"
 
-struct ConnAndWriter {
+struct ConnAndWriter
+{
     std::unique_ptr<S2Connection> conn;
     std::unique_ptr<SuperChunkWriter> writer;
 
     // this constructor is used to initialize a vector of ConnAndWriter objects
     ConnAndWriter(std::unique_ptr<S2Connection> c, std::unique_ptr<SuperChunkWriter> w)
     {
-      conn = std::move(c);
-      writer = std::move(w);
+        conn = std::move(c);
+        writer = std::move(w);
     }
 };
 
@@ -24,7 +25,7 @@ class MultiPassQueue : public ChunkQueue
 {
   private:
     MultiPassQueue() = default;
-    
+
     int m_consumer_threads_num;
     std::vector<ConnAndWriter> m_consumers;
 

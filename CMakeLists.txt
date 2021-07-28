@@ -1,11 +1,11 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.13)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+cmake_minimum_required(VERSION 3.13)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-IF(COMMAND cmake_policy)
-  CMAKE_POLICY(SET CMP0003 NEW)
-ENDIF(COMMAND cmake_policy)
+if(COMMAND cmake_policy)
+  cmake_policy(SET CMP0003 NEW)
+endif(COMMAND cmake_policy)
 
-SET(LIBCLIENT_SOURCES
+set(LIBCLIENT_SOURCES
     hdat/chunk_reader.cpp
     hdat/chunk_writer.cpp
     hdat/super_chunk.hpp
@@ -21,12 +21,11 @@ SET(LIBCLIENT_SOURCES
     queue/thread_safe_batch_queue.hpp
     queue/thread_safe_simple_queue.hpp
     table_writer.cpp
-    utils.cpp
-)
+    utils.cpp)
 
-ADD_LIBRARY(s2client SHARED ${LIBCLIENT_SOURCES})
+add_library(s2client SHARED ${LIBCLIENT_SOURCES})
 
-TARGET_INCLUDE_DIRECTORIES(s2client PUBLIC $ENV{PATH_TO_LIBCLIENT})
+target_include_directories(s2client PUBLIC $ENV{PATH_TO_LIBCLIENT})
 
-TARGET_LINK_LIBRARIES(s2client ${CMAKE_SOURCE_DIR}/libmysql/libmysqlclient.a dl
+target_link_libraries(s2client ${CMAKE_SOURCE_DIR}/libmysql/libmysqlclient.a dl
                       pthread z rt)

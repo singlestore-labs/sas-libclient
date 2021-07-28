@@ -9,13 +9,19 @@ extern "C"
         S2Client *client,
         const char *resultTableName,
         const char *selectQuery,
-        bool materialized)
+        bool materialized,
+        const char *const *const partitionByCols,
+        int partitionByColsNumber)
     {
         client->SetError(S2ClientError(0, ""));
         try
         {
-            std::string newQuery =
-                super_chunk::sql::MakeCreateResultTableQuery(resultTableName, selectQuery, materialized);
+            std::string newQuery = super_chunk::sql::MakeCreateResultTableQuery(
+                resultTableName,
+                selectQuery,
+                materialized,
+                partitionByCols,
+                partitionByColsNumber);
             client->m_conn->ExecuteDDL(std::move(newQuery));
         }
         catch (S2ClientError &s2_err)

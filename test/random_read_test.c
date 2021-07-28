@@ -135,11 +135,11 @@ void *reader_thread(void *input)
         printf("Starting GetChunkMulti in thread %d worker %d\n", args->id, args->worker_id);
 
         while (numReceived < args->n_chunks_read && GetChunkMulti(
-                   args->queue,
-                   (args->chunks_read)[numReceived].partition_id,
-                   (args->chunks_read)[numReceived].chunk_id,
-                   chunk,
-                   &EH.callback))
+                                                        args->queue,
+                                                        (args->chunks_read)[numReceived].partition_id,
+                                                        (args->chunks_read)[numReceived].chunk_id,
+                                                        chunk,
+                                                        &EH.callback))
         {
             if (chunk->row_count != args->chunks_read[numReceived].row_count)
             {
@@ -165,15 +165,30 @@ void *reader_thread(void *input)
 
         assert(numReceived == args->n_chunks_read);
 
-        printf("Finished GetChunkMulti in thread %d worker %d, numReceived %d\n", args->id, args->worker_id, numReceived);
+        printf(
+            "Finished GetChunkMulti in thread %d worker %d, numReceived %d\n",
+            args->id,
+            args->worker_id,
+            numReceived);
         if (numReceived)
         {
             for (int i = 0; i < args->n_chunks_read; ++i)
             {
                 for (int row_num = 0; row_num < args->chunks_read[i].row_count; ++row_num)
                 {
-                    GetChunkRow(args->queue, args->chunks_read[i].partition_id, args->chunks_read[i].chunk_id, row_num, args->id, chunk, &EH.callback);
-                    printf("Got chunk in GetChunkRow: row_count %d, size %d, consumed %d\n", chunk->row_count, chunk->m_size, chunk->consumed_size);
+                    GetChunkRow(
+                        args->queue,
+                        args->chunks_read[i].partition_id,
+                        args->chunks_read[i].chunk_id,
+                        row_num,
+                        args->id,
+                        chunk,
+                        &EH.callback);
+                    printf(
+                        "Got chunk in GetChunkRow: row_count %d, size %d, consumed %d\n",
+                        chunk->row_count,
+                        chunk->m_size,
+                        chunk->consumed_size);
                     TOTAL_SINGLE_ROWS++;
                 }
             }
@@ -281,7 +296,7 @@ void main_test(S2Client *client)
     }
 
     // init the parallel read in multi-pass mode
-    ParallelReadInit(client, resultTable, "SELECT * FROM t_mult", true);
+    ParallelReadInit(client, resultTable, "SELECT * FROM t_mult", true, NULL, 0);
     if (S2Errno(client))
     {
         printf("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));

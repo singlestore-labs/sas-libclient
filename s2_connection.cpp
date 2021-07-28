@@ -281,9 +281,9 @@ S2Connection::GetSingleRow(
 
     uint64_t chunk_size = super_chunk::rowSize(schema, m_last_fetched_lengths);
 
-    char *ptr = (char *)malloc(chunk_size);
+    char* ptr = (char*)malloc(chunk_size);
 
-    Chunk *chunk = new Chunk();
+    Chunk* chunk = new Chunk();
     chunk->m_ptr = ptr;
     chunk->m_size = chunk_size;
     chunk->row_count = 0;
