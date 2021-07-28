@@ -6,6 +6,7 @@ std::unique_ptr<ResultTableReader>
 ResultTableReader::CreateReader(
     std::unique_ptr<S2Connection> &conn,
     ThreadSafeQueue<Chunk *> *q,
+    std::shared_ptr<ChunksInfo> chunks_info,
     const char *resultTableName,
     uint32_t id,
     uint32_t partition,
@@ -25,7 +26,8 @@ ResultTableReader::CreateReader(
     reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
     reader->m_row_schema_mutex = mu;
     reader->m_row_schema_cv = cv;
-    reader->row_schema_responsible = row_schema_responsible;
+    reader->m_row_schema_responsible = row_schema_responsible;
+    reader->m_chunks_info = chunks_info;
 
     return reader;
 }
@@ -51,7 +53,7 @@ ResultTableReader::CreateReaderNonParallel(
     reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
     reader->m_row_schema_mutex = mu;
     reader->m_row_schema_cv = cv;
-    reader->row_schema_responsible = row_schema_responsible;
+    reader->m_row_schema_responsible = row_schema_responsible;
 
     return reader;
 }
@@ -85,7 +87,7 @@ void ResultTableReader::Read()
 
     int has_row_schema_failed = 0;
 
-    if (row_schema_responsible)
+    if (m_row_schema_responsible)
     {
         // this mutex is released when CreateChunkQueue enters "wait" state
         std::unique_lock<std::mutex> row_schema_lock(*m_row_schema_mutex.get());
@@ -137,6 +139,12 @@ void ResultTableReader::Read()
                 break;
             }
             this->m_queue->Push(chunk);
+            // we need to store chunks info only for multi-pass queue, for streaming queue
+            // m_chunks_info is null
+            if (m_chunks_info)
+            {
+                this->m_chunks_info->Put(chunk);
+            }
             ++chunkId;
         }
     }

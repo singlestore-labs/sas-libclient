@@ -32,6 +32,14 @@ class StreamingQueue : public ChunkQueue
         int partiotionId,
         int chunkId,
         S2ClientError &error);
+
+    Chunk *
+    GetSingleRow(
+        uint32_t partitionId,
+        uint32_t chunkId,
+        int64_t rowNum,
+        int threadId,
+        S2ClientError &error);
 };
 
 #endif  // STREAMING_QUEUE_HPP

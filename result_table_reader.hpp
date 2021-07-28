@@ -5,6 +5,7 @@
 
 #include "s2_client.hpp"
 #include "queue/thread_safe_queue.hpp"
+#include "queue/chunks_info.hpp"
 
 // ResultTableReader is responsible for reading chunks from one partition and add them to the thread safe queue
 class ResultTableReader
@@ -15,6 +16,7 @@ class ResultTableReader
     CreateReader(
         std::unique_ptr<S2Connection> &conn,
         ThreadSafeQueue<Chunk *> *q,
+        std::shared_ptr<ChunksInfo> chunks_info,
         const char *resultTableName,
         uint32_t id,
         uint32_t partition,
@@ -93,6 +95,7 @@ class ResultTableReader
     std::thread m_reading_thread;
     std::unique_ptr<S2Connection> m_conn = nullptr;
     ThreadSafeQueue<Chunk *> *m_queue;
+    std::shared_ptr<ChunksInfo> m_chunks_info;
 
     uint32_t m_reader_id;
     uint32_t m_partition;
@@ -106,7 +109,7 @@ class ResultTableReader
     // m_row_schema-related variables are shared among the readers of the same chunk queue
     std::shared_ptr<std::mutex> m_row_schema_mutex;
     std::shared_ptr<std::condition_variable> m_row_schema_cv;
-    bool row_schema_responsible = false;
+    bool m_row_schema_responsible = false;
 
     std::unique_ptr<SuperChunkWriter> m_chunk_writer = nullptr;
 

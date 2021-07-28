@@ -49,6 +49,12 @@ test_multi_pass() {
     ./build/multi_pass_test
 }
 
+test_random_read() {
+    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/random_read_test.c -o build/random_read_test -ls2client -lpthread -g
+    echo 'Running random_read_test...'
+    ./build/random_read_test
+}
+
 test_write() {
     gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/write_test.c -o build/write_test -ls2client -lpthread -g
     echo 'Running write_test...'

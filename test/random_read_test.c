@@ -11,12 +11,13 @@
 
 #define chunkSize 10485
 
-int numWorkers = 2;
-int threadsPerWorker = 3;
-int batchSize = 5;
+int numWorkers = 3;
+int threadsPerWorker = 5;
+int batchSize = 2;
 
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
+static unsigned _Atomic TOTAL_SINGLE_ROWS = ATOMIC_VAR_INIT(0);
 
 struct workerArgs
 {
@@ -34,6 +35,7 @@ typedef struct ReceivedChunk
 typedef struct ReaderThreadArgs
 {
     int id;
+    int worker_id;
     ChunkQueue *queue;
     bool is_first_pass;
     int n_chunks_read;
@@ -57,7 +59,7 @@ dummyHandleError(
 {
     ErrorHandler *h = (ErrorHandler *)cb;
     h->errorCode = error;
-    printf("[DUMMMY ERROR CALLBACK] GetNextChunk failed: %d %s\n", error, errorString);
+    printf("[DUMMMY ERROR CALLBACK] Got error: %d %s\n", error, errorString);
     fflush(stdout);
 }
 
@@ -97,7 +99,7 @@ void prepare_mult(S2Client *client)
     ExecuteDDLQuery(client, "DROP TABLE IF EXISTS t_mult", &err);
     ExecuteDDLQuery(client, "CREATE TABLE t_mult AS SELECT * FROM t", &err);
 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 6; ++i)
     {
         ExecuteDDLQuery(client, "INSERT INTO t_mult (SELECT * FROM t_mult)", &err);
     }
@@ -114,8 +116,6 @@ void *reader_thread(void *input)
 
     if (args->is_first_pass)
     {
-        printf("Thread %d allocated chunk %p\n", args->id, chunk);
-        fflush(stdout);
         RowSchema *s = GetRowSchema(args->queue);
         assert(s && "GetRowSchema failed");
 
@@ -126,12 +126,13 @@ void *reader_thread(void *input)
             dummyProcessChunk(chunk, false, args);
             ChunkFree(chunk);
         }
+        printf("Thread %d worker %d read %d chunks\n", args->id, args->worker_id, numReceived);
 
         free(chunk);
     }
     else
     {
-        printf("Starting GetChunkMulti in thread %d\n", args->id);
+        printf("Starting GetChunkMulti in thread %d worker %d\n", args->id, args->worker_id);
 
         while (numReceived < args->n_chunks_read && GetChunkMulti(
                    args->queue,
@@ -153,13 +154,33 @@ void *reader_thread(void *input)
 
             ChunkFree(chunk);
         }
+        if (numReceived != args->n_chunks_read)
+        {
+            printf(
+                "[ERROR]: got %d chunks, expected %d, thread %d\n ",
+                numReceived,
+                args->n_chunks_read,
+                args->id);
+        }
 
         assert(numReceived == args->n_chunks_read);
 
+        printf("Finished GetChunkMulti in thread %d worker %d, numReceived %d\n", args->id, args->worker_id, numReceived);
+        if (numReceived)
+        {
+            for (int i = 0; i < args->n_chunks_read; ++i)
+            {
+                for (int row_num = 0; row_num < args->chunks_read[i].row_count; ++row_num)
+                {
+                    GetChunkRow(args->queue, args->chunks_read[i].partition_id, args->chunks_read[i].chunk_id, row_num, args->id, chunk, &EH.callback);
+                    printf("Got chunk in GetChunkRow: row_count %d, size %d, consumed %d\n", chunk->row_count, chunk->m_size, chunk->consumed_size);
+                    TOTAL_SINGLE_ROWS++;
+                }
+            }
+        }
         free(chunk);
     }
 
-    printf("Thread %d read %d chunks\n", args->id, numReceived);
     fflush(stdout);
 }
 
@@ -190,11 +211,11 @@ void *worker(void *input)
     }
     pthread_t readers[threadsPerWorker];
     ReaderThreadArgs readerArgs[threadsPerWorker];
-    int i;
 
-    for (i = 0; i < threadsPerWorker; i++)
+    for (int i = 0; i < threadsPerWorker; i++)
     {
-        readerArgs[i].id = i + 1000 * args->id;
+        readerArgs[i].worker_id = args->id;
+        readerArgs[i].id = i;
         readerArgs[i].queue = q;
         readerArgs[i].is_first_pass = true;
         readerArgs[i].n_chunks_read = 0;
@@ -203,7 +224,7 @@ void *worker(void *input)
         pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
     }
 
-    for (i = 0; i < threadsPerWorker; i++)
+    for (int i = 0; i < threadsPerWorker; i++)
     {
         pthread_join(readers[i], NULL);
     }
@@ -217,12 +238,12 @@ void *worker(void *input)
         fflush(stdout);
     }
 
-    printf("...Starting second pass in worker %d\n", args->id);
+    printf("...Starting second pass in %d\n", args->id);
 
     // read the second time
     ChunkQueue *q_multi = ParallelReadGetQueue(client, resultTable, chunkSize, batchSize, threadsPerWorker, true);
 
-    for (i = 0; i < threadsPerWorker; i++)
+    for (int i = 0; i < threadsPerWorker; i++)
     {
         readerArgs[i].queue = q_multi;
         readerArgs[i].is_first_pass = false;
@@ -230,7 +251,7 @@ void *worker(void *input)
         pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
     }
 
-    for (i = 0; i < threadsPerWorker; i++)
+    for (int i = 0; i < threadsPerWorker; i++)
     {
         pthread_join(readers[i], NULL);
     }
@@ -283,6 +304,7 @@ void main_test(S2Client *client)
     {
         pthread_join(workers[i], NULL);
     }
+    assert(TOTAL == TOTAL_SINGLE_ROWS);
     printf("Processed TOTAL %d rows\n", TOTAL);
     fflush(stdout);
 

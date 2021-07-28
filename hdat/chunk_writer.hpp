@@ -32,41 +32,41 @@ class SuperChunkWriter
         Chunk *chunk,
         RowSchema *rowSchema);
 
-    bool HasEnoughSpace(uint64_t requestedSize);
+    bool HasEnoughSpace(const uint64_t requestedSize);
 
     bool
     WriteFixed(
         const void *val,
-        uint64_t len);
+        const uint64_t len);
 
     bool
     WriteVariable(
         const void *val,
-        uint64_t len);
+        const uint64_t len);
 
     bool
     WriteInteger(
         const void *val,
-        uint64_t len);
+        const uint64_t len);
 
     bool
     WriteFloat(
         const void *val,
-        uint64_t len);
+        const uint64_t len);
 
     inline void WriteIntegerNull();
 
     inline void WriteFloatNull();
 
-    inline bool WriteFixedNull(int len);
+    inline bool WriteFixedNull(const int len);
 
     inline bool WriteVariableNull();
 
     template<typename T>
-    inline bool WriteIntegerNumeric(T val);
+    inline bool WriteIntegerNumeric(const T val);
 
     template<typename T>
-    inline bool WriteFloatNumeric(T val);
+    inline bool WriteFloatNumeric(const T val);
 
     bool
     WriteRow(

@@ -1,5 +1,5 @@
-#ifndef MULTI_PASS_QUEUE_HPP
-#define MULTI_PASS_QUEUE_HPP
+#ifndef QUEUE_MULTI_PASS_QUEUE_HPP
+#define QUEUE_MULTI_PASS_QUEUE_HPP
 
 #include <vector>
 
@@ -8,11 +8,29 @@
 #include "result_table_reader.hpp"
 #include "queue/thread_safe_batch_queue.hpp"
 
+struct ConnAndWriter {
+    std::unique_ptr<S2Connection> conn;
+    std::unique_ptr<SuperChunkWriter> writer;
+
+    // this constructor is used to initialize a vector of ConnAndWriter objects
+    ConnAndWriter(std::unique_ptr<S2Connection> c, std::unique_ptr<SuperChunkWriter> w)
+    {
+      conn = std::move(c);
+      writer = std::move(w);
+    }
+};
+
 class MultiPassQueue : public ChunkQueue
 {
   private:
-    MultiPassQueue()
-        {};
+    MultiPassQueue() = default;
+    
+    int m_consumer_threads_num;
+    std::vector<ConnAndWriter> m_consumers;
+
+    std::shared_ptr<ChunksInfo> m_chunks_info;
+
+    super_chunk::credentials m_credentials;
 
   public:
     // CreateChunkQueue creates a MultiPassQueue object,
@@ -26,14 +44,22 @@ class MultiPassQueue : public ChunkQueue
         S2Client *client,
         const char *resultTableName,
         uint32_t capacity,
-        uint64_t chunkSize);
+        uint64_t chunkSize,
+        int nReaderThreads);
 
-    // Get retrieves the Chunk number chunkId read from partiotionId
     Chunk *
     GetById(
         int partiotionId,
         int chunkId,
         S2ClientError &error);
+
+    Chunk *
+    GetSingleRow(
+        uint32_t partitionId,
+        uint32_t chunkId,
+        int64_t rowNum,
+        int threadId,
+        S2ClientError &error);
 };
 
-#endif  // MULTI_PASS_QUEUE_HPP
+#endif  // QUEUE_MULTI_PASS_QUEUE_HPP

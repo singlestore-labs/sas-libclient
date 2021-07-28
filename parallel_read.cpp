@@ -1,4 +1,3 @@
-#include "parallel_read.hpp"
 #include "queue/multi_pass_queue.hpp"
 #include "queue/streaming_queue.hpp"
 #include "queue/chunk_queue.hpp"
@@ -56,6 +55,7 @@ extern "C"
         const char *resultTableName,
         uint64_t chunkSize,
         int queueCapacity,
+        int nReaderThreads,
         bool isMultiPass)
     {
         client->SetError(S2ClientError(0, ""));
@@ -67,7 +67,8 @@ extern "C"
                            client,
                            resultTableName,
                            queueCapacity,
-                           chunkSize)
+                           chunkSize,
+                           nReaderThreads)
                     .release();
             }
             return (ChunkQueue *)StreamingQueue::CreateChunkQueue(
@@ -153,8 +154,7 @@ extern "C"
         S2ErrorCallback *cb)
     {
         S2ClientError err(0, "");
-        Chunk *res;
-        res = queue->GetById(partitionId, chunkId, err);
+        Chunk *res = queue->GetById(partitionId, chunkId, err);
 
         if (err.m_errorCode)
         {
@@ -166,6 +166,34 @@ extern "C"
         }
 
         super_chunk::utils::CopyChunk(chunk, res);
+
+        return true;
+    }
+
+    bool
+    GetChunkRow(
+        ChunkQueue *queue,
+        uint32_t partitionId,
+        uint32_t chunkId,
+        int64_t rowNum,
+        int threadId,
+        Chunk *chunk /*out*/,
+        S2ErrorCallback *cb)
+    {
+        S2ClientError err(0, "");
+        Chunk *res = queue->GetSingleRow(partitionId, chunkId, rowNum, threadId, err);
+
+        if (err.m_errorCode)
+        {
+            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage.c_str()));
+        }
+        if (!res)
+        {
+            return false;
+        }
+
+        super_chunk::utils::CopyChunk(chunk, res);
+        delete res;
 
         return true;
     }

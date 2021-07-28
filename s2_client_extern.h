@@ -37,21 +37,24 @@ ParallelReadInit(
 // ParallelReadGetQueue is called once per worker.
 // ChunkQueue is a helper object
 // which does all the processing internally.
-// client to process resultTableName
+// client to process `resultTableName`
 // must be initialized using S2ClientInit() by the worker
 // before calling this function.
-// chunkSize is the size of the single chunk in bytes.
-// queueCapacity is the maximum number of chunks
+// `chunkSize` is the size of the single chunk in bytes.
+// `queueCapacity` is the maximum number of chunks
 // that can be present in a worker's ChunkQueue at
 // the same time.
-// isMultiPass is set to true if resultTableName
+// `isMultiPass` is set to true if resultTableName
 // will be read in multi-pass mode
+// nReaderThreads is required for multi-pass to create
+// a connection to server for each CAS reader thread
 ChunkQueue*
 ParallelReadGetQueue(
     S2Client* client,
     const char* resultTableName,
     uint64_t chunkSize,
     int queueCapacity,
+    int nReaderThreads,
     bool isMultiPass);
 
 // GetNextChunk is called in a loop until false is returned meaning all results
@@ -74,13 +77,18 @@ GetChunkMulti(
     Chunk* chunk /*out*/,
     S2ErrorCallback* cb);
 
-// TODO: implement
+// GetChunkRow can be called after a queue for multi-pass has been created and
+// chunk with id `chunkId` has been read from partition `partitionId` by thread
+// number `threadId`.
+// `threadId` must be between 0 and `nReaderThreads` - 1, where
+// `nReaderThreads` is the value that has been passed to ParallelReadGetQueue
 bool
 GetChunkRow(
     ChunkQueue* queue,
     uint32_t partitionId,
     uint32_t chunkId,
     int64_t rowNum,
+    int threadId,
     Chunk* chunk /*out*/,
     S2ErrorCallback* cb);
 

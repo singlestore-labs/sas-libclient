@@ -1,5 +1,5 @@
-#ifndef CHUNK_QUEUE_HPP
-#define CHUNK_QUEUE_HPP
+#ifndef QUEUE_CHUNK_QUEUE_HPP
+#define QUEUE_CHUNK_QUEUE_HPP
 
 #include <unordered_map>
 #include <vector>
@@ -37,7 +37,7 @@ class ChunkQueue
         }
         if (m_ts_queue)
         {
-            // delete all chunks that are saved in queue
+            // delete all chunks that are saved in the queue
             S2ClientError err(0, "");
             while (Chunk *c = Get(err))
             {
@@ -85,6 +85,15 @@ class ChunkQueue
         int chunkId,
         S2ClientError &error) = 0;
 
+    // GetSingleRow retrieves the row identified by (chunkId, rowNum) from partiotionId
+    virtual Chunk *
+    GetSingleRow(
+        uint32_t partitionId,
+        uint32_t chunkId,
+        int64_t rowNum,
+        int threadId,
+        S2ClientError &error) = 0;
+
     RowSchema *GetRowSchema()
     {
         return this->m_row_schema;
@@ -104,12 +113,14 @@ class ChunkQueue
     std::mutex m_error_mutex;
 
     // m_partition_reader stores partition -> reader_id correspondence.
-    // reader ids are required to be 0, 1 , ..., m_readers.size() - 1
+    // reader ids are required to be 0, 1 ,..., m_readers.size() - 1
     // for the batch queue to work
     std::unordered_map<int, int> m_partition_reader;
+
+    std::string m_result_table;
 
     std::vector<std::unique_ptr<ResultTableReader>> m_readers;
     ThreadSafeQueue<Chunk *> *m_ts_queue;
 };
 
-#endif  // CHUNK_QUEUE_HPP
+#endif  // QUEUE_CHUNK_QUEUE_HPP
