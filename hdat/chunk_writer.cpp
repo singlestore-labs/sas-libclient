@@ -37,63 +37,42 @@ bool SuperChunkWriter::HasEnoughSpace(uint64_t requestedSize)
     return true;
 }
 
-bool
+void
 SuperChunkWriter::WriteFixed(
     const void *val,
-    const uint64_t len)
+    const uint64_t len,
+    const int64_t size)
+{
+    RecordColumn();
+    m_current_chunk->Write(val, len);
+    uint64_t alignedLen = super_chunk::sizeofAligned8(size);
+    m_current_chunk->Pad(alignedLen - len, true);
+}
+
+void SuperChunkWriter::WriteInt64(const void *val)
+{
+    RecordColumn();
+    m_current_chunk->Write8(val);
+}
+
+void SuperChunkWriter::WriteInt32(const void *val)
 {
     RecordColumn();
 
-    return m_current_chunk->WriteAligned8(val, len) >= 0;
+    m_current_chunk->Write4(val);
+    m_current_chunk->Pad(4, false);
 }
 
-bool
-SuperChunkWriter::WriteInteger(
+void
+SuperChunkWriter::WriteDouble(
     const void *val,
     const uint64_t len)
 {
     RecordColumn();
-    if (len == super_chunk::defaultAlignmentSize)
-    {
-        m_current_chunk->Write8(val);
-        return true;
-    }
-
-    int64_t int8Bytes = 0;
-    const uint8_t *const input = (uint8_t *)val;
-    for (int i = 0; i < len; ++i)
-    {
-        int8Bytes = ((int8Bytes << 8) | input[i]);
-    }
-
-    m_current_chunk->Write8Typed<int64_t>(int8Bytes);
-    return true;
+    m_current_chunk->Write8(val);
 }
 
-bool
-SuperChunkWriter::WriteFloat(
-    const void *val,
-    const uint64_t len)
-{
-    RecordColumn();
-    if (len == super_chunk::defaultAlignmentSize)
-    {
-        m_current_chunk->Write8(val);
-        return true;
-    }
-    if (len == 4)
-    {
-        float val4;
-        double val8;
-        memcpy(&val4, (void *)val, len);
-        val8 = val4;
-        m_current_chunk->Write8Typed<double>(val8);
-        return true;
-    }
-    return false;
-}
-
-bool
+void
 SuperChunkWriter::WriteVariable(
     const void *val,
     const uint64_t len)
@@ -108,64 +87,58 @@ SuperChunkWriter::WriteVariable(
     m_current_chunk->Write8Typed(len);
 
     // write the value into the variable length region if it's nonempty
-    if (len > 0)
-    {
-        if (m_current_chunk->WriteAt(m_variable_offset, val, len) < 0)
-        {
-            return false;
-        }
-    }
-
-    return true;
+    m_current_chunk->WriteAt(m_variable_offset, val, len);
 }
 
-inline void SuperChunkWriter::WriteIntegerNull()
+inline void SuperChunkWriter::WriteInt64Null()
 {
     RecordColumn();
-    return m_current_chunk->Write8Typed<int64_t>(int64Null);
+    m_current_chunk->Write8Typed<int64_t>(int64Null);
 }
 
-inline void SuperChunkWriter::WriteFloatNull()
+inline void SuperChunkWriter::WriteInt32Null()
 {
     RecordColumn();
-    return m_current_chunk->Write8Typed<double>(doubleNull);
+    m_current_chunk->Write4Typed<int32_t>(int32Null);
+    m_current_chunk->Pad(4, false);
 }
 
-inline bool SuperChunkWriter::WriteFixedNull(const int len)
+inline void SuperChunkWriter::WriteDoubleNull()
 {
-    char tmp[len];
-    for (int i = 0; i < len; ++i)
-    {
-        tmp[i] = ' ';
-    }
-    return WriteFixed(tmp, len);
+    RecordColumn();
+    m_current_chunk->Write8Typed<double>(doubleNull);
 }
 
-inline bool SuperChunkWriter::WriteVariableNull()
+inline void SuperChunkWriter::WriteFixedNull(const int len)
 {
-    return WriteVariable(&variableNull, 0);
+    RecordColumn();
+    uint64_t alignedLen = super_chunk::sizeofAligned8(len);
+    m_current_chunk->Pad(alignedLen, true);
+}
+
+inline void SuperChunkWriter::WriteVariableNull()
+{
+    WriteVariable(&variableNull, 0);
 }
 
 template<typename T>
-inline bool SuperChunkWriter::WriteIntegerNumeric(const T val)
+inline void SuperChunkWriter::WriteInt64Numeric(const T val)
 {
-    static_assert(std::is_arithmetic<T>::value, "WriteIntegerNumeric requires a numeric value");
+    static_assert(std::is_arithmetic<T>::value, "WriteInt64Numeric requires a numeric value");
 
     RecordColumn();
     int64_t val8 = (int64_t)val;
     m_current_chunk->Write8Typed<int64_t>(val8);
-    return true;
 }
 
 template<typename T>
-inline bool SuperChunkWriter::WriteFloatNumeric(const T val)
+inline void SuperChunkWriter::WriteFloatNumeric(const T val)
 {
     static_assert(std::is_arithmetic<T>::value, "WriteFloatNumeric requires a numeric value");
 
     RecordColumn();
     double val8 = (double)val;
     m_current_chunk->Write8Typed<double>(val8);
-    return true;
 }
 
 void SuperChunkWriter::WriteRowEnd()
@@ -203,23 +176,35 @@ SuperChunkWriter::WriteRow(
     }
     for (int i = 0; i < this->m_row_schema->numColumns; ++i)
     {
-        auto column_type = this->m_row_schema->ColumnInfo[i];
+        const Column column_type = this->m_row_schema->ColumnInfo[i];
 
-        auto column_length = lengths[i];
+        const uint64_t data_length = lengths[i];
 
-        auto column_value = row[i];
+        const char *column_value = row[i];
 
         switch (column_type.type)
         {
-            case BigInt:
+            case Int64:
             {
                 if (!column_value)
                 {
-                    WriteIntegerNull();
+                    WriteInt64Null();
                 }
                 else
                 {
-                    WriteInteger(column_value, column_length);
+                    WriteInt64(column_value);
+                }
+                break;
+            }
+            case Int32:
+            {
+                if (!column_value)
+                {
+                    WriteInt32Null();
+                }
+                else
+                {
+                    WriteInt32(column_value);
                 }
                 break;
             }
@@ -227,11 +212,11 @@ SuperChunkWriter::WriteRow(
             {
                 if (!column_value)
                 {
-                    WriteFloatNull();
+                    WriteDoubleNull();
                 }
                 else
                 {
-                    WriteFloat(column_value, column_length);
+                    WriteDouble(column_value, data_length);
                 }
                 break;
             }
@@ -239,11 +224,11 @@ SuperChunkWriter::WriteRow(
             {
                 if (!column_value)
                 {
-                    WriteFixedNull(column_length);
+                    WriteFixedNull(data_length);
                 }
                 else
                 {
-                    WriteFixed(column_value, column_length);
+                    WriteFixed(column_value, data_length, column_type.size);
                 }
                 break;
             }
@@ -255,7 +240,7 @@ SuperChunkWriter::WriteRow(
                 }
                 else
                 {
-                    WriteVariable(column_value, column_length);
+                    WriteVariable(column_value, data_length);
                 }
                 break;
             }
@@ -312,7 +297,7 @@ extern "C"
     }
 
     bool
-    WriteInteger(
+    WriteInt64(
         SuperChunkWriter *writer,
         int64_t val)
     {
@@ -320,11 +305,12 @@ extern "C"
         {
             return false;
         }
-        return writer->WriteIntegerNumeric(val);
+        writer->WriteInt64Numeric(val);
+        return true;
     }
 
     bool
-    WriteFloat(
+    WriteDouble(
         SuperChunkWriter *writer,
         double val)
     {
@@ -332,20 +318,23 @@ extern "C"
         {
             return false;
         }
-        return writer->WriteFloatNumeric(val);
+        writer->WriteFloatNumeric(val);
+        return true;
     }
 
     bool
     WriteFixed(
         SuperChunkWriter *writer,
         const void *val,
-        uint64_t len)
+        uint64_t len,
+        int64_t size)
     {
         if (!writer->HasEnoughSpace(super_chunk::sizeofAligned8(len)))
         {
             return false;
         }
-        return writer->WriteFixed(val, len);
+        writer->WriteFixed(val, len, size);
+        return true;
     }
 
     bool
@@ -359,7 +348,8 @@ extern "C"
         {
             return false;
         }
-        return writer->WriteVariable(val, len);
+        writer->WriteVariable(val, len);
+        return true;
     }
 
     void WriteRowEnd(SuperChunkWriter *writer)

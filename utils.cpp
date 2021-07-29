@@ -45,27 +45,27 @@ namespace super_chunk
                     // integer types
                     case MYSQL_TYPE_TINY:
                     {
-                        column_info[i].type = BigInt;
+                        column_info[i].type = Int32;
                         break;
                     }
                     case MYSQL_TYPE_SHORT:
                     {
-                        column_info[i].type = BigInt;
+                        column_info[i].type = Int32;
                         break;
                     }
                     case MYSQL_TYPE_LONG:
                     {
-                        column_info[i].type = BigInt;
+                        column_info[i].type = Int32;
                         break;
                     }
                     case MYSQL_TYPE_INT24:
                     {
-                        column_info[i].type = BigInt;
+                        column_info[i].type = Int32;
                         break;
                     }
                     case MYSQL_TYPE_LONGLONG:
                     {
-                        column_info[i].type = BigInt;
+                        column_info[i].type = Int64;
                         break;
                     }
                     // floating point types

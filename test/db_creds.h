@@ -1,3 +1,6 @@
+#ifndef TEST_DB_CREDS_H
+#define TEST_DB_CREDS_H
+
 typedef struct DBCreds
 {
     const char* host;
@@ -15,3 +18,5 @@ DBCreds db_creds =
         .user = "root",
         .password = "p"
 };
+
+#endif  // TEST_DB_CREDS_H

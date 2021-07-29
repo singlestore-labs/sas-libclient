@@ -1,4 +1,3 @@
-
 #include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -7,11 +6,11 @@
 #include <stdatomic.h>
 
 #include "s2_client_extern.h"
-#include "test/db_creds.h"
+#include "hdat_read_extern.h"
 
-// #define numWorkers 1
-// #define threadsPerWorker 2
-// #define queueCapacity 2
+#include "test/db_creds.h"
+#include "test/helpers.h"
+
 #define chunkSize 1048576
 int numWorkers = 1;
 int threadsPerWorker = 2;
@@ -21,84 +20,9 @@ const char *queryMain = "SELECT * FROM t";
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
 
-struct workerArgs
-{
-    int id;
-    int db_port;
-};
-
-struct readerThreadArgs
-{
-    int id;
-    ChunkQueue *queue;
-};
-
-typedef struct ErrorHandler
-{
-    S2ErrorCallback callback;
-    int errorCode;
-    char *errorString;
-} ErrorHandler;
-
-ErrorHandler EH;
-
-void
-dummyHandleError(
-    S2ErrorCallback *cb,
-    int error,
-    const char *errorString)
-{
-    ErrorHandler *h = (ErrorHandler *)cb;
-    h->errorCode = error;
-    printf("[DUMMMY ERROR CALLBACK] Got error: %d %s\n", error, errorString);
-    fflush(stdout);
-}
-
-void
-dummyProcessChunk(
-    Chunk *chunk,
-    bool print)
-{
-    TOTAL += chunk->row_count;
-    if (print)
-    {
-        printf(
-            "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d, consumed_size: %d\n",
-            chunk,
-            chunk->m_ptr,
-            chunk->partition_id,
-            chunk->m_size,
-            chunk->row_count,
-            chunk->consumed_size);
-    }
-    // print the data using the known schema
-    int64_t x, y;
-    memcpy(&x, chunk->m_ptr, 8);
-    memcpy(&y, chunk->m_ptr + 8, 8);
-
-    double u, v;
-    memcpy(&u, chunk->m_ptr + 16, 8);
-    memcpy(&v, chunk->m_ptr + 24, 8);
-
-    int64_t offset, len;
-    memcpy(&offset, chunk->m_ptr + 32, 8);
-    memcpy(&len, chunk->m_ptr + 40, 8);
-    if (print)
-    {
-        printf("The numbers in chunk are: %ld %ld %f %f. ", x, y, u, v);
-        printf("The string is: ");
-        for (int i = 0; i < len; i++)
-        {
-            printf("%c", (chunk->m_ptr + offset + i)[0]);
-        }
-        printf("\n");
-        fflush(stdout);
-    }
-}
-
 void *reader_thread(void *input)
 {
-    struct readerThreadArgs *args = (struct readerThreadArgs *)input;
+    ReaderThreadArgs *args = (struct ReaderThreadArgs *)input;
 
     int partitionId;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
@@ -120,7 +44,7 @@ void *reader_thread(void *input)
     {
         numReceived++;
 
-        dummyProcessChunk(chunk, true);
+        TOTAL += dummyProcessChunk(chunk, true, args);
         ChunkFree(chunk);
     }
     free(chunk);
@@ -131,7 +55,7 @@ void *reader_thread(void *input)
 void *worker(void *input)
 {
     // init the client
-    struct workerArgs *args = (struct workerArgs *)input;
+    WorkerArgs *args = (WorkerArgs *)input;
     S2Client *client = S2ClientInit(
         db_creds.host,
         args->db_port,
@@ -154,7 +78,7 @@ void *worker(void *input)
         fflush(stdout);
     }
     pthread_t readers[threadsPerWorker];
-    struct readerThreadArgs readerArgs[threadsPerWorker];
+    ReaderThreadArgs readerArgs[threadsPerWorker];
     int i;
 
     for (i = 0; i < threadsPerWorker; i++)
@@ -210,88 +134,6 @@ void ddl_test(S2Client *client)
     }
 }
 
-void null_test(S2Client *client)
-{
-    int err = 0;
-    ExecuteDDLQuery(client, "CREATE TABLE null_test(i INT, d DOUBLE, t TEXT)", &err);
-    if (err)
-    {
-        printf("Error creating table: %s\n", S2Error(client));
-        fflush(stdout);
-    }
-
-    ExecuteDDLQuery(client, "INSERT INTO null_test VALUES (NULL, NULL, NULL)", &err);
-    if (err)
-    {
-        printf("Error inserting data: %s\n", S2Error(client));
-        fflush(stdout);
-    }
-
-    const char *query = "SELECT * FROM null_test";
-
-    ChunkQueue *q = QueryGetQueue(
-        client,
-        query,
-        200,
-        queueCapacity);
-
-    assert(q != NULL && "ChunkQueue is NULL");
-    if (S2Errno(client))
-    {
-        printf("S2 Error in null_test: %d %s\n", S2Errno(client), S2Error(client));
-        fflush(stdout);
-    }
-
-    int dummy_partition;
-    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
-    int numReceived = 0;
-
-    while (GetNextChunk(q, &dummy_partition, chunk, &EH.callback))
-    {
-        assert(err == 0 && "GetNextChunk failed in null_test in non parallel mode");
-        if (!numReceived)
-        {
-            RowSchema *s = GetRowSchema(q);
-            for (int i = 0; i < s->numColumns; ++i)
-            {
-                printf("%d-th row: type %d, name %s\n", i, s->ColumnInfo[0].type, s->ColumnInfo[0].name);
-                fflush(stdout);
-            }
-        }
-        assert(err == 0);
-        numReceived++;
-
-        int current_offset = 0;
-        for (int i = 0; i < chunk->row_count; ++i)
-        {
-            int64_t int_val, offset, len;
-            double double_val;
-
-            memcpy(&int_val, chunk->m_ptr + current_offset, 8);
-            memcpy(&double_val, chunk->m_ptr + current_offset + 8, 8);
-            memcpy(&offset, chunk->m_ptr + current_offset + 16, 8);
-            memcpy(&len, chunk->m_ptr + current_offset + 24, 8);
-            current_offset += 32;
-            assert(len == 0);
-            assert(int_val == int64Null);
-            assert(double_val == doubleNull);
-        }
-
-        ChunkFree(chunk);
-    }
-    free(chunk);
-
-    // free the queue
-    ChunkQueueFree(q);
-
-    ExecuteDDLQuery(client, "DROP TABLE null_test", &err);
-    if (err)
-    {
-        printf("Error dropping table: %s\n", S2Error(client));
-        fflush(stdout);
-    }
-}
-
 void error_test(S2Client *client)
 {
     // invalid query
@@ -318,7 +160,7 @@ parallel_test(
         agg_ports[i] = db_creds.ma_port;
     }
     // init the parallel read
-    ParallelReadInit(client, resultTable, query, false, partitionByCols, n);
+    ParallelReadInit(client, resultTable, queryMain, false, partitionByCols, n);
     if (S2Errno(client))
     {
         printf("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
@@ -328,7 +170,7 @@ parallel_test(
     // start "CAS worker" threads
     pthread_t workers[numWorkers];
     int i;
-    struct workerArgs args[numWorkers];
+    WorkerArgs args[numWorkers];
     for (i = 0; i < numWorkers; i++)
     {
         args[i].id = i;
@@ -465,8 +307,6 @@ main(
     ddl_test(client);
 
     non_parallel_test(client);
-
-    null_test(client);
 
     error_test(client);
 

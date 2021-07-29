@@ -20,26 +20,26 @@ ResetWriter(
     RowSchema* schema);
 
 bool
-WriteInteger(
+WriteInt64(
     SuperChunkWriter* writer,
-    int64_t val);
+    const int64_t val);
 
 bool
-WriteFloat(
+WriteDouble(
     SuperChunkWriter* writer,
-    double val);
+    const double val);
 
 bool
 WriteFixed(
     SuperChunkWriter* writer,
     const void* val,
-    uint64_t len);
+    const uint64_t len);
 
 bool
 WriteVariable(
     SuperChunkWriter* writer,
     const void* val,
-    uint64_t len);
+    const uint64_t len);
 
 void WriteRowEnd(SuperChunkWriter* writer);
 

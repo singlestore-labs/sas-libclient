@@ -9,13 +9,14 @@
 #include "utils.hpp"
 
 #include "test/db_creds.h"
+#include "test/helpers.h"
 
 #include "libmysql/mysql.h"
 
 Column true_columns[] =
     {
-        {.type = BigInt},
-        {.type = BigInt},
+        {.type = Int64},
+        {.type = Int64},
         {.type = Double},
         {.type = Double},
         {.type = Variable},
@@ -103,7 +104,7 @@ testRun(
             {
                 switch (new_schema->ColumnInfo[col_num].type)
                 {
-                    case BigInt:
+                    case Int64:
                         int64_t int_val;
                         reader->ReadInteger(&int_val, &is_null);
                         std::cout << int_val << " ";

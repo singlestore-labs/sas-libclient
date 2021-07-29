@@ -10,7 +10,8 @@ TableWriter::ChunkToTSV(
     int row_count)
 {
     bool is_null;
-    int64_t int_val;
+    int64_t int_64_val;
+    int32_t int_32_val;
     double float_val;
     const char *buf;
     uint64_t len;
@@ -28,11 +29,18 @@ TableWriter::ChunkToTSV(
             }
             switch (reader->m_row_schema->ColumnInfo[col_num].type)
             {
-                case BigInt:
-                    reader->ReadInteger(&int_val, &is_null);
+                case Int64:
+                    reader->ReadInt64(&int_64_val, &is_null);
                     if (!is_null)
                     {
-                        *this->tsv_rows << int_val;
+                        *this->tsv_rows << int_64_val;
+                    }
+                    break;
+                case Int32:
+                    reader->ReadInt32(&int_32_val, &is_null);
+                    if (!is_null)
+                    {
+                        *this->tsv_rows << int_32_val;
                     }
                     break;
                 case Double:

@@ -34,39 +34,41 @@ class SuperChunkWriter
 
     bool HasEnoughSpace(const uint64_t requestedSize);
 
-    bool
+    void
     WriteFixed(
         const void *val,
-        const uint64_t len);
+        const uint64_t len,
+        const int64_t size);
 
-    bool
+    void
     WriteVariable(
         const void *val,
         const uint64_t len);
 
-    bool
-    WriteInteger(
+    void WriteInt64(const void *val);
+
+    void WriteInt32(const void *val);
+
+    void
+    WriteDouble(
         const void *val,
         const uint64_t len);
 
-    bool
-    WriteFloat(
-        const void *val,
-        const uint64_t len);
+    inline void WriteInt64Null();
 
-    inline void WriteIntegerNull();
+    inline void WriteInt32Null();
 
-    inline void WriteFloatNull();
+    inline void WriteDoubleNull();
 
-    inline bool WriteFixedNull(const int len);
+    inline void WriteFixedNull(const int len);
 
-    inline bool WriteVariableNull();
+    inline  void WriteVariableNull();
 
     template<typename T>
-    inline bool WriteIntegerNumeric(const T val);
+    inline void WriteInt64Numeric(const T val);
 
     template<typename T>
-    inline bool WriteFloatNumeric(const T val);
+    inline void WriteFloatNumeric(const T val);
 
     bool
     WriteRow(
@@ -146,12 +148,12 @@ extern "C"
     void WriterFree(SuperChunkWriter *writer);
 
     bool
-    WriteInteger(
+    WriteInt64(
         SuperChunkWriter *writer,
         int64_t val);
 
     bool
-    WriteFloat(
+    WriteDouble(
         SuperChunkWriter *writer,
         double val);
 
@@ -159,7 +161,8 @@ extern "C"
     WriteFixed(
         SuperChunkWriter *writer,
         const void *val,
-        uint64_t len);
+        uint64_t len,
+        int64_t size);
 
     bool
     WriteVariable(

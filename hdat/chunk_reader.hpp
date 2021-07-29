@@ -45,14 +45,25 @@ class SuperChunkReader
         bool *isnull);
 
     bool
-    ReadInteger(
+    ReadInt64(
         int64_t *out,
+        bool *isnull);
+
+    bool
+    ReadInt32(
+        int32_t *out,
         bool *isnull);
 
     bool
     ReadVariable(
         const char **out,
         uint64_t *len,
+        bool *isnull);
+
+    bool
+    ReadFixed(
+        const char **out,
+        uint64_t len,
         bool *isnull);
 
     std::string GetError()

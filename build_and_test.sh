@@ -37,56 +37,24 @@ fi
 export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}/build"
 mkdir -p "${LD_LIBRARY_PATH}"
 
-test_read() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/parallel_read_test.c -o build/parallel_read_test -ls2client -lpthread -g
-    echo 'Running parallel_read_test...'
-    ./build/parallel_read_test
+test_c() {
+    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/"$1"_test.c -o build/"$1" -ls2client -lpthread -g
+    echo 'Running' "$1" test...
+    ./build/"$1"
 }
 
-test_multi_pass() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/multi_pass_test.c -o build/multi_pass_test -ls2client -lpthread -g
-    echo 'Running multi_pass_test...'
-    ./build/multi_pass_test
-}
-
-test_random_read() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/random_read_test.c -o build/random_read_test -ls2client -lpthread -g
-    echo 'Running random_read_test...'
-    ./build/random_read_test
-}
-
-test_write() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/write_test.c -o build/write_test -ls2client -lpthread -g
-    echo 'Running write_test...'
-    ./build/write_test
-}
-
-test_hdat() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/hdat_test.cpp -o build/hdat_test -ls2client -g
-    echo 'Running hdat_test...'
-    ./build/hdat_test
-}
-
-test_write_cpp() {
-    g++ -I "${PATH_TO_LIBCLIENT}"/ -L "${LD_LIBRARY_PATH}" test/write_test.cpp -o build/write_test_cpp -ls2client -g
-    echo 'Running write_test_cpp...'
-    ./build/write_test_cpp
-}
-
-test_queue() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/thread_safe_queue_test.cpp -o build/thread_safe_queue_test -ls2client -lpthread -g
-    echo 'Running thread_safe_queue_test...'
-    ./build/thread_safe_queue_test
-}
-
-test_batch_queue() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/thread_safe_batch_queue_test.cpp -o build/thread_safe_batch_queue_test -ls2client -lpthread -g
-    echo 'Running thread_safe_batch_queue_test...'
-    ./build/thread_safe_batch_queue_test
+test_cpp() {
+    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" test/"$1"_test.cpp -o build/"$1" -ls2client -lpthread -g
+    echo 'Running' "$1" test...
+    ./build/"$1"
 }
 
 for var in "$@"; do
     if [ "$var" != "lib" ] && [ "$var" != "share" ]; then
-        test_"$var"
+        if [ -e ./test/"$var"_test.c ]; then
+            test_c "$var"
+        else
+            test_cpp "$var"
+        fi
     fi
 done

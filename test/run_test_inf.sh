@@ -17,8 +17,3 @@ run_cases () {
 }
 
 run_cases
-
-# while [ 1 ]
-# do
-#     run_cases
-# done

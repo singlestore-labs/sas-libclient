@@ -8,32 +8,12 @@
 
 #include "s2_client_extern.h"
 #include "chunk_extern.h"
-
 #include "hdat_write_extern.h"
+
 #include "test/db_creds.h"
+#include "test/helpers.h"
 
 int chunkSize = 102400;
-
-typedef struct ErrorHandler
-{
-    S2ErrorCallback callback;
-    int errorCode;
-    char *errorString;
-} ErrorHandler;
-
-ErrorHandler EH;
-
-void
-dummyHandleError(
-    S2ErrorCallback *cb,
-    int error,
-    const char *errorString)
-{
-    ErrorHandler *h = (ErrorHandler *)cb;
-    h->errorCode = error;
-    printf("[DUMMMY ERROR CALLBACK] Write failed: %d %s\n", error, errorString);
-    fflush(stdout);
-}
 
 void write_test(S2Client *client)
 {
@@ -60,8 +40,8 @@ void write_test(S2Client *client)
     for (int i = 0; i < 100; ++i)
     {
         char i_str[3] = "txt";
-        WriteInteger(w, (int32_t)i);
-        WriteFloat(w, (double)i);
+        WriteInt64(w, i);
+        WriteDouble(w, (double)i);
         WriteVariable(w, i_str, 3);
         WriteRowEnd(w);
     }
@@ -92,7 +72,7 @@ void chunk_test()
     {
         for (int i = 0; i < 3; ++i)
         {
-            bool res = WriteFloat(w, (double)i);
+            bool res = WriteDouble(w, (double)i);
             written += res;
             // printf("Written: %d, m_size: %d, consumed_size: %d\n", res, chunk->m_size, chunk->consumed_size);
         }

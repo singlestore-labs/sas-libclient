@@ -27,6 +27,7 @@ class SuperChunk
 
     void operator=(const SuperChunk &) = delete;
 
+    // metadata methods
     inline uint64_t Offset()
     {
         return m_offset;
@@ -47,7 +48,8 @@ class SuperChunk
         m_chunk->row_count++;
     }
 
-    int64_t
+    // write methods
+    void
     WriteAt(
         uint64_t offset,
         const void *src,
@@ -55,7 +57,7 @@ class SuperChunk
     {
         if (len == 0)
         {
-            return 0;
+            return;
         }
 
         assert(src);
@@ -64,27 +66,40 @@ class SuperChunk
 
         memcpy((void *)(m_chunk->m_ptr + offset), src, len);
         m_chunk->consumed_size += len;
-
-        return len;
     }
 
-    int64_t
+    void
     Write(
         const void *src,
         uint64_t len)
     {
-        int64_t n = WriteAt(m_offset, src, len);
-        if (n <= 0)
+        WriteAt(m_offset, src, len);
+        m_offset += len;
+    }
+
+    void
+    Pad(
+        uint64_t len,
+        bool fill_with_zero)
+    {
+        if (fill_with_zero)
         {
-            return n;
+            for (int i = 0; i < len; ++i)
+            {
+                *(m_chunk->m_ptr + m_offset + i) = '\0';
+            }
         }
-        m_offset += n;
-        return n;
+        m_offset += len;
     }
 
     inline void Write8(const void *src)
     {
         Write(src, 8);
+    }
+
+    inline void Write4(const void *src)
+    {
+        Write(src, 4);
     }
 
     template<typename T>
@@ -96,23 +111,16 @@ class SuperChunk
         m_offset += 8;
     }
 
-    int64_t
-    WriteAligned8(
-        const void *src,
-        uint64_t len)
+    template<typename T>
+    inline void Write4Typed(const T val)
     {
-        int64_t n = Write(src, len);
-        if (n < 0)
-        {
-            return n;
-        }
-
-        // increment the offset to the next alignment boundary
-        uint64_t alignedLen = super_chunk::sizeofAligned8(n);
-        m_offset += alignedLen - n;
-        return alignedLen;
+        static_assert(sizeof(T) == 4, "Write8Typed can only write 4 bytes");
+        *((T *)(m_chunk->m_ptr + m_offset)) = val;
+        m_chunk->consumed_size += 8;
+        m_offset += 4;
     }
 
+    // read methods
     template<typename T>
     inline void Read8(T *out)
     {
@@ -121,24 +129,37 @@ class SuperChunk
         m_offset += 8;
     }
 
-    int64_t
-    ReadAt(
-        uint64_t offset,
-        void *out,
-        uint64_t len)
+    template<typename T>
+    inline void Read4(T *out)
     {
-        if (Size() == offset)
-        {
-            return 0;
-        }
-        if (Size() - offset < len)
-        {
-            len = Size() - offset;
-        }
-        memcpy(out, (void *)(m_chunk->m_ptr + offset), len);
-        return len;
+        static_assert(sizeof(T) == 4, "Read4 can only read 4 bytes");
+        *out = *(T *)(m_chunk->m_ptr + m_offset);
+        m_offset += 4;
     }
 
+    bool
+    ReadAligned8(
+        const char **out,
+        uint64_t len)
+    {
+        uint64_t alignedLen = super_chunk::sizeofAligned8(len);
+        if (Size() - m_offset < len)
+        {
+            return false;
+        }
+        *out = PtrAt(m_offset);
+        // increment the offset to the next alignment boundary
+        m_offset += alignedLen;
+        return true;
+    }
+
+    char *PtrAt(uint64_t offset)
+    {
+        assert(offset < Size());
+        return m_chunk->m_ptr + offset;
+    }
+
+  private:
     template<typename T>
     T ReadAt(const uint64_t offset)
     {
@@ -152,27 +173,6 @@ class SuperChunk
         return *reinterpret_cast<T *>((void *)(m_chunk->m_ptr + offset));
     }
 
-    int64_t
-    Read(
-        void *out,
-        uint64_t len)
-    {
-        int64_t n = ReadAt(m_offset, out, len);
-        if (n <= 0)
-        {
-            return n;
-        }
-        m_offset += n;
-        return n;
-    }
-
-    char *PtrAt(uint64_t offset)
-    {
-        assert(offset < Size());
-        return m_chunk->m_ptr + offset;
-    }
-
-  private:
     Chunk *m_chunk;
     uint64_t m_offset;
 };

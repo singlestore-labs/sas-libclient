@@ -9,13 +9,14 @@
 #include "utils.hpp"
 
 #include "test/db_creds.h"
+#include "test/helpers.h"
 
 #include "libmysql/mysql.h"
 
 Column true_columns[] =
     {
-        {.type = BigInt},
-        {.type = BigInt},
+        {.type = Int64},
+        {.type = Int64},
         {.type = Double},
         {.type = Double},
         {.type = Variable},
