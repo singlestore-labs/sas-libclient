@@ -39,7 +39,7 @@ bool SuperChunkWriter::HasEnoughSpace(uint64_t requestedSize)
 
 bool
 SuperChunkWriter::WriteFixed(
-    const void* val,
+    const void *val,
     const uint64_t len)
 {
     RecordColumn();
@@ -49,7 +49,7 @@ SuperChunkWriter::WriteFixed(
 
 bool
 SuperChunkWriter::WriteInteger(
-    const void* val,
+    const void *val,
     const uint64_t len)
 {
     RecordColumn();
@@ -60,8 +60,8 @@ SuperChunkWriter::WriteInteger(
     }
 
     int64_t int8Bytes = 0;
-    const uint8_t* const input = (uint8_t*) val;
-    for(int i = 0; i < len; ++i)
+    const uint8_t *const input = (uint8_t *)val;
+    for (int i = 0; i < len; ++i)
     {
         int8Bytes = ((int8Bytes << 8) | input[i]);
     }
@@ -72,7 +72,7 @@ SuperChunkWriter::WriteInteger(
 
 bool
 SuperChunkWriter::WriteFloat(
-    const void* val,
+    const void *val,
     const uint64_t len)
 {
     RecordColumn();
@@ -85,7 +85,7 @@ SuperChunkWriter::WriteFloat(
     {
         float val4;
         double val8;
-        memcpy(&val4, (void*)val, len);
+        memcpy(&val4, (void *)val, len);
         val8 = val4;
         m_current_chunk->Write8Typed<double>(val8);
         return true;
@@ -95,7 +95,7 @@ SuperChunkWriter::WriteFloat(
 
 bool
 SuperChunkWriter::WriteVariable(
-    const void* val,
+    const void *val,
     const uint64_t len)
 {
     RecordColumn();
@@ -187,7 +187,7 @@ void SuperChunkWriter::WriteRowEnd()
 bool
 SuperChunkWriter::WriteRow(
     MYSQL_ROW row,
-    unsigned long* lengths)
+    unsigned long *lengths)
 {
     uint64_t total_size = super_chunk::rowSize(m_row_schema, lengths);
 
@@ -290,7 +290,7 @@ extern "C"
         {
             return new SuperChunkWriter(chunk, schema);
         }
-        catch (std::bad_alloc& e)
+        catch (std::bad_alloc &e)
         {
             cb->setError(cb, S2C_ERROR_MEMORY_ALLOCATION, "Memory allocation error in CreateWriter");
             return nullptr;

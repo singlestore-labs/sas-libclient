@@ -23,10 +23,12 @@ class ChunksInfo
     void Put(Chunk* chunk)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_chunk_rows_sums[chunk->partition_id].push_back(m_chunk_rows_sums[chunk->partition_id][chunk->id] + chunk->row_count);
+        m_chunk_rows_sums[chunk->partition_id].push_back(
+            m_chunk_rows_sums[chunk->partition_id][chunk->id] + chunk->row_count);
     }
 
-    int PartitionRowId(
+    int
+    PartitionRowId(
         uint32_t partitionId,
         uint32_t chunkId,
         int64_t chunkRowNum)
@@ -46,4 +48,4 @@ class ChunksInfo
     std::mutex m_mutex;
 };
 
-#endif // QUEUE_CHUNKS_INFO_HPP
+#endif  // QUEUE_CHUNKS_INFO_HPP

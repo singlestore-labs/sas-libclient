@@ -60,7 +60,9 @@ namespace super_chunk
         MakeCreateResultTableQuery(
             const char* resultTableName,
             const char* selectQuery,
-            bool materialized);
+            bool materialized,
+            const char* const* const partitionByCols,
+            const int partitionByColsNumber);
 
         std::string MakeDropQuery(const char* resultTableName);
 

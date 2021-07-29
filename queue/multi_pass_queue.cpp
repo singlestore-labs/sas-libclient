@@ -170,7 +170,11 @@ MultiPassQueue::GetSingleRow(
     {
         int partitionRowId = m_chunks_info->PartitionRowId(partitionId, chunkId, rowNum);
         return m_consumers[threadId].conn->GetSingleRow(
-            m_consumers[threadId].writer.get(), m_row_schema, m_result_table, partitionId, partitionRowId);
+            m_consumers[threadId].writer.get(),
+            m_row_schema,
+            m_result_table,
+            partitionId,
+            partitionRowId);
     }
     catch (S2ClientError &s2_err)
     {

@@ -292,7 +292,24 @@ void null_test(S2Client *client)
     }
 }
 
-void parallel_test(S2Client *client)
+void error_test(S2Client *client)
+{
+    // invalid query
+    ParallelReadInit(client, resultTable, "SELECT * FROM t WHERE non_defined_func(i) = 1", false, NULL, 0);
+
+    printf("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
+    fflush(stdout);
+
+    assert(S2Errno(client));
+    ParallelReadFree(client, resultTable);
+}
+
+void
+parallel_test(
+    S2Client *client,
+    const char *query,
+    const char *const *const partitionByCols,
+    const int n)
 {
     int agg_ports[numWorkers];
     // use MA for every connection
@@ -300,18 +317,8 @@ void parallel_test(S2Client *client)
     {
         agg_ports[i] = db_creds.ma_port;
     }
-
-    // invalid query
-    ParallelReadInit(client, resultTable, "SELECT * FROM t WHERE non_defined_func(i) = 1", false);
-
-    printf("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
-    fflush(stdout);
-
-    assert(S2Errno(client));
-    ParallelReadFree(client, resultTable);
-
     // init the parallel read
-    ParallelReadInit(client, resultTable, queryMain, false);
+    ParallelReadInit(client, resultTable, query, false, partitionByCols, n);
     if (S2Errno(client))
     {
         printf("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
@@ -398,13 +405,13 @@ void non_parallel_test(S2Client *client)
             memcpy(&offset, chunk->m_ptr + current_offset, 8);
             memcpy(&len, chunk->m_ptr + current_offset + 8, 8);
             current_offset += 16;
-            printf("Got table #%d: ", i);
-            for (int j = 0; j < len; j++)
-            {
-                printf("%c", (chunk->m_ptr + offset + j)[0]);
-            }
-            printf("\n");
-            fflush(stdout);
+            // printf("Got table #%d: ", i);
+            // for (int j = 0; j < len; j++)
+            // {
+            //     printf("%c", (chunk->m_ptr + offset + j)[0]);
+            // }
+            // printf("\n");
+            // fflush(stdout);
         }
 
         ChunkFree(chunk);
@@ -461,7 +468,17 @@ main(
 
     null_test(client);
 
-    parallel_test(client);
+    error_test(client);
+
+    parallel_test(client, queryMain, NULL, 0);
+
+    const char *cols[3] = {"i", "i2"};
+
+    parallel_test(client, queryMain, cols, 2);
+
+    const char *cols1[3] = {"t"};
+
+    parallel_test(client, queryMain, cols1, 1);
 
     // free the client
     S2ClientFree(client);

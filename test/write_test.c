@@ -82,7 +82,7 @@ void chunk_test()
     chunk->m_size = 32;
     chunk->consumed_size = 0;
 
-    Column* cols = (Column *)malloc(3 * sizeof(Column));
+    Column *cols = (Column *)malloc(3 * sizeof(Column));
 
     RowSchema schema = {.numColumns = 3, .ColumnInfo = cols};
 
@@ -94,7 +94,7 @@ void chunk_test()
         {
             bool res = WriteFloat(w, (double)i);
             written += res;
-            //printf("Written: %d, m_size: %d, consumed_size: %d\n", res, chunk->m_size, chunk->consumed_size);
+            // printf("Written: %d, m_size: %d, consumed_size: %d\n", res, chunk->m_size, chunk->consumed_size);
         }
         WriteRowEnd(w);
     }

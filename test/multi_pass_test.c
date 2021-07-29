@@ -134,11 +134,11 @@ void *reader_thread(void *input)
         printf("Starting GetChunkMulti in thread %d\n", args->id);
 
         while (numReceived < args->n_chunks_read && GetChunkMulti(
-                   args->queue,
-                   (args->chunks_read)[numReceived].partition_id,
-                   (args->chunks_read)[numReceived].chunk_id,
-                   chunk,
-                   &EH.callback))
+                                                        args->queue,
+                                                        (args->chunks_read)[numReceived].partition_id,
+                                                        (args->chunks_read)[numReceived].chunk_id,
+                                                        chunk,
+                                                        &EH.callback))
         {
             if (chunk->row_count != args->chunks_read[numReceived].row_count)
             {
@@ -260,7 +260,7 @@ void main_test(S2Client *client)
     }
 
     // init the parallel read in multi-pass mode
-    ParallelReadInit(client, resultTable, "SELECT * FROM t_mult", true);
+    ParallelReadInit(client, resultTable, "SELECT * FROM t_mult", true, NULL, 0);
     if (S2Errno(client))
     {
         printf("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
