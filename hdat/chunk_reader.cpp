@@ -1,7 +1,6 @@
 #include <sys/mman.h>
 
 #include "hdat/chunk_reader.hpp"
-#include "hdat/common.hpp"
 
 bool
 SuperChunkReader::ReadFloat(

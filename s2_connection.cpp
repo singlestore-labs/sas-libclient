@@ -149,9 +149,18 @@ bool S2Connection::Advance()
         // according to mysql C API docs we are able to pass zero length buffer in order to determine the actual
         // field lengths but it doesn't work, so we are passing 8 bytes buffer (it is the minimal buffer length
         // which is enough for all numeric data types)
-        m_last_fetched_row[i] = new char[8];
+        int buffer_length = 8;
+        if (fields[i].type == MYSQL_TYPE_DATETIME ||
+            fields[i].type == MYSQL_TYPE_DATE ||
+            fields[i].type == MYSQL_TYPE_TIME ||
+            fields[i].type == MYSQL_TYPE_DATETIME2 ||
+            fields[i].type == MYSQL_TYPE_NEWDATE)
+        {
+            buffer_length = sizeof(MYSQL_TIME);
+        }
+        m_last_fetched_row[i] = new char[buffer_length];
         bind[i].buffer = m_last_fetched_row[i];
-        bind[i].buffer_length = 8;
+        bind[i].buffer_length = buffer_length;
         bind[i].length = &m_last_fetched_lengths[i];
         bind[i].buffer_type = fields[i].type;
         bind[i].is_null = &is_null_arr[i];
@@ -187,7 +196,9 @@ bool S2Connection::Advance()
         }
         else
         {
-            m_last_fetched_row[i] = new char[m_last_fetched_lengths[i]];
+            int len = m_last_fetched_lengths[i];
+            char* tmp = new char[len];
+            m_last_fetched_row[i] = tmp;
         }
 
         bind[i].buffer = m_last_fetched_row[i];
@@ -279,7 +290,7 @@ S2Connection::GetSingleRow(
     std::string query = super_chunk::sql::MakePointInTimeQuery(resultTable.c_str(), partitionId, partitionRowId);
     Prepare(query.c_str());
 
-    uint64_t chunk_size = super_chunk::rowSize(schema, m_last_fetched_lengths);
+    uint64_t chunk_size = rowSize(schema, m_last_fetched_lengths);
 
     char* ptr = (char*)malloc(chunk_size);
 

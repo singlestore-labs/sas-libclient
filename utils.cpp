@@ -43,40 +43,23 @@ namespace super_chunk
                 switch (fields[i].type)
                 {
                     // integer types
-                    case MYSQL_TYPE_TINY:
-                    {
-                        column_info[i].type = Int32;
-                        break;
-                    }
-                    case MYSQL_TYPE_SHORT:
-                    {
-                        column_info[i].type = Int32;
-                        break;
-                    }
                     case MYSQL_TYPE_LONG:
                     {
                         column_info[i].type = Int32;
-                        break;
-                    }
-                    case MYSQL_TYPE_INT24:
-                    {
-                        column_info[i].type = Int32;
+                        column_info[i].size = 4;
                         break;
                     }
                     case MYSQL_TYPE_LONGLONG:
                     {
                         column_info[i].type = Int64;
+                        column_info[i].size = 8;
                         break;
                     }
                     // floating point types
-                    case MYSQL_TYPE_FLOAT:
-                    {
-                        column_info[i].type = Double;
-                        break;
-                    }
                     case MYSQL_TYPE_DOUBLE:
                     {
                         column_info[i].type = Double;
+                        column_info[i].size = 8;
                         break;
                     }
                     // fixed size string
@@ -95,6 +78,25 @@ namespace super_chunk
                     case MYSQL_TYPE_BLOB:
                     {
                         column_info[i].type = Variable;
+                        break;
+                    }
+                    // date and time
+                    case MYSQL_TYPE_DATETIME:
+                    {
+                        column_info[i].type = DateTime;
+                        column_info[i].size = 8;
+                        break;
+                    }
+                    case MYSQL_TYPE_DATE:
+                    {
+                        column_info[i].type = Date;
+                        column_info[i].size = 4;
+                        break;
+                    }
+                    case MYSQL_TYPE_TIME:
+                    {
+                        column_info[i].type = Time;
+                        column_info[i].size = 8;
                         break;
                     }
                     default:

@@ -5,8 +5,9 @@
 #include <type_traits>
 #include <memory>
 
-#include "hdat/super_chunk.hpp"
 #include "chunk_extern.h"
+
+#include "hdat/super_chunk.hpp"
 
 class SuperChunkReader
 {

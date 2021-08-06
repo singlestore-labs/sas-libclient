@@ -12,93 +12,74 @@
 #include "test/db_creds.h"
 #include "test/helpers.h"
 
-#define chunkSize 10485
+#define chunkSize 104850
+
 int numWorkers = 1;
 int threadsPerWorker = 2;
 int queueCapacity = 2;
 
-int nTableRows = 16;
+int nTableRows = 1000;
 
-const char *mainTable = "data_type_table";
 const char *resultTable = "tmp";
-const char *queryMain = "SELECT * FROM data_type_table";
-
-typedef struct variable
-{
-    char data[120];
-    int len;
-} variable;
-
-struct ParsedChunk
-{
-    int64_t int_64;
-    int32_t int_32;
-    double double_val;
-    variable variable_text;
-    variable variable_char;
-    variable variable_binary;
-    char fixed_char[49];
-    char fixed_binary[9];
-};
-
-const struct ParsedChunk INPUT =
-    {
-        -1460002,
-        12507,
-        1.2,
-        {"textVAL_рус",
-         14},
-        {"varcharVAL",
-         10},
-        {"varbinaryVAL",
-         12},
-        "русVAL",
-        "fbVAL"
-};
-const char *testData = "(-1460002, 12507, 1.2, 'textVAL_рус', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL')";
+const char *queryMain = "SELECT * FROM superchunk_table";
 
 int
 parseTestChunkRow(
     Chunk *chunk,
     int current_offset,
-    struct ParsedChunk *out)
+    struct ParsedTestChunk *out)
 {
     int64_t int_64_val, offset, len;
     int32_t int_32_val;
     double double_val;
 
+    // Int64
     memcpy(&out->int_64, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
+    // Int32
     memcpy(&out->int_32, chunk->m_ptr + current_offset, 4);
     current_offset += 8;
+    // Double
     memcpy(&out->double_val, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
-
+    // Variable, TEXT
     memcpy(&offset, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(out->variable_text.data, chunk->m_ptr + offset, len);
     out->variable_text.len = len;
-
+    // Variable, VARCHAR
     memcpy(&offset, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(out->variable_char.data, chunk->m_ptr + offset, len);
     out->variable_char.len = len;
-
+    // Variable, VARBINARY
     memcpy(&offset, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
     out->variable_binary.len = len;
-
+    // Fixed, CHAR(16)
     memcpy(out->fixed_char, chunk->m_ptr + current_offset, 48);
     current_offset += 48;
-
-    memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 8);
+    // Fixed, BINARY(9)
+    memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 16);
+    current_offset += 16;
+    // DateTime
+    memcpy(&out->date_time, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    // DateTime(6)
+    memcpy(&out->date_time_6, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    // Date
+    memcpy(&out->date, chunk->m_ptr + current_offset, 4);
+    current_offset += 8;
+    // Time
+    memcpy(&out->time, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
 
     return current_offset;
@@ -121,12 +102,20 @@ void null_test(S2Client *client)
         vvarchar_10 VARCHAR(10),\
         vvarbinary_20 VARBINARY(20),\
         fchar_16 CHAR(16),\
-        fbbinary_8 BINARY(8)\
+        fbbinary_8 BINARY(9),\
+        idatetime DATETIME,\
+        idatetime_6 DATETIME(6),\
+        idate DATE,\
+        itime TIME\
         )",
         &err);
     if (err) printf("Error creating table: %s\n", S2Error(client));
 
-    ExecuteDDLQuery(client, "INSERT INTO null_test VALUES (NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)", &err);
+    ExecuteDDLQuery(
+        client,
+        "INSERT INTO null_test VALUES (\
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+        &err);
     if (err) printf("Error inserting data: %s\n", S2Error(client));
 
     const char *query = "SELECT * FROM null_test";
@@ -144,7 +133,7 @@ void null_test(S2Client *client)
         fflush(stdout);
     }
 
-    int dummy_partition;
+    int dummy_partition = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
 
     while (GetNextChunk(q, &dummy_partition, chunk, &EH.callback))
@@ -152,18 +141,23 @@ void null_test(S2Client *client)
         assert(!err && "GetNextChunk failed in null_test in non parallel mode");
 
         int current_offset = 0;
-        struct ParsedChunk chunkData;
+        struct ParsedTestChunk chunkData;
         for (int i = 0; i < chunk->row_count; ++i)
         {
             current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
             assert(chunkData.int_64 == int64Null);
             assert(chunkData.int_32 == int32Null);
             assert(chunkData.double_val == doubleNull);
+
             assert(chunkData.variable_text.len == 0);
             assert(chunkData.variable_char.len == 0);
             assert(chunkData.variable_binary.len == 0);
             assert(strlen(chunkData.fixed_char) == 0);
             assert(strlen(chunkData.fixed_binary) == 0);
+
+            assert(chunkData.date_time == int64Null);
+            assert(chunkData.date == int32Null);
+            assert(chunkData.time == int64Null);
         }
         ChunkFree(chunk);
     }
@@ -175,43 +169,6 @@ void null_test(S2Client *client)
     ExecuteDDLQuery(client, "DROP TABLE null_test", &err);
     if (err) printf("Error dropping table: %s\n", S2Error(client));
     printf("[SUCCESS] NULL test passed\n");
-}
-
-void setup(S2Client *client)
-{
-    int err = 0;
-    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS data_type_table", &err);
-    if (err) printf("Error dropping table: %s\n", S2Error(client));
-
-    ExecuteDDLQuery(
-        client,
-        "CREATE TABLE data_type_table (\
-        ibigint BIGINT(20),\
-        iint INT,\
-        ddouble DOUBLE,\
-        vtext TEXT,\
-        vvarchar_10 VARCHAR(10),\
-        vvarbinary_20 VARBINARY(20),\
-        fchar_16 CHAR(16),\
-        fbbinary_8 BINARY(8)\
-        )",
-        &err);
-
-    if (err) printf("Error creating table: %s\n", S2Error(client));
-    for (int i = 0; i < nTableRows; ++i)
-    {
-        char query[200] = "INSERT INTO data_type_table VALUES ";
-        strcat(query, testData);
-        ExecuteDDLQuery(client, query, &err);
-        if (err) printf("Error inserting data: %s\n", S2Error(client));
-    }
-}
-
-void cleanup(S2Client *client)
-{
-    int err;
-    ExecuteDDLQuery(client, "DROP TABLE data_type_table", &err);
-    if (err) printf("Error dropping table: %s\n", S2Error(client));
 }
 
 void read_test(S2Client *client)
@@ -239,29 +196,38 @@ void read_test(S2Client *client)
         if (!numReceived)
         {
             s = GetRowSchema(q);
-            // PrintRowSchema(s);
+            PrintRowSchema(s);
         }
         numReceived++;
         // PrintChunk(r, chunk, s);
-        struct ParsedChunk chunkData;
+        struct ParsedTestChunk chunkData;
         int current_offset = 0;
         for (int i = 0; i < chunk->row_count; ++i)
         {
             current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
-            assert(chunkData.int_64 == INPUT.int_64);
-            assert(chunkData.int_32 == INPUT.int_32);
-            assert(chunkData.double_val == INPUT.double_val);
+            assert(chunkData.int_64 == TEST_DATA.int_64);
+            assert(chunkData.int_32 == TEST_DATA.int_32);
+            assert(chunkData.double_val == TEST_DATA.double_val);
 
-            assert(chunkData.variable_text.len == INPUT.variable_text.len);
-            assert(chunkData.variable_char.len == INPUT.variable_char.len);
-            assert(chunkData.variable_binary.len == INPUT.variable_binary.len);
+            assert(chunkData.variable_text.len == TEST_DATA.variable_text.len);
+            assert(chunkData.variable_char.len == TEST_DATA.variable_char.len);
+            assert(chunkData.variable_binary.len == TEST_DATA.variable_binary.len);
 
-            assert(!strncmp(chunkData.variable_text.data, INPUT.variable_text.data, INPUT.variable_text.len));
-            assert(!strncmp(chunkData.variable_char.data, INPUT.variable_char.data, INPUT.variable_char.len));
-            assert(!strncmp(chunkData.variable_binary.data, INPUT.variable_binary.data, INPUT.variable_binary.len));
+            assert(!strncmp(chunkData.variable_text.data, TEST_DATA.variable_text.data, TEST_DATA.variable_text.len));
+            assert(!strncmp(chunkData.variable_char.data, TEST_DATA.variable_char.data, TEST_DATA.variable_char.len));
+            assert(!strncmp(
+                chunkData.variable_binary.data,
+                TEST_DATA.variable_binary.data,
+                TEST_DATA.variable_binary.len));
 
-            assert(!strcmp(chunkData.fixed_char, INPUT.fixed_char));
-            assert(!strcmp(chunkData.fixed_binary, INPUT.fixed_binary));
+            assert(!strcmp(chunkData.fixed_char, TEST_DATA.fixed_char));
+            assert(!strcmp(chunkData.fixed_binary, TEST_DATA.fixed_binary));
+
+            // these values have been found using online epoch converter lol
+            assert(chunkData.date_time == 1935835200000000);
+            assert(chunkData.date_time_6 == 31666394987654);
+            assert(chunkData.date == 22405);
+            assert(chunkData.time == 40271000000);
         }
 
         ChunkFree(chunk);
@@ -294,9 +260,9 @@ main(
 
     null_test(client);
 
-    setup(client);
+    setup_table(client, 10);
     read_test(client);
-    cleanup(client);
+    cleanup_table(client);
     // free the client
     S2ClientFree(client);
     return 0;

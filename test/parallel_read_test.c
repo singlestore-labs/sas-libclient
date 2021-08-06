@@ -44,7 +44,7 @@ void *reader_thread(void *input)
     {
         numReceived++;
 
-        TOTAL += dummyProcessChunk(chunk, true, args);
+        TOTAL += RecordChunk(chunk, true, args);
         ChunkFree(chunk);
     }
     free(chunk);

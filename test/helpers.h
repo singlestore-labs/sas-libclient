@@ -11,6 +11,52 @@
 #include "s2_client_extern.h"
 #include "hdat_read_extern.h"
 
+#define queryLen 1000
+#define maxVariableLen 120
+
+const char *superchunkTable = "superchunk_table";
+const char *testData =
+    "(-1460002, 12507, 1.2,\
+    'textVAL_рус', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL',\
+    '2021-05-05 12:00:00', '1961-01-01 12:13:14.987654', '2021-05-05', '11:11:11')";
+
+typedef struct variable
+{
+    char data[maxVariableLen];
+    int len;
+} variable;
+
+struct ParsedTestChunk
+{
+    int64_t int_64;
+    int32_t int_32;
+    double double_val;
+    variable variable_text;
+    variable variable_char;
+    variable variable_binary;
+    char fixed_char[49];
+    char fixed_binary[17];
+    int64_t date_time;
+    int64_t date_time_6;
+    int32_t date;
+    int64_t time;
+};
+
+const struct ParsedTestChunk TEST_DATA =
+    {
+        -1460002,
+        12507,
+        1.2,
+        {"textVAL_рус",
+         14},
+        {"varcharVAL",
+         10},
+        {"varbinaryVAL",
+         12},
+        "русVAL",
+        "fbVAL",
+};
+
 typedef enum ReadingMode
 {
     FIRST_PASS,
@@ -65,8 +111,52 @@ dummyHandleError(
     fflush(stdout);
 }
 
+void
+setup_table(
+    S2Client *client,
+    int nTableRows)
+{
+    int err = 0;
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS superchunk_table", &err);
+    if (err) printf("Error dropping table: %s\n", S2Error(client));
+
+    ExecuteDDLQuery(
+        client,
+        "CREATE TABLE superchunk_table (\
+        ibigint BIGINT(20),\
+        iint INT,\
+        ddouble DOUBLE,\
+        vtext TEXT,\
+        vvarchar_10 VARCHAR(10),\
+        vvarbinary_20 VARBINARY(20),\
+        fchar_16 CHAR(16),\
+        fbbinary_9 BINARY(9),\
+        idatetime DATETIME,\
+        idatetime_6 DATETIME(6),\
+        idate DATE,\
+        itime TIME\
+        )",
+        &err);
+
+    if (err) printf("Error creating table: %s\n", S2Error(client));
+    for (int i = 0; i < nTableRows; ++i)
+    {
+        char query[queryLen] = "INSERT INTO superchunk_table VALUES ";
+        strcat(query, testData);
+        ExecuteDDLQuery(client, query, &err);
+        if (err) printf("Error inserting data: %s\n", S2Error(client));
+    }
+}
+
+void cleanup_table(S2Client *client)
+{
+    int err = 0;
+    ExecuteDDLQuery(client, "DROP TABLE superchunk_table", &err);
+    if (err) printf("Error dropping table: %s\n", S2Error(client));
+}
+
 int
-dummyProcessChunk(
+RecordChunk(
     Chunk *chunk,
     bool print,
     ReaderThreadArgs *args)
@@ -91,29 +181,6 @@ dummyProcessChunk(
             chunk->row_count,
             chunk->consumed_size);
     }
-    // print the data using the known schema
-    int64_t x, y;
-    memcpy(&x, chunk->m_ptr, 8);
-    memcpy(&y, chunk->m_ptr + 8, 8);
-
-    double u, v;
-    memcpy(&u, chunk->m_ptr + 16, 8);
-    memcpy(&v, chunk->m_ptr + 24, 8);
-
-    int64_t offset, len;
-    memcpy(&offset, chunk->m_ptr + 32, 8);
-    memcpy(&len, chunk->m_ptr + 40, 8);
-    if (print)
-    {
-        printf("The numbers in chunk are: %ld %ld %f %f. ", x, y, u, v);
-        printf("The string is: ");
-        for (int i = 0; i < len; i++)
-        {
-            printf("%c", (chunk->m_ptr + offset + i)[0]);
-        }
-        printf("\n");
-        fflush(stdout);
-    }
 
     return chunk->row_count;
 }
@@ -125,8 +192,8 @@ PrintChunk(
     RowSchema *schema)
 {
     ResetReader(reader, chunk, schema);
-    int64_t int_64_val;
-    int32_t int_32_val;
+    int64_t int_64_val, date_time, time;
+    int32_t int_32_val, date;
     int64_t len;
     bool is_null;
     double float_val;
@@ -159,6 +226,7 @@ PrintChunk(
                         printf("%c", buf[i]);
                     }
                     fflush(stdout);
+                    break;
                 case Fixed:
                     len = col_info.size;
                     ReadFixed(reader, &buf, len, &is_null);
@@ -167,6 +235,18 @@ PrintChunk(
                         printf("%c", buf[i]);
                     }
                     fflush(stdout);
+                    break;
+                case DateTime:
+                    ReadInt64(reader, &date_time, &is_null);
+                    printf("%ld", date_time);
+                    break;
+                case Date:
+                    ReadInt32(reader, &date, &is_null);
+                    printf("%d", date);
+                    break;
+                case Time:
+                    ReadInt64(reader, &time, &is_null);
+                    printf("%ld", time);
                     break;
                 default:
                     assert(false && "unsupported data type");

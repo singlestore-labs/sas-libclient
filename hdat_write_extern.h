@@ -25,6 +25,11 @@ WriteInt64(
     const int64_t val);
 
 bool
+WriteInt32(
+    SuperChunkWriter* writer,
+    const int32_t val);
+
+bool
 WriteDouble(
     SuperChunkWriter* writer,
     const double val);
@@ -33,7 +38,8 @@ bool
 WriteFixed(
     SuperChunkWriter* writer,
     const void* val,
-    const uint64_t len);
+    const int64_t data_size,
+    const int64_t field_size);
 
 bool
 WriteVariable(

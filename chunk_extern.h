@@ -6,30 +6,16 @@
 
 enum ColumnType
 {
-    Int64,
-    Int32,
-    Double,
-    Variable,
-    Fixed,
+    Int64,     // BIGINT
+    Int32,     // INT
+    Double,    // DOUBLE
+    Variable,  // VARCHAR, VARBINARY, TEXT
+    Fixed,     // CHAR, BINARY
+    Time,      // TIME, converted to int64 number of microsenconds since midnight
+    Date,      // DATE, converted to int32 number of days since 1 Jan 1960
+    DateTime,  // DATETIME, DATETIME(6) converted to int64 number of microseconds since midnight 1 Jan 1960
     Unsupported,
 };
-
-// this Enum will be used if we decide to do more type conversions in libclient
-// enum ColumnType
-// {
-//     Int64,  // supported
-//     Int32,
-//     Double,  // supported
-//     Varchar,  // supported
-//     Varbinary,
-//     Char,
-//     Binary,
-//     Time,  // int64 number of microsenconds since midnight
-//     Date,  // int32 number of days since 1 Jan 1960
-//     DateTime, // int64 number of microseconds since midnight 1 Jan 1960
-//     DecQuad, // Decimal
-//     DecSext, // Decimal
-// };
 
 typedef struct Column
 {

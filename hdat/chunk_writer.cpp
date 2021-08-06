@@ -40,13 +40,13 @@ bool SuperChunkWriter::HasEnoughSpace(uint64_t requestedSize)
 void
 SuperChunkWriter::WriteFixed(
     const void *val,
-    const uint64_t len,
-    const int64_t size)
+    const int64_t data_size,
+    const int64_t field_size)
 {
     RecordColumn();
-    m_current_chunk->Write(val, len);
-    uint64_t alignedLen = super_chunk::sizeofAligned8(size);
-    m_current_chunk->Pad(alignedLen - len, true);
+    m_current_chunk->Write(val, data_size);
+    uint64_t alignedLen = sizeofAligned8(field_size);
+    m_current_chunk->Pad(alignedLen - data_size, true);
 }
 
 void SuperChunkWriter::WriteInt64(const void *val)
@@ -112,7 +112,7 @@ inline void SuperChunkWriter::WriteDoubleNull()
 inline void SuperChunkWriter::WriteFixedNull(const int len)
 {
     RecordColumn();
-    uint64_t alignedLen = super_chunk::sizeofAligned8(len);
+    uint64_t alignedLen = sizeofAligned8(len);
     m_current_chunk->Pad(alignedLen, true);
 }
 
@@ -129,6 +129,17 @@ inline void SuperChunkWriter::WriteInt64Numeric(const T val)
     RecordColumn();
     int64_t val8 = (int64_t)val;
     m_current_chunk->Write8Typed<int64_t>(val8);
+}
+
+template<typename T>
+inline void SuperChunkWriter::WriteInt32Numeric(const T val)
+{
+    static_assert(std::is_arithmetic<T>::value, "WriteInt64Numeric requires a numeric value");
+
+    RecordColumn();
+    int32_t val4 = (int32_t)val;
+    m_current_chunk->Write4Typed<int32_t>(val4);
+    m_current_chunk->Pad(4, false);
 }
 
 template<typename T>
@@ -162,7 +173,7 @@ SuperChunkWriter::WriteRow(
     MYSQL_ROW row,
     unsigned long *lengths)
 {
-    uint64_t total_size = super_chunk::rowSize(m_row_schema, lengths);
+    uint64_t total_size = rowSize(m_row_schema, lengths);
 
     if (!HasEnoughSpace(total_size))
     {
@@ -208,6 +219,42 @@ SuperChunkWriter::WriteRow(
                 }
                 break;
             }
+            case DateTime:
+            {
+                if (!column_value)
+                {
+                    WriteInt64Null();
+                }
+                else
+                {
+                    WriteInt64Numeric(toDateTimeCAS(column_value));
+                }
+                break;
+            }
+            case Date:
+            {
+                if (!column_value)
+                {
+                    WriteInt32Null();
+                }
+                else
+                {
+                    WriteInt32Numeric(toDateCAS(column_value));
+                }
+                break;
+            }
+            case Time:
+            {
+                if (!column_value)
+                {
+                    WriteInt64Null();
+                }
+                else
+                {
+                    WriteInt64Numeric(toTimeCAS(column_value));
+                }
+                break;
+            }
             case Double:
             {
                 if (!column_value)
@@ -224,7 +271,7 @@ SuperChunkWriter::WriteRow(
             {
                 if (!column_value)
                 {
-                    WriteFixedNull(data_length);
+                    WriteFixedNull(column_type.size);
                 }
                 else
                 {
@@ -301,7 +348,7 @@ extern "C"
         SuperChunkWriter *writer,
         int64_t val)
     {
-        if (!writer->HasEnoughSpace(super_chunk::defaultAlignmentSize))
+        if (!writer->HasEnoughSpace(defaultAlignmentSize))
         {
             return false;
         }
@@ -310,11 +357,24 @@ extern "C"
     }
 
     bool
+    WriteInt32(
+        SuperChunkWriter *writer,
+        int64_t val)
+    {
+        if (!writer->HasEnoughSpace(defaultAlignmentSize))
+        {
+            return false;
+        }
+        writer->WriteInt32Numeric(val);
+        return true;
+    }
+
+    bool
     WriteDouble(
         SuperChunkWriter *writer,
         double val)
     {
-        if (!writer->HasEnoughSpace(super_chunk::defaultAlignmentSize))
+        if (!writer->HasEnoughSpace(defaultAlignmentSize))
         {
             return false;
         }
@@ -326,14 +386,14 @@ extern "C"
     WriteFixed(
         SuperChunkWriter *writer,
         const void *val,
-        uint64_t len,
-        int64_t size)
+        int64_t data_size,
+        int64_t field_size)
     {
-        if (!writer->HasEnoughSpace(super_chunk::sizeofAligned8(len)))
+        if (!writer->HasEnoughSpace(sizeofAligned8(field_size)))
         {
             return false;
         }
-        writer->WriteFixed(val, len, size);
+        writer->WriteFixed(val, data_size, field_size);
         return true;
     }
 
@@ -343,7 +403,7 @@ extern "C"
         const void *val,
         uint64_t len)
     {
-        int space_needed = len + 2 * super_chunk::defaultAlignmentSize;
+        int space_needed = len + 2 * defaultAlignmentSize;
         if (!writer->HasEnoughSpace(space_needed))
         {
             return false;

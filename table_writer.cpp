@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include "table_writer.hpp"
+#include "hdat/common.hpp"
 
 // ChunkToTSV writes
 void
@@ -55,6 +56,34 @@ TableWriter::ChunkToTSV(
                     if (!is_null)
                     {
                         this->tsv_rows->write(buf, len);
+                    }
+                    break;
+                case Fixed:
+                    reader->ReadFixed(&buf, reader->m_row_schema->ColumnInfo[col_num].size, &is_null);
+                    if (!is_null)
+                    {
+                        this->tsv_rows->write(buf, reader->m_row_schema->ColumnInfo[col_num].size);
+                    }
+                    break;
+                case DateTime:
+                    reader->ReadInt64(&int_64_val, &is_null);
+                    if (!is_null)
+                    {
+                        *this->tsv_rows << fromDateTimeCAS(int_64_val);
+                    }
+                    break;
+                case Time:
+                    reader->ReadInt64(&int_64_val, &is_null);
+                    if (!is_null)
+                    {
+                        *this->tsv_rows << fromTimeCAS(int_64_val);
+                    }
+                    break;
+                case Date:
+                    reader->ReadInt32(&int_32_val, &is_null);
+                    if (!is_null)
+                    {
+                        *this->tsv_rows << fromDateCAS(int_32_val);
                     }
                     break;
                 default:

@@ -5,11 +5,9 @@
 #include <type_traits>
 #include <memory>
 
-#include "libmysql/mysql.h"
-
 #include "chunk_extern.h"
+
 #include "hdat/super_chunk.hpp"
-#include "hdat/common.hpp"
 
 class SuperChunkWriter
 {
@@ -37,8 +35,8 @@ class SuperChunkWriter
     void
     WriteFixed(
         const void *val,
-        const uint64_t len,
-        const int64_t size);
+        const int64_t data_size,
+        const int64_t field_size);
 
     void
     WriteVariable(
@@ -62,10 +60,13 @@ class SuperChunkWriter
 
     inline void WriteFixedNull(const int len);
 
-    inline  void WriteVariableNull();
+    inline void WriteVariableNull();
 
     template<typename T>
     inline void WriteInt64Numeric(const T val);
+
+    template<typename T>
+    inline void WriteInt32Numeric(const T val);
 
     template<typename T>
     inline void WriteFloatNumeric(const T val);
@@ -161,8 +162,8 @@ extern "C"
     WriteFixed(
         SuperChunkWriter *writer,
         const void *val,
-        uint64_t len,
-        int64_t size);
+        const int64_t data_size,
+        const int64_t field_size);
 
     bool
     WriteVariable(

@@ -142,7 +142,7 @@ class SuperChunk
         const char **out,
         uint64_t len)
     {
-        uint64_t alignedLen = super_chunk::sizeofAligned8(len);
+        uint64_t alignedLen = sizeofAligned8(len);
         if (Size() - m_offset < len)
         {
             return false;

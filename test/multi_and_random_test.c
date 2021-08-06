@@ -56,7 +56,7 @@ void *reader_thread(void *input)
         {
             numReceived++;
 
-            TOTAL += dummyProcessChunk(chunk, false, args);
+            TOTAL += RecordChunk(chunk, false, args);
             ChunkFree(chunk);
         }
         printf("Finished first pass: worker %d thread %d read %d chunks\n", args->worker_id, args->id, numReceived);
