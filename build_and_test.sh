@@ -28,7 +28,7 @@ fi
 if [ $1 = "share" ]; then
     cd $PATH_TO_LIBCLIENT
     mkdir -p build/share
-    cp test/parallel_read_test.c test/write_test.c test/db_creds.h s2_client_extern.h chunk_extern.h hdat_write_extern.h build/libs2client.so build/share/
+    cp test/data_types_test.c test/parallel_read_test.c test/write_test.c test/db_creds.h test/helpers.h s2_client_extern.h chunk_extern.h hdat_write_extern.h build/libs2client.so build/share/
     echo 'gcc -I "${PATH_TO_HEADERS}"/ -L "${PATH_TO_LIBS2CLIENT_SO}" test/parallel_read_test.c -o parallel_read_test -ls2client -lpthread
 ./parallel_read_test' > build/share/run_test.sh
 fi
