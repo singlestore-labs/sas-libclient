@@ -82,6 +82,7 @@ extern "C"
                        resultTableName,
                        queueCapacity,
                        chunkSize,
+                       nReaderThreads,
                        true /* doesParallelRead */)
                 .release();
         }
@@ -112,6 +113,7 @@ extern "C"
                        query,
                        queueCapacity,
                        chunkSize,
+                       1,  // TODO: check if we need thread affinity here
                        false /* doesParallelRead */)
                 .release();
         }
@@ -130,14 +132,14 @@ extern "C"
     bool
     GetNextChunk(
         ChunkQueue *queue,
-        int readerThreadId,
+        int consumerId,
         uint32_t *partitionId /*out*/,
         Chunk *chunk /*out*/,
         S2ErrorCallback *cb)
     {
         // TODO: use readerThreadId
         S2ClientError err(0, "");
-        Chunk *res = queue->Get(err);
+        Chunk *res = queue->Get(consumerId, err);
         if (err.m_errorCode)
         {
             cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str());

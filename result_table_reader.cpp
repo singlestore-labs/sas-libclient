@@ -8,7 +8,6 @@ ResultTableReader::CreateReader(
     ThreadSafeQueue<Chunk *> *q,
     std::shared_ptr<ChunksInfo> chunks_info,
     const char *resultTableName,
-    uint32_t id,
     uint32_t partition,
     uint64_t size,
     std::shared_ptr<std::mutex> mu,
@@ -16,7 +15,7 @@ ResultTableReader::CreateReader(
     bool row_schema_responsible)
 {
     // allocate a ResultTableReader object
-    std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, id, partition, size));
+    std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, partition, size));
 
     // create a new connection
     reader->m_conn = S2Connection::Connect(conn->m_host, conn->m_port, conn->m_db, conn->m_user, conn->m_password);
@@ -43,7 +42,7 @@ ResultTableReader::CreateReaderNonParallel(
     bool row_schema_responsible)
 {
     // allocate a ResultTableReader object
-    std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, 0 /*reader_id*/, 0 /*partition*/, size));
+    std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, 0 /*partition*/, size));
 
     // create a new connection
     reader->m_conn = S2Connection::Connect(conn->m_host, conn->m_port, conn->m_db, conn->m_user, conn->m_password);
@@ -108,7 +107,7 @@ void ResultTableReader::Read()
             std::unique_lock<std::mutex> lock(m_error_mutex);
             m_error = S2ClientError(S2C_ERROR_READER_FAILED, "Failed to get row schema from result table metadata");
         }
-        this->m_queue->DeleteProducer(m_reader_id);
+        this->m_queue->DeleteProducer(m_partition);
         SetActive(false);
         return;
     }
@@ -126,13 +125,12 @@ void ResultTableReader::Read()
             chunk->row_count = 0;
             chunk->id = chunkId;
             chunk->partition_id = m_partition;
-            chunk->producer_id = m_reader_id;
 
             this->m_conn->NextChunk(m_chunk_writer, chunk, m_row_schema);
 
             if (chunk->row_count == 0)
             {
-                // in case chunk is not pushed to the queue, we need to
+                // in this case chunk is not pushed to the queue, we need to
                 // free it here
                 free(ptr);
                 delete chunk;
@@ -163,7 +161,7 @@ void ResultTableReader::Read()
         std::unique_lock<std::mutex> lock(m_error_mutex);
         m_error = s2_err;
     }
-    this->m_queue->DeleteProducer(m_reader_id);
+    this->m_queue->DeleteProducer(m_partition);
     SetActive(false);
 }
 

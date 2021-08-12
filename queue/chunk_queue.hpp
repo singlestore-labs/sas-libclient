@@ -35,27 +35,30 @@ class ChunkQueue
                 reader->NotifyConnUnfinishedStmt();
             }
         }
-        if (m_ts_queue)
+        for (int consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
         {
             // delete all chunks that are saved in the queue
             S2ClientError err(0, "");
-            while (Chunk *c = Get(err))
+            while (Chunk *c = Get(consumer_id, err))
             {
                 super_chunk::utils::ChunkFree(c);
                 delete c;
             }
-            delete m_ts_queue;
-            m_ts_queue = nullptr;
+            delete m_consumer_queues[consumer_id];
+            m_consumer_queues[consumer_id] = nullptr;
         }
     };
 
     // Get retrieves one Chunk from the queue
-    Chunk *Get(S2ClientError &err)
+    Chunk *
+    Get(
+        int consumerId,
+        S2ClientError &err)
     {
         err = S2ClientError(0, "");
         try
         {
-            return m_ts_queue->Pop();
+            return m_consumer_queues[consumerId]->Pop();
         }
         catch (std::out_of_range &ex)
         {
@@ -112,15 +115,16 @@ class ChunkQueue
     S2ClientError m_error;
     std::mutex m_error_mutex;
 
-    // m_partition_reader stores partition -> reader_id correspondence.
-    // reader ids are required to be 0, 1 ,..., m_readers.size() - 1
-    // for the batch queue to work
-    std::unordered_map<int, int> m_partition_reader;
-
     std::string m_result_table;
-
     std::vector<std::unique_ptr<ResultTableReader>> m_readers;
-    ThreadSafeQueue<Chunk *> *m_ts_queue;
+
+    int m_consumers;
+    std::vector<ThreadSafeQueue<Chunk *> *> m_consumer_queues;
+    // m_partition_consumer stores partition -> cas_reader_thread_id correspondence
+    // in a vector indexed by partition_id. Partitions assigned to another worker
+    // store the value of -1
+    // reader thread ids are required to be 0, 1 ,..., m_consumers - 1
+    std::vector<int> m_partition_consumer;
 };
 
 #endif  // QUEUE_CHUNK_QUEUE_HPP

@@ -243,12 +243,10 @@ main(
     int argc,
     char *argv[])
 {
-    if (argc < 2)
+    if (argc > 1)
     {
-        printf("Exiting... Correct usage: data_types_test <printInfo>\n");
-        exit(1);
+        printInfo = atoi(argv[1]);
     }
-    printInfo = atoi(argv[1]);
     EH.callback.setError = dummyHandleError;
 
     // init the client
@@ -265,9 +263,9 @@ main(
 
     null_test(client);
 
-    setup_table(client, 10);
+    setup_superchunk_table(client, 10);
     read_test(client);
-    cleanup_table(client);
+    cleanup_superchunk_table(client);
     // free the client
     S2ClientFree(client);
     return 0;

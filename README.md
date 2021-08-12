@@ -31,7 +31,7 @@ CAS will have multiple *workers* (kubernetes pods supposedly colocated with S2 a
 3. The results of `selectQuery` are streamed to CAS using a queue `ChunkQueue` which is a thread-safe queue of `(partitionId, Chunk)` pairs.
 The queue is initialized using `ParallelReadGetQueue()` function.
 
-4. When `ParallelReadGetQueue()` has been called by a CAS worker, `libs2client` spawns a number of readers equal to `AssignedPartitions`.
+4. When `ParallelReadGetQueue()` has been called by a CAS worker, `libs2client` spawns a number of readers equal to `WorkerPartitions`.
 
     - Each reader creates its own connection to S2
     - Each reader reads from its own partition by calling `SELECT * FROM resultTableName WHERE partition_id = {assigned_partition}` on its connection

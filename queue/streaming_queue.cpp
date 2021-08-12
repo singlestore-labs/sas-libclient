@@ -8,6 +8,7 @@ StreamingQueue::CreateChunkQueue(
     const char *resultTableName,
     uint32_t capacity,
     uint64_t chunkSize,
+    int nConsumers,
     bool doesParallelRead)
 {
     // allocate a ChunkQueue object
@@ -20,10 +21,24 @@ StreamingQueue::CreateChunkQueue(
     if (doesParallelRead)
     {
         partitions =
-            super_chunk::utils::AssignedPartitions(client->m_numWorkers, client->m_workerId, client->m_numPartitions);
+            super_chunk::utils::WorkerPartitions(client->m_numWorkers, client->m_workerId, client->m_numPartitions);
     }
-    // create ThreadSafeQueue
-    chunkQueue->m_ts_queue = new ThreadSafeSimpleQueue<Chunk *>(capacity, partitions.size());
+    chunkQueue->m_partition_consumer = std::vector<int>(client->m_numPartitions, -1);
+
+    // create ThreadSafeQueue for each consumer
+    for (int consumer_id = 0; consumer_id < nConsumers; ++consumer_id)
+    {
+        std::vector<int> consumer_partitions = super_chunk::utils::ConsumerPartitions(
+            nConsumers,
+            consumer_id,
+            partitions);
+        chunkQueue->m_consumer_queues.push_back(
+            new ThreadSafeSimpleQueue<Chunk *>(capacity, consumer_partitions.size()));
+        for (auto p : consumer_partitions)
+        {
+            chunkQueue->m_partition_consumer[p] = consumer_id;
+        }
+    }
 
     // we acquire lock before creating readers
     std::unique_lock<std::mutex> row_schema_lock(*row_schema_mutex.get());
@@ -39,10 +54,9 @@ StreamingQueue::CreateChunkQueue(
             chunkQueue->m_readers.push_back(
                 ResultTableReader::CreateReader(
                     client->m_conn,
-                    chunkQueue->m_ts_queue,
+                    chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partitions[i]]],
                     nullptr,
                     resultTableName,
-                    i,
                     partitions[i],
                     chunkSize,
                     row_schema_mutex,
@@ -55,7 +69,7 @@ StreamingQueue::CreateChunkQueue(
         chunkQueue->m_readers.push_back(
             ResultTableReader::CreateReaderNonParallel(
                 client->m_conn,
-                chunkQueue->m_ts_queue,
+                chunkQueue->m_consumer_queues[0],
                 resultTableName /*query*/,
                 chunkSize,
                 row_schema_mutex,

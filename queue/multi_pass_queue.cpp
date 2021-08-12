@@ -11,7 +11,7 @@ MultiPassQueue::CreateChunkQueue(
     const char *resultTableName,
     uint32_t capacity,
     uint64_t chunkSize,
-    int nReaderThreads)
+    int nConsumers)
 {
     // allocate a ChunkQueue object
     std::unique_ptr<MultiPassQueue> chunkQueue(new MultiPassQueue);
@@ -26,7 +26,7 @@ MultiPassQueue::CreateChunkQueue(
 
     chunkQueue->m_result_table = resultTableName;
 
-    std::vector<int> partitions = super_chunk::utils::AssignedPartitions(
+    std::vector<int> partitions = super_chunk::utils::WorkerPartitions(
         client->m_numWorkers,
         client->m_workerId,
         client->m_numPartitions);
@@ -34,9 +34,21 @@ MultiPassQueue::CreateChunkQueue(
     // initialize the object to store chunk sizes
     std::shared_ptr<ChunksInfo> chunks_info(new ChunksInfo(partitions));
     chunkQueue->m_chunks_info = chunks_info;
-    // create ThreadSafeQueue
-    chunkQueue->m_ts_queue = new ThreadSafeBatchQueue<Chunk *>(capacity, partitions.size());
+    chunkQueue->m_partition_consumer = std::vector<int>(client->m_numPartitions, -1);
 
+    // create ThreadSafeBatchQueue for each consumer
+    for (int consumer_id = 0; consumer_id < nConsumers; ++consumer_id)
+    {
+        std::vector<int> consumer_partitions = super_chunk::utils::ConsumerPartitions(
+            nConsumers,
+            consumer_id,
+            partitions);
+        chunkQueue->m_consumer_queues.push_back(new ThreadSafeBatchQueue<Chunk *>(capacity, consumer_partitions));
+        for (auto p : consumer_partitions)
+        {
+            chunkQueue->m_partition_consumer[p] = consumer_id;
+        }
+    }
     // we acquire lock before creating readers
     std::unique_lock<std::mutex> row_schema_lock(*row_schema_mutex.get());
     // create Readers
@@ -48,16 +60,14 @@ MultiPassQueue::CreateChunkQueue(
         chunkQueue->m_readers.push_back(
             ResultTableReader::CreateReader(
                 client->m_conn,
-                chunkQueue->m_ts_queue,
+                chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partitions[i]]],
                 chunkQueue->m_chunks_info,
                 resultTableName,
-                i,
                 partitions[i],
                 chunkSize,
                 row_schema_mutex,
                 row_schema_cv,
                 i == 0 /*row_schema_responsible*/));
-        chunkQueue->m_partition_reader[partitions[i]] = i;
     }
 
     // start Readers
@@ -89,9 +99,9 @@ MultiPassQueue::CreateChunkQueue(
         }
     }
 
-    chunkQueue->m_consumer_threads_num = nReaderThreads;
-    chunkQueue->m_consumers.reserve(nReaderThreads);
-    for (int i = 0; i < nReaderThreads; ++i)
+    chunkQueue->m_consumer_threads_num = nConsumers;
+    chunkQueue->m_consumers.reserve(nConsumers);
+    for (int i = 0; i < nConsumers; ++i)
     {
         std::unique_ptr<S2Connection> tmp = std::unique_ptr<S2Connection>(nullptr);
         chunkQueue->m_consumers.emplace_back(std::move(tmp), std::make_unique<SuperChunkWriter>());
@@ -108,21 +118,10 @@ MultiPassQueue::GetById(
     S2ClientError &err)
 {
     err = S2ClientError(0, "");
-    int producerId;
 
-    auto iter = this->m_partition_reader.find(partitionId);
-
-    if (iter != (this->m_partition_reader).end())
-    {
-        producerId = iter->second;
-    }
-    else
-    {
-        return nullptr;
-    }
     try
     {
-        return m_ts_queue->Get(producerId, chunkId);
+        return m_consumer_queues[m_partition_consumer[partitionId]]->Get(partitionId, chunkId);
     }
     catch (std::out_of_range &ex)
     {

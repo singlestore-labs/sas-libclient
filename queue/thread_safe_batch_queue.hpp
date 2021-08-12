@@ -27,6 +27,9 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
     int m_activeProducers;
     // m_producerActiveArray contains the state of producers
     std::vector<bool> m_producerActiveArray;
+    std::vector<int> m_producerIds;
+    std::unordered_map<int, int> m_partitionIdToNumber;
+
     // m_dataArray stores the data that is written to/read from the queue
     std::vector<DataContainer<T>> m_dataArray;
 
@@ -66,7 +69,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
         int producerId,
         int valueId)
     {
-        return producerId * m_batchSize + valueId % m_batchSize;
+        return m_partitionIdToNumber[producerId] * m_batchSize + valueId % m_batchSize;
     }
 
     void resetBatch()
@@ -95,29 +98,32 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
   public:
     ThreadSafeBatchQueue(
         uint32_t batch_size,
-        uint32_t producers)
+        std::vector<int> producers)
         :
         m_batchSize(batch_size),
-        m_totalProducers(producers),
-        m_activeProducers(producers)
+        m_totalProducers(producers.size()),
+        m_activeProducers(producers.size()),
+        m_producerIds(producers)
     {
         m_currentBatch = 0;
         m_itemsToRead = 0;
 
-        m_dataArray.reserve(producers * batch_size);
-        m_producerActiveArray.reserve(producers);
-        m_readInBatch.reserve(producers);
-        m_dataNotReadyCV.reserve(producers);
+        m_dataArray.reserve(m_producerIds.size() * batch_size);
+        m_producerActiveArray.reserve(m_producerIds.size());
+        m_readInBatch.reserve(m_producerIds.size());
+        m_dataNotReadyCV.reserve(m_producerIds.size());
 
         for (int i = 0; i < m_totalProducers; ++i)
         {
+            m_partitionIdToNumber[m_producerIds[i]] = i;
             m_producerActiveArray.push_back(true);
             m_readInBatch.push_back(0);
             for (int j = 0; j < m_batchSize; ++j)
             {
                 m_dataArray.push_back(DataContainer<T>());
             }
-            m_dataNotReadyCV.push_back(std::move(std::make_unique<std::condition_variable>()));
+            auto cv = std::make_unique<std::condition_variable>();
+            m_dataNotReadyCV.push_back(std::move(cv));
         }
     }
 
@@ -125,7 +131,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         int batchNum = val->id / m_batchSize;
-        int valueIndex = targetIndex(val->producer_id, val->id);
+        int valueIndex = targetIndex(val->partition_id, val->id);
 
         while (batchNum > m_currentBatch)
         {
@@ -140,7 +146,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
 
         ++m_itemsToRead;
         m_emptyCV.notify_one();
-        m_dataNotReadyCV[val->producer_id]->notify_all();
+        m_dataNotReadyCV[m_partitionIdToNumber[val->partition_id]]->notify_all();
     }
 
     T Pop()
@@ -158,7 +164,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
         }
 
         T res = m_queue.front();
-        int valueIndex = targetIndex(res->producer_id, res->id);
+        int valueIndex = targetIndex(res->partition_id, res->id);
         readValue(valueIndex);
         m_queue.pop();
 
@@ -190,9 +196,9 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
         // if producerId is not active, we should not wait anymore
         while ((!m_dataArray[valueIndex].isSet ||
                 valueId / m_batchSize != m_currentBatch) &&
-               m_producerActiveArray[producerId])
+               m_producerActiveArray[m_partitionIdToNumber[producerId]])
         {
-            m_dataNotReadyCV[producerId]->wait(lock);
+            m_dataNotReadyCV[m_partitionIdToNumber[producerId]]->wait(lock);
         }
         if (!m_dataArray[valueIndex].isSet)
         {
@@ -216,7 +222,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
     void DeleteProducer(int producerId)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
-        m_producerActiveArray[producerId] = false;
+        m_producerActiveArray[m_partitionIdToNumber[producerId]] = false;
         --m_activeProducers;
 
         if (isBatchFinished())

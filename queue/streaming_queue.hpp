@@ -25,6 +25,7 @@ class StreamingQueue : public ChunkQueue
         const char *resultTableName,
         uint32_t capacity,
         uint64_t chunkSize,
+        int nReaderThreads,
         bool doesParallelRead);
 
     Chunk *

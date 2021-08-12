@@ -24,16 +24,38 @@
     {                                                                                                                  \
         fprintf(stderr, "[ERROR] ");                                                                                   \
         fprintf(stderr, args);                                                                                         \
-    }                                                                                              
+    }
 
+#define chunkBufferSize 1000
 #define queryLen 1000
 #define maxVariableLen 120
+#define nSmallTestRows 14
 
 const char *superchunkTable = "superchunk_table";
 const char *testData =
     "(-1460002, 12507, 1.2,\
     'textVAL_рус', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL',\
     '2021-05-05 12:00:00', '1961-01-01 12:13:14.987654', '2021-05-05', '11:11:11')";
+
+char smallTestData[nSmallTestRows][60] =
+    {
+        "(1, -22, 3.4, 5.6, 'abc', 'de')",
+        "(2, -33, 4.5, 6.7, 'a', 'b')",
+        "(3, -44, 5.6, 7.8, '3x', 'c')",
+        "(4, -55, 6.7, 8.9, '4x', 'cc')",
+        "(5, -66, -7.8, 0.01, 'xxxxx', 'ccc')",
+        "(6, -77, -8.9, 0.001, 'xxxxx', 'cccc')",
+        "(7, -88, 5.1, 0.001, 'xxxxx', 'ccccc')",
+        "(8, -99, 5.11, 0.0001, 'xxxxx', 'cccccc')",
+        "(9, 101, 5.111, 9.8, 'xxxxx', 'cccccccc')",
+        "(10, 202, 5.1111, 10.8, 'xxxxx', 'cccccccc')",
+        "(11, 303, 5.11111, 11.8, 'xxxxx', 'ccccccccc')",
+        "(12, 404, 5.111111, 12.8, 'xxxxx', 'cccccccccc')",
+        "(13, 505, 5.1111111, 12.8, 'xxxxx', 'ccccccccc')",
+        "(NULL, NULL, NULL, NULL, NULL, NULL)"
+};
+
+const int smallTestFixedSize = 8 + 8 + 8 + 8 + 16 + 16;
 
 typedef struct variable
 {
@@ -84,6 +106,7 @@ typedef struct WorkerArgs
     int id;
     int db_port;
     bool needRandomRead;
+    bool checkAffinity;
 } WorkerArgs;
 
 typedef struct ReceivedChunk
@@ -103,6 +126,8 @@ typedef struct ReaderThreadArgs
     ChunkQueue *queue;
     int n_chunks_read;
     ReceivedChunk *chunks_read;
+
+    int partition_keys_counter[nSmallTestRows];
 } ReaderThreadArgs;
 
 typedef struct ErrorHandler
@@ -126,14 +151,49 @@ dummyHandleError(
     fflush(stdout);
 }
 
+void setup_small_test_table(S2Client *client)
+{
+    int err = 0;
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS small_test", &err);
+    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+
+    ExecuteDDLQuery(
+        client,
+        "CREATE TABLE small_test (\
+        i1 BIGINT,\
+        i2 BIGINT,\
+        d1 DOUBLE,\
+        d2 DOUBLE,\
+        t1 TEXT,\
+        t2 TEXT\
+        )",
+        &err);
+
+    if (err) PRINT_ERROR("Error creating table: %s\n", S2Error(client));
+    for (int i = 0; i < nSmallTestRows; ++i)
+    {
+        char query[queryLen] = "INSERT INTO small_test VALUES ";
+        strcat(query, smallTestData[i]);
+        ExecuteDDLQuery(client, query, &err);
+        if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
+    }
+}
+
+void cleanup_small_test_table(S2Client *client)
+{
+    int err = 0;
+    ExecuteDDLQuery(client, "DROP TABLE small_test", &err);
+    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+}
+
 void
-setup_table(
+setup_superchunk_table(
     S2Client *client,
     int nTableRows)
 {
     int err = 0;
     ExecuteDDLQuery(client, "DROP TABLE IF EXISTS superchunk_table", &err);
-    if (err) printf("Error dropping table: %s\n", S2Error(client));
+    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
 
     ExecuteDDLQuery(
         client,
@@ -159,22 +219,69 @@ setup_table(
         char query[queryLen] = "INSERT INTO superchunk_table VALUES ";
         strcat(query, testData);
         ExecuteDDLQuery(client, query, &err);
-        if (err) printf("Error inserting data: %s\n", S2Error(client));
+        if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
     }
 }
 
-void cleanup_table(S2Client *client)
+void cleanup_superchunk_table(S2Client *client)
 {
     int err = 0;
     ExecuteDDLQuery(client, "DROP TABLE superchunk_table", &err);
-    if (err) printf("Error dropping table: %s\n", S2Error(client));
+    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+}
+
+void
+mult_table(
+    S2Client *client,
+    const char *inTable,
+    const char *outTable,
+    int scaleFactor)
+{
+    int err;
+    int len = strlen("DROP TABLE IF EXISTS ") + strlen(outTable);
+    char *query = (char *)malloc(len + 1);
+    query[0] = '\0';
+    strcpy(query, "DROP TABLE IF EXISTS ");
+    strcat(query, outTable);
+    ExecuteDDLQuery(client, query, &err);
+    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+
+    free(query);
+
+    len = strlen("CREATE TABLE ") + strlen(outTable) + strlen(" AS SELECT * FROM ") + strlen(inTable);
+    query = (char *)malloc(len + 1);
+    query[0] = '\0';
+    strcpy(query, "CREATE TABLE ");
+    strcat(query, outTable);
+    strcat(query, " AS SELECT * FROM ");
+    strcat(query, inTable);
+    ExecuteDDLQuery(client, query, &err);
+    if (err) PRINT_ERROR("Error creating table: %s\n", S2Error(client));
+
+    free(query);
+
+    len = strlen("INSERT INTO ") + strlen(outTable) + strlen("(SELECT * FROM ") + strlen(outTable) + 1;
+    query = (char *)malloc(len + 1);
+    strcpy(query, "INSERT INTO ");
+    strcat(query, outTable);
+    strcat(query, "(SELECT * FROM ");
+    strcat(query, outTable);
+    strcat(query, ")");
+
+    for (int i = 0; i < scaleFactor; ++i)
+    {
+        ExecuteDDLQuery(client, query, &err);
+        if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
+    }
+    free(query);
 }
 
 int
 RecordChunk(
     Chunk *chunk,
     bool print,
-    ReaderThreadArgs *args)
+    ReaderThreadArgs *args,
+    bool read_partition_key)
 {
     if (args->mode == FIRST_PASS)
     {
@@ -195,6 +302,15 @@ RecordChunk(
             chunk->m_size,
             chunk->row_count,
             chunk->consumed_size);
+    }
+    if (read_partition_key)
+    {
+        int64_t val;
+        for (int row_num = 0; row_num < chunk->row_count; ++row_num)
+        {
+            memcpy(&val, chunk->m_ptr + row_num * smallTestFixedSize, 8);
+            args->partition_keys_counter[val]++;
+        }
     }
 
     return chunk->row_count;

@@ -118,7 +118,7 @@ getFromQueue(
 
 int main()
 {
-    ThreadSafeBatchQueue<intContainer *> q(batchSize, nProducers);
+    ThreadSafeBatchQueue<intContainer *> q(batchSize, std::vector<int>{0,1,2,3,4});
 
     std::vector<std::thread> threads;
     std::vector<std::vector<intContainer *> *> received_by_thread;
@@ -144,7 +144,7 @@ int main()
     }
     printf("Pop OK\n");
 
-    ThreadSafeBatchQueue<intContainer *> q1(batchSize, nProducers);
+    ThreadSafeBatchQueue<intContainer *> q1(batchSize, std::vector<int>{0,1,2,3,4});
 
     std::vector<std::thread> new_threads;
     for (int i = 0; i < nConsumers; i++)

@@ -18,7 +18,6 @@ class ResultTableReader
         ThreadSafeQueue<Chunk *> *q,
         std::shared_ptr<ChunksInfo> chunks_info,
         const char *resultTableName,
-        uint32_t id,
         uint32_t partition,
         uint64_t size,
         std::shared_ptr<std::mutex> mu,
@@ -79,12 +78,10 @@ class ResultTableReader
   private:
     ResultTableReader(
         ThreadSafeQueue<Chunk *> *q,
-        uint32_t id,
         uint32_t partition,
         uint64_t size)
         :
         m_queue(q),
-        m_reader_id(id),
         m_partition(partition),
         m_query(""),
         m_chunk_size(size),
@@ -97,7 +94,6 @@ class ResultTableReader
     ThreadSafeQueue<Chunk *> *m_queue;
     std::shared_ptr<ChunksInfo> m_chunks_info;
 
-    uint32_t m_reader_id;
     uint32_t m_partition;
 
     std::atomic<bool> m_active = ATOMIC_VAR_INIT(true);

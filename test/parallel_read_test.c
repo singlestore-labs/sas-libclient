@@ -12,15 +12,34 @@
 #include "test/helpers.h"
 
 #define chunkSize 1048576
-int numWorkers = 1;
-int threadsPerWorker = 2;
-int queueCapacity = 2;
+int numWorkers = 2;
+int threadsPerWorker = 5;
+int queueCapacity = 3;
 
 bool printInfo = 0;
 
-const char *queryMain = "SELECT * FROM t";
+const char *queryMain = "SELECT * FROM small_test";
+const char *queryPartition = "SELECT * FROM partition_test";
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
+
+// check that each partition key is present in none or only one of threads
+void check_affinity(ReaderThreadArgs readerArgs[])
+{
+    int marker = 0;
+    for (int key = 0; key < nSmallTestRows; ++key)
+    {
+        for (int thread_id = 0; thread_id < threadsPerWorker; thread_id++)
+        {
+            if (readerArgs[thread_id].partition_keys_counter[key])
+            {
+                ++marker;
+            }
+        }
+        assert(marker == 0 || marker == 1);
+        marker = 0;
+    }
+}
 
 void *reader_thread(void *input)
 {
@@ -40,9 +59,10 @@ void *reader_thread(void *input)
     {
         numReceived++;
 
-        TOTAL += RecordChunk(chunk, printInfo, args);
+        TOTAL += RecordChunk(chunk, printInfo, args, true);
         ChunkFree(chunk);
     }
+
     free(chunk);
 
     PRINT_INFO("Thread %d read %d chunks\n", args->id, numReceived);
@@ -64,7 +84,7 @@ void *worker(void *input)
     assert(client != NULL && "S2Client is NULL");
     PRINT_INFO("Worker %d connected to port %d\n", args->id, args->db_port);
 
-    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity, 0, false);
+    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity, threadsPerWorker, false);
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
@@ -76,8 +96,14 @@ void *worker(void *input)
 
     for (int i = 0; i < threadsPerWorker; i++)
     {
-        readerArgs[i].id = i + 1000 * args->id;
+        readerArgs[i].worker_id = args->id;
+        readerArgs[i].id = i;
         readerArgs[i].queue = q;
+        readerArgs[i].mode = FIRST_PASS;
+        readerArgs[i].n_chunks_read = 0;
+        readerArgs[i].chunks_read = (ReceivedChunk *)malloc(chunkBufferSize * sizeof(ReceivedChunk));
+        memset(readerArgs[i].partition_keys_counter, 0, sizeof readerArgs[i].partition_keys_counter);
+
         pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
     }
 
@@ -85,6 +111,11 @@ void *worker(void *input)
     {
         pthread_join(readers[i], NULL);
     }
+    if (args->checkAffinity)
+    {
+        check_affinity(readerArgs);
+    }
+
     // free the queue
     PRINT_INFO("Calling ChunkQueueFree...\n");
     ChunkQueueFree(q);
@@ -100,28 +131,28 @@ void *worker(void *input)
 void ddl_test(S2Client *client)
 {
     int err = 0;
-    ExecuteDDLQuery(client, "CREATE TABLE small_test(col_0 INT)", &err);
+    ExecuteDDLQuery(client, "CREATE TABLE ddl_test(col_0 INT)", &err);
     if (err)
     {
         PRINT_ERROR("Error creating table: %s\n", S2Error(client));
         return;
     }
 
-    ExecuteDDLQuery(client, "INSERT INTO small_test VALUES (1), (2), (3)", &err);
+    ExecuteDDLQuery(client, "INSERT INTO ddl_test VALUES (1), (2), (3)", &err);
     if (err)
     {
         PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
         return;
     }
 
-    ExecuteDDLQuery(client, "DROP TABLE small_test", &err);
+    ExecuteDDLQuery(client, "DROP TABLE ddl_test", &err);
     if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
 }
 
 void error_test(S2Client *client)
 {
     // invalid query
-    ParallelReadInit(client, resultTable, "SELECT * FROM t WHERE non_defined_func(i) = 1", false, NULL, 0);
+    ParallelReadInit(client, resultTable, "SELECT * FROM small_test WHERE non_defined_func(i) = 1", false, NULL, 0);
 
     PRINT_INFO("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
 
@@ -134,7 +165,8 @@ parallel_test(
     S2Client *client,
     const char *query,
     const char *const *const partitionByCols,
-    const int n)
+    const int partitionByColsLen,
+    bool checkAffinity)
 {
     int agg_ports[numWorkers];
     // use MA for every connection
@@ -143,17 +175,18 @@ parallel_test(
         agg_ports[i] = db_creds.ma_port;
     }
     // init the parallel read
-    ParallelReadInit(client, resultTable, queryMain, false, partitionByCols, n);
+    ParallelReadInit(client, resultTable, query, false, partitionByCols, partitionByColsLen);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
 
     // start "CAS worker" threads
     pthread_t workers[numWorkers];
-    WorkerArgs args[numWorkers];
+    WorkerArgs w_args[numWorkers];
     for (int i = 0; i < numWorkers; i++)
     {
-        args[i].id = i;
-        args[i].db_port = agg_ports[i];
-        pthread_create(&workers[i], NULL, worker, &args[i]);
+        w_args[i].id = i;
+        w_args[i].db_port = agg_ports[i];
+        w_args[i].checkAffinity = checkAffinity;
+        pthread_create(&workers[i], NULL, worker, &w_args[i]);
     }
 
     // join worker threads
@@ -239,14 +272,10 @@ main(
     int argc,
     char *argv[])
 {
-    if (argc < 2)
+    if (argc > 1)
     {
-        printf(
-            "Exiting... Correct usage: parallel_read_test <printInfo> <numWorkers> <threadsPerWorker> "
-            "<queueCapacity>\n");
-        exit(1);
+        printInfo = atoi(argv[1]);
     }
-    printInfo = atoi(argv[1]);
     if (argc == 5)
     {
         numWorkers = atoi(argv[2]);
@@ -276,21 +305,28 @@ main(
     assert(nPartitions);
     PRINT_INFO("Number of partitions: %d\n", nPartitions);
 
+    setup_small_test_table(client);
+
+    // misc tests
     ddl_test(client);
 
     non_parallel_test(client);
 
     error_test(client);
 
-    parallel_test(client, queryMain, NULL, 0);
+    // parallel read modes tests
+    parallel_test(client, queryMain, NULL, 0, false);
 
-    const char *cols[3] = {"i", "i2"};
+    const char *cols[3] = {"i1", "i2"};
+    parallel_test(client, queryMain, cols, 2, false);
 
-    parallel_test(client, queryMain, cols, 2);
+    mult_table(client, "small_test", "partition_test", 10);
+    const char *cols1[3] = {"d1"};
+    parallel_test(client, queryPartition, cols1, 1, true);
 
-    const char *cols1[3] = {"t"};
-
-    parallel_test(client, queryMain, cols1, 1);
+    // int err = 0;
+    // ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
+    // cleanup_small_test_table(client);
 
     // free the client
     S2ClientFree(client);

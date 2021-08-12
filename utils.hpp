@@ -28,7 +28,13 @@ namespace super_chunk
     namespace utils
     {
         std::vector<int>
-        AssignedPartitions(
+        ConsumerPartitions(
+            int nConsumers,
+            int consumerId,
+            std::vector<int> workerPartitions);
+
+        std::vector<int>
+        WorkerPartitions(
             int numWorkers,
             int workerId,
             int totalPartitions);

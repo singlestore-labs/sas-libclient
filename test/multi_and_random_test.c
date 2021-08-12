@@ -11,7 +11,6 @@
 #include "test/helpers.h"
 
 #define chunkSize 10485
-#define chunkBufferSize 1000
 
 int numWorkers = 2;
 int threadsPerWorker = 3;
@@ -23,22 +22,7 @@ const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
 static unsigned _Atomic TOTAL_SINGLE_ROWS = ATOMIC_VAR_INIT(0);
 
-const char *testQuery = "SELECT * FROM t_mult";
-
-void
-prepare_mult(
-    S2Client *client,
-    int scaleFactor)
-{
-    int err;
-    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS t_mult", &err);
-    ExecuteDDLQuery(client, "CREATE TABLE t_mult AS SELECT * FROM t", &err);
-
-    for (int i = 0; i < scaleFactor; ++i)
-    {
-        ExecuteDDLQuery(client, "INSERT INTO t_mult (SELECT * FROM t_mult)", &err);
-    }
-}
+const char *testQuery = "SELECT * FROM multi_pass_test";
 
 void *reader_thread(void *input)
 {
@@ -54,11 +38,11 @@ void *reader_thread(void *input)
         RowSchema *s = GetRowSchema(args->queue);
         assert(s && "GetRowSchema failed");
 
-        while (GetNextChunk(args->queue, 0, &partitionId, chunk, &EH.callback))
+        while (GetNextChunk(args->queue, args->id, &partitionId, chunk, &EH.callback))
         {
             numReceived++;
 
-            TOTAL += RecordChunk(chunk, false, args);
+            TOTAL += RecordChunk(chunk, false, args, false);
             ChunkFree(chunk);
         }
         PRINT_INFO("Finished first pass: worker %d thread %d read %d chunks\n", args->worker_id, args->id, numReceived);
@@ -292,14 +276,10 @@ main(
     int argc,
     char *argv[])
 {
-    if (argc < 2)
+    if (argc > 1)
     {
-        printf(
-            "Exiting... Correct usage: multi_and_random_test <printInfo> <numWorkers> <threadsPerWorker> "
-            "<batchSize>\n");
-        exit(1);
+        printInfo = atoi(argv[1]);
     }
-    printInfo = atoi(argv[1]);
     if (argc == 5)
     {
         numWorkers = atoi(argv[2]);
@@ -324,15 +304,20 @@ main(
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
-    prepare_mult(client, 12);
+    setup_small_test_table(client);
+    mult_table(client, "small_test", "multi_pass_test", 12);
 
     main_test(client, false);
     printf("[SUCCESS] multi pass test passed!\n");
 
-    prepare_mult(client, 6);
+    mult_table(client, "small_test", "multi_pass_test", 6);
 
     main_test(client, true);
     printf("[SUCCESS] random read test passed!\n");
+    cleanup_small_test_table(client);
+
+    int err = 0;
+    ExecuteDDLQuery(client, "DROP TABLE multi_pass_test", &err);
 
     // free the client
     S2ClientFree(client);

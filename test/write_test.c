@@ -64,13 +64,10 @@ main(
     int argc,
     char *argv[])
 {
-    if (argc < 2)
+    if (argc > 1)
     {
-        printf("Exiting... Correct usage: write_test <printInfo>\n");
-        exit(1);
+        printInfo = atoi(argv[1]);
     }
-    printInfo = atoi(argv[1]);
-
     EH.callback.setError = dummyHandleError;
 
     // init the client
@@ -85,9 +82,9 @@ main(
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
-    setup_table(client, 0);
+    setup_superchunk_table(client, 0);
     write_test(client);
-    // cleanup_table(client);
+    cleanup_superchunk_table(client);
 
     // free the client
     S2ClientFree(client);

@@ -12,7 +12,25 @@ namespace super_chunk
     namespace utils
     {
         std::vector<int>
-        AssignedPartitions(
+        ConsumerPartitions(
+            int nConsumers,
+            int consumerId,
+            std::vector<int> workerPartitions)
+        {
+            if (nConsumers <= 0)
+            {
+                throw S2ClientError(S2C_ERROR_INV_ARG, "received negative nConsumers");
+            }
+            std::vector<int> result;
+            for (int i = consumerId; i < workerPartitions.size(); i += nConsumers)
+            {
+                result.push_back(workerPartitions[i]);
+            }
+            return result;
+        }
+
+        std::vector<int>
+        WorkerPartitions(
             int numWorkers,
             int workerId,
             int totalPartitions)
