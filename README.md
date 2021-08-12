@@ -7,12 +7,13 @@ multiple connections (1 per each aggregator) will be used to retrieve the data f
 
 ## Development
 In order to run tests, S2 cluster must be up and running. Access credentials are supplied in the file `test/db_creds.h`.
-Then the commands from `test/prepare_s2.sql` must be run, e.g.  `mysql -u root -h 127.0.0.1 -P 3306 -pp < test/prepare_s2.sql`.
+Then the commands from `test/prepare_s2.sql` must be run, e.g. `mysql -u root -h 127.0.0.1 -P 3306 -pp < test/prepare_s2.sql`.
 The script `build_and_test.sh` contains several functoions used to build the library and run the tests.
 
-- to build the library, run `./build_and_test.sh lib`
-- to build the library and run the main test, run `./build_and_test.sh lib read`
-- some other tests are available in the script
+- to build the library, run `./build_and_test.sh`
+- to build the library and run the main test suite, run `./build_and_test.sh test`. If you see messages starting with `[ERROR]`, something went wrong.
+- to build the library and run a particular test, run `./build_and_test.sh <test_name> <print_info>`, where `print_info` is set to 1 to
+see some information in shell output, and to 0 to only see status messages: `[SUCCESS]` or `[ERROR]`.
 
 ## Workflow
 
@@ -37,4 +38,4 @@ The queue is initialized using `ParallelReadGetQueue()` function.
     - The rows that are streamed from `MYSQL_STMT` object are transformed from `MYSQL_BIND` to SAS-HDAT (SuperChunk) format and grouped in chunks
     - Each reader appends the results of the read to the worker's chunkQueue
 
-5. Each CAS worker calls `bool GetNextChunk(ChunkQueue* queue, uint32_t* partitionId /*out*/, Chunk* chunk /*out*/, int* err);` in an infinite loop. Memory for `chunk->m_ptr` data is allocated by `libs2client`. The pointer to it is copied to `chunk`. To free the memory, `ChunkFree(chunk)` must be called.
+5. Each CAS worker calls `bool GetNextChunk(ChunkQueue* queue, int readerThreadId, uint32_t* partitionId /*out*/, Chunk* chunk /*out*/, int* err);` in an infinite loop. Memory for `chunk->m_ptr` data is allocated by `libs2client`. The pointer to it is copied to `chunk`. To free the memory, `ChunkFree(chunk)` must be called.

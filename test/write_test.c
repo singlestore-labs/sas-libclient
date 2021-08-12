@@ -14,6 +14,7 @@
 #include "test/helpers.h"
 
 int chunkSize = 102400;
+int printInfo = 0;
 
 void write_test(S2Client *client)
 {
@@ -24,7 +25,7 @@ void write_test(S2Client *client)
 
     RowSchema *schema = GetTableRowSchema(client, superchunkTable, &EH.callback);
 
-    PrintRowSchema(schema);
+    IF_INFO(PrintRowSchema(schema));
 
     SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
     for (int i = 0; i < 30; ++i)
@@ -63,10 +64,14 @@ main(
     int argc,
     char *argv[])
 {
-    EH.callback.setError = dummyHandleError;
+    if (argc < 2)
+    {
+        printf("Exiting... Correct usage: write_test <printInfo>\n");
+        exit(1);
+    }
+    printInfo = atoi(argv[1]);
 
-    const char *version = S2GetClientVersion();
-    printf("libs2client version: %s\n", version);
+    EH.callback.setError = dummyHandleError;
 
     // init the client
     S2Client *client = S2ClientInit(
@@ -82,7 +87,7 @@ main(
 
     setup_table(client, 0);
     write_test(client);
-    //cleanup_table(client);
+    // cleanup_table(client);
 
     // free the client
     S2ClientFree(client);

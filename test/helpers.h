@@ -11,6 +11,21 @@
 #include "s2_client_extern.h"
 #include "hdat_read_extern.h"
 
+#define IF_INFO(fn)                                                                                                    \
+    if (printInfo) fn
+#define PRINT_INFO(args...)                                                                                            \
+    if (printInfo)                                                                                                     \
+    {                                                                                                                  \
+        printf(args);                                                                                                  \
+        fflush(stdout);                                                                                                \
+    }
+
+#define PRINT_ERROR(args...)                                                                                           \
+    {                                                                                                                  \
+        fprintf(stderr, "[ERROR] ");                                                                                   \
+        fprintf(stderr, args);                                                                                         \
+    }                                                                                              
+
 #define queryLen 1000
 #define maxVariableLen 120
 

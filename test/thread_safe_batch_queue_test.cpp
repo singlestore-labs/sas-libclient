@@ -167,5 +167,5 @@ int main()
     }
     printf("Get OK\n");
 
-    std::cout << "Success!" << std::endl;
+    std::cout << "[SUCCESS]" << std::endl;
 }

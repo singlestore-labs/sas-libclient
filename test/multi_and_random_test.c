@@ -17,6 +17,8 @@ int numWorkers = 2;
 int threadsPerWorker = 3;
 int batchSize = 5;
 
+bool printInfo = 0;
+
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
 static unsigned _Atomic TOTAL_SINGLE_ROWS = ATOMIC_VAR_INIT(0);
@@ -52,20 +54,19 @@ void *reader_thread(void *input)
         RowSchema *s = GetRowSchema(args->queue);
         assert(s && "GetRowSchema failed");
 
-        while (GetNextChunk(args->queue, &partitionId, chunk, &EH.callback))
+        while (GetNextChunk(args->queue, 0, &partitionId, chunk, &EH.callback))
         {
             numReceived++;
 
             TOTAL += RecordChunk(chunk, false, args);
             ChunkFree(chunk);
         }
-        printf("Finished first pass: worker %d thread %d read %d chunks\n", args->worker_id, args->id, numReceived);
-
+        PRINT_INFO("Finished first pass: worker %d thread %d read %d chunks\n", args->worker_id, args->id, numReceived);
         free(chunk);
     }
     if (args->mode == SECOND_PASS)
     {
-        printf("Starting GetChunkMulti in thread %d worker %d\n", args->id, args->worker_id);
+        PRINT_INFO("Starting GetChunkMulti in thread %d worker %d\n", args->id, args->worker_id);
 
         while (numReceived < args->n_chunks_read && GetChunkMulti(
                                                         args->queue,
@@ -76,8 +77,8 @@ void *reader_thread(void *input)
         {
             if (chunk->row_count != args->chunks_read[numReceived].row_count)
             {
-                printf(
-                    "[ERROR]: got %d rows, expected %d, thread %d\n ",
+                PRINT_ERROR(
+                    "got %d rows, expected %d, thread %d\n ",
                     chunk->row_count,
                     args->chunks_read[numReceived].row_count,
                     args->id);
@@ -89,7 +90,7 @@ void *reader_thread(void *input)
         }
         if (numReceived != args->n_chunks_read)
         {
-            printf(
+            PRINT_ERROR(
                 "[ERROR]: got %d chunks, expected %d, thread %d\n ",
                 numReceived,
                 args->n_chunks_read,
@@ -98,7 +99,7 @@ void *reader_thread(void *input)
 
         assert(numReceived == args->n_chunks_read);
 
-        printf(
+        PRINT_INFO(
             "Finished GetChunkMulti in thread %d worker %d, numReceived %d\n",
             args->id,
             args->worker_id,
@@ -132,7 +133,7 @@ void *reader_thread(void *input)
                 }
             }
         }
-        printf(
+        PRINT_INFO(
             "Finished GetChunkRow in thread %d worker %d, rows read: %d\n",
             args->id,
             args->worker_id,
@@ -158,8 +159,7 @@ void *worker(void *input)
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
-    printf("Worker %d connected to port %d\n", w_args->id, w_args->db_port);
-    fflush(stdout);
+    PRINT_INFO("Worker %d connected to port %d\n", w_args->id, w_args->db_port);
 
     ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, batchSize, threadsPerWorker, true);
     assert(q != NULL && "ChunkQueue is NULL");
@@ -190,7 +190,7 @@ void *worker(void *input)
 
     // free the queue
     ChunkQueueFree(q);
-    printf("...Finished first pass in worker %d\n", w_args->id);
+    PRINT_INFO("...Finished first pass in worker %d\n", w_args->id);
 
     if (S2Errno(client))
     {
@@ -198,7 +198,7 @@ void *worker(void *input)
         fflush(stdout);
     }
 
-    printf("...Starting second pass in worker %d\n", w_args->id);
+    PRINT_INFO("...Starting second pass in worker %d\n", w_args->id);
 
     // read the second time
     ChunkQueue *q_multi = ParallelReadGetQueue(client, resultTable, chunkSize, batchSize, threadsPerWorker, true);
@@ -234,11 +234,7 @@ void *worker(void *input)
     // free the queue
     ChunkQueueFree(q_multi);
 
-    if (S2Errno(client))
-    {
-        printf("S2 Error in controller %s\n", S2Error(client));
-        fflush(stdout);
-    }
+    if (S2Errno(client)) PRINT_ERROR("S2 Error in controller %s\n", S2Error(client));
 
     // free the client
     S2ClientFree(client);
@@ -262,11 +258,7 @@ main_test(
 
     // init the parallel read in multi-pass mode
     ParallelReadInit(client, resultTable, testQuery, true, NULL, 0);
-    if (S2Errno(client))
-    {
-        printf("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
-        fflush(stdout);
-    }
+    if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
 
     // start "CAS worker" threads
     pthread_t workers[numWorkers];
@@ -289,8 +281,7 @@ main_test(
     {
         assert(TOTAL == TOTAL_SINGLE_ROWS);
     }
-    printf("Processed TOTAL %d rows\n", TOTAL);
-    fflush(stdout);
+    PRINT_INFO("Processed TOTAL %d rows\n", TOTAL);
 
     // clean up parallel reading
     ParallelReadFree(client, resultTable);
@@ -301,24 +292,25 @@ main(
     int argc,
     char *argv[])
 {
-    if (argc == 4)
+    if (argc < 2)
     {
-        numWorkers = atoi(argv[1]);
-        threadsPerWorker = atoi(argv[2]);
-        batchSize = atoi(argv[3]);
+        printf(
+            "Exiting... Correct usage: multi_and_random_test <printInfo> <numWorkers> <threadsPerWorker> "
+            "<batchSize>\n");
+        exit(1);
     }
-    else
+    printInfo = atoi(argv[1]);
+    if (argc == 5)
     {
-        if (argc != 1)
-        {
-            printf("Exiting... Correct usage: multi_pass_test <numWorkers> <threadsPerWorker> <batchSize>\n");
-            exit(1);
-        }
+        numWorkers = atoi(argv[2]);
+        threadsPerWorker = atoi(argv[3]);
+        batchSize = atoi(argv[4]);
     }
+
     EH.callback.setError = dummyHandleError;
 
     const char *version = S2GetClientVersion();
-    printf("libs2client version: %s\n", version);
+    PRINT_INFO("libs2client version: %s\n", version);
 
     // init the client
     S2Client *client = S2ClientInit(
@@ -335,12 +327,12 @@ main(
     prepare_mult(client, 12);
 
     main_test(client, false);
-    printf("SUCCESS in multi pass!\n");
+    printf("[SUCCESS] multi pass test passed!\n");
 
     prepare_mult(client, 6);
 
     main_test(client, true);
-    printf("SUCCESS in random read!\n");
+    printf("[SUCCESS] random read test passed!\n");
 
     // free the client
     S2ClientFree(client);

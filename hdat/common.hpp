@@ -90,7 +90,7 @@ inline int32_t toDateCAS(const char* input)
     c_datetime.tm_sec = 0;
 
     time_t inputDate = timegm(&c_datetime);
-    if(inputDate == time_t(-1))
+    if (inputDate == time_t(-1))
     {
         throw S2ClientError(S2C_ERROR_INV_ARG, "Invalid Date read from DB");
     }
@@ -128,7 +128,7 @@ inline int64_t toDateTimeCAS(const char* input)
     c_datetime.tm_sec = dt->second;
 
     time_t inputDate = timegm(&c_datetime);
-    if(inputDate == time_t(-1))
+    if (inputDate == time_t(-1))
     {
         throw S2ClientError(S2C_ERROR_INV_ARG, "Invalid Date read from DB");
     }

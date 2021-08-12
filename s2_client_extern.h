@@ -71,6 +71,7 @@ ParallelReadGetQueue(
 bool
 GetNextChunk(
     ChunkQueue* queue,
+    int readerThreadId,  // from 0 to nReaderThreads-1
     uint32_t* partitionId /*out*/,
     Chunk* chunk /*out*/,
     S2ErrorCallback* cb);

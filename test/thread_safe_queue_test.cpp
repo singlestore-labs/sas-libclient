@@ -55,5 +55,5 @@ int main()
     {
         assert(cnt[i] == threadsCount && "Queue contains wrong elements");
     }
-    std::cout << "Success!" << std::endl;
+    std::cout << "[SUCCESS]" << std::endl;
 }

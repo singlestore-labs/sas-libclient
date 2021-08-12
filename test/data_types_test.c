@@ -18,6 +18,8 @@ int numWorkers = 1;
 int threadsPerWorker = 2;
 int queueCapacity = 2;
 
+bool printInfo = 0;
+
 int nTableRows = 1000;
 
 const char *resultTable = "tmp";
@@ -90,7 +92,7 @@ void null_test(S2Client *client)
     int err = 0;
 
     ExecuteDDLQuery(client, "DROP TABLE IF EXISTS null_test", &err);
-    if (err) printf("Error creating table: %s\n", S2Error(client));
+    if (err) PRINT_ERROR("Error creating table: %s\n", S2Error(client));
 
     ExecuteDDLQuery(
         client,
@@ -116,7 +118,7 @@ void null_test(S2Client *client)
         "INSERT INTO null_test VALUES (\
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
         &err);
-    if (err) printf("Error inserting data: %s\n", S2Error(client));
+    if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
 
     const char *query = "SELECT * FROM null_test";
 
@@ -127,16 +129,12 @@ void null_test(S2Client *client)
         queueCapacity);
 
     assert(q != NULL && "ChunkQueue is NULL");
-    if (S2Errno(client))
-    {
-        printf("S2 Error in null_test: %d %s\n", S2Errno(client), S2Error(client));
-        fflush(stdout);
-    }
+    if (S2Errno(client)) PRINT_ERROR("S2 Error in null_test: %d %s\n", S2Errno(client), S2Error(client));
 
     int dummy_partition = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
 
-    while (GetNextChunk(q, &dummy_partition, chunk, &EH.callback))
+    while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
         assert(!err && "GetNextChunk failed in null_test in non parallel mode");
 
@@ -178,7 +176,7 @@ void read_test(S2Client *client)
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
-        printf("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+        PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
         return;
     }
 
@@ -190,16 +188,17 @@ void read_test(S2Client *client)
     SuperChunkReader *r = CreateReader(chunk, NULL, &EH.callback);
     RowSchema *s;
 
-    while (GetNextChunk(q, &dummy_partition, chunk, &EH.callback))
+    while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
         assert(err == 0 && "GetNextChunk failed in non parallel mode");
         if (!numReceived)
         {
             s = GetRowSchema(q);
-            PrintRowSchema(s);
+            IF_INFO(PrintRowSchema(s));
         }
         numReceived++;
-        // PrintChunk(r, chunk, s);
+        IF_INFO(PrintChunk(r, chunk, s));
+
         struct ParsedTestChunk chunkData;
         int current_offset = 0;
         for (int i = 0; i < chunk->row_count; ++i)
@@ -244,6 +243,12 @@ main(
     int argc,
     char *argv[])
 {
+    if (argc < 2)
+    {
+        printf("Exiting... Correct usage: data_types_test <printInfo>\n");
+        exit(1);
+    }
+    printInfo = atoi(argv[1]);
     EH.callback.setError = dummyHandleError;
 
     // init the client

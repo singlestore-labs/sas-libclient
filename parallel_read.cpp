@@ -130,10 +130,12 @@ extern "C"
     bool
     GetNextChunk(
         ChunkQueue *queue,
+        int readerThreadId,
         uint32_t *partitionId /*out*/,
         Chunk *chunk /*out*/,
         S2ErrorCallback *cb)
     {
+        // TODO: use readerThreadId
         S2ClientError err(0, "");
         Chunk *res = queue->Get(err);
         if (err.m_errorCode)
