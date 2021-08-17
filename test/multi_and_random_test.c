@@ -241,7 +241,7 @@ main_test(
     }
 
     // init the parallel read in multi-pass mode
-    ParallelReadInit(client, resultTable, testQuery, true, NULL, 0);
+    ParallelReadInit(client, resultTable, testQuery, true, NULL, 0, NULL, 0);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
 
     // start "CAS worker" threads

@@ -181,13 +181,15 @@ namespace super_chunk
         std::string
         PartitionBy(
             const char* const* const partitionByCols,
-            const int partitionByColsNumber)
+            const int partitionByColsNumber,
+            const char* const* const partitionOrderByCols,
+            const int orderByColsNumber)
         {
             if (partitionByColsNumber <= 0)
             {
                 return "";
             }
-            std::string result = " partition by (";
+            std::string result = " PARTITION BY (";
             result += QuotedName(partitionByCols[0]);
 
             for (int i = 1; i < partitionByColsNumber; ++i)
@@ -195,7 +197,19 @@ namespace super_chunk
                 result += ", ";
                 result += QuotedName(partitionByCols[i]);
             }
-            result += ") ";
+            result += ")";
+
+            if (orderByColsNumber)
+            {
+                result += " WITH (PARTITION_ORDER_BY = (";
+                result += QuotedName(partitionOrderByCols[0]);
+                for (int i = 1; i < orderByColsNumber; ++i)
+                {
+                    result += ", ";
+                    result += QuotedName(partitionOrderByCols[i]);
+                }
+                result += "))";
+            }
             return result;
         }
 
@@ -205,7 +219,9 @@ namespace super_chunk
             const char* selectQuery,
             bool materialized,
             const char* const* const partitionByCols,
-            const int partitionByColsNumber)
+            const int partitionByColsNumber,
+            const char* const* const partitionOrderByCols,
+            const int orderByColsNumber)
         {
             std::string resultQuery;
 
@@ -222,7 +238,7 @@ namespace super_chunk
 #endif
 
             resultQuery += QuotedName(resultTableName);
-            resultQuery += PartitionBy(partitionByCols, partitionByColsNumber);
+            resultQuery += PartitionBy(partitionByCols, partitionByColsNumber, partitionOrderByCols, orderByColsNumber);
             resultQuery += " AS ";
             resultQuery += selectQuery;
             return resultQuery;

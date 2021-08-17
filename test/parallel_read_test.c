@@ -152,7 +152,7 @@ void ddl_test(S2Client *client)
 void error_test(S2Client *client)
 {
     // invalid query
-    ParallelReadInit(client, resultTable, "SELECT * FROM small_test WHERE non_defined_func(i) = 1", false, NULL, 0);
+    ParallelReadInit(client, resultTable, "SELECT * FROM small_test WHERE non_defined_func(i) = 1", false, NULL, 0, NULL, 0);
 
     PRINT_INFO("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
 
@@ -166,6 +166,8 @@ parallel_test(
     const char *query,
     const char *const *const partitionByCols,
     const int partitionByColsLen,
+    const char* const* const partitionOrderByCols,
+    const int orderByColsNumber,
     bool checkAffinity)
 {
     int agg_ports[numWorkers];
@@ -175,7 +177,7 @@ parallel_test(
         agg_ports[i] = db_creds.ma_port;
     }
     // init the parallel read
-    ParallelReadInit(client, resultTable, query, false, partitionByCols, partitionByColsLen);
+    ParallelReadInit(client, resultTable, query, false, partitionByCols, partitionByColsLen, partitionOrderByCols, orderByColsNumber);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
 
     // start "CAS worker" threads
@@ -315,15 +317,18 @@ main(
     error_test(client);
 
     // parallel read modes tests
-    parallel_test(client, queryMain, NULL, 0, false);
+    parallel_test(client, queryMain, NULL, 0, NULL, 0, false);
 
     const char *cols[3] = {"i1", "i2"};
-    parallel_test(client, queryMain, cols, 2, false);
+    parallel_test(client, queryMain, cols, 2, cols, 2, false);
+
+    parallel_test(client, queryMain, cols, 2, NULL, 0, false);
 
     mult_table(client, "small_test", "partition_test", 10);
     const char *cols1[3] = {"d1"};
-    parallel_test(client, queryPartition, cols1, 1, true);
+    const char *orderCols[3] = {"d2"};
 
+    parallel_test(client, queryPartition, cols1, 1, orderCols, 1, true);
     // int err = 0;
     // ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
     // cleanup_small_test_table(client);

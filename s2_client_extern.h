@@ -40,7 +40,9 @@ ParallelReadInit(
     const char* selectQuery,
     bool materialized,
     const char* const* const partitionByCols,
-    int partitionByColsNumber);
+    int partitionByColsNumber,
+    const char* const* const partitionOrderByCols,
+    const int orderByColsNumber);
 
 // ParallelReadGetQueue is called once per worker.
 // ChunkQueue is a helper object

@@ -68,7 +68,9 @@ namespace super_chunk
             const char* selectQuery,
             bool materialized,
             const char* const* const partitionByCols,
-            const int partitionByColsNumber);
+            const int partitionByColsNumber,
+            const char* const* const partitionOrderByCols,
+            const int orderByColsNumber);
 
         std::string MakeDropQuery(const char* resultTableName);
 

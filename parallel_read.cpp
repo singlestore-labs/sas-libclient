@@ -11,7 +11,9 @@ extern "C"
         const char *selectQuery,
         bool materialized,
         const char *const *const partitionByCols,
-        int partitionByColsNumber)
+        int partitionByColsNumber,
+        const char* const* const partitionOrderByCols,
+        const int orderByColsNumber)
     {
         client->SetError(S2ClientError(0, ""));
         try
@@ -21,7 +23,9 @@ extern "C"
                 selectQuery,
                 materialized,
                 partitionByCols,
-                partitionByColsNumber);
+                partitionByColsNumber,
+                partitionOrderByCols,
+                orderByColsNumber);
             client->m_conn->ExecuteDDL(std::move(newQuery));
         }
         catch (S2ClientError &s2_err)
