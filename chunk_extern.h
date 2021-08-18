@@ -49,8 +49,8 @@ typedef struct S2ErrorCallback
 
 static const int64_t int64Null = 0x8000000000000000;
 static const int32_t int32Null = 0x80000000;
-static const double doubleNull = 0xfffffe0000000000;
 static const char* variableNull = "";
+extern const double doubleNull;
 
 #define S2C_ERROR_INV_ARG 1            // invalid argument
 #define S2C_ERROR_UNS_DATA_TYPE 2      // unsupported data type

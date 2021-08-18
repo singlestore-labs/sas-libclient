@@ -7,6 +7,8 @@
 #include "client_config.h"
 #include "utils.hpp"
 
+const double doubleNull = *((double*)"\0\0\0\0\0\xfe\xff\xff");
+
 namespace super_chunk
 {
     namespace utils
@@ -286,7 +288,8 @@ namespace super_chunk
 
         std::string MakeLoadDataQuery(const std::string& tableName)
         {
-            return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedName(tableName) + "FIELDS OPTIONALLY ENCLOSED BY '\"'";
+            return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedName(tableName) +
+                   "FIELDS OPTIONALLY ENCLOSED BY '\"'";
         }
 
         std::string MakeSelectQueryMeta(const std::string& tableName)

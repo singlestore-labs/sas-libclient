@@ -152,7 +152,8 @@ void ddl_test(S2Client *client)
 void error_test(S2Client *client)
 {
     // invalid query
-    ParallelReadInit(client, resultTable, "SELECT * FROM small_test WHERE non_defined_func(i) = 1", false, NULL, 0, NULL, 0);
+    ParallelReadInit(
+        client, resultTable, "SELECT * FROM small_test WHERE non_defined_func(i) = 1", false, NULL, 0, NULL, 0);
 
     PRINT_INFO("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
 
@@ -166,7 +167,7 @@ parallel_test(
     const char *query,
     const char *const *const partitionByCols,
     const int partitionByColsLen,
-    const char* const* const partitionOrderByCols,
+    const char *const *const partitionOrderByCols,
     const int orderByColsNumber,
     bool checkAffinity)
 {
@@ -177,7 +178,15 @@ parallel_test(
         agg_ports[i] = db_creds.ma_port;
     }
     // init the parallel read
-    ParallelReadInit(client, resultTable, query, false, partitionByCols, partitionByColsLen, partitionOrderByCols, orderByColsNumber);
+    ParallelReadInit(
+        client,
+        resultTable,
+        query,
+        false,
+        partitionByCols,
+        partitionByColsLen,
+        partitionOrderByCols,
+        orderByColsNumber);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
 
     // start "CAS worker" threads

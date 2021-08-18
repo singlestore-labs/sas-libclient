@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -156,7 +157,7 @@ void null_test(S2Client *client)
             current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
             assert(chunkData.int_64 == int64Null);
             assert(chunkData.int_32 == int32Null);
-            assert(chunkData.double_val == doubleNull);
+            assert(isnan(chunkData.double_val));
 
             assert(chunkData.variable_text.len == 0);
             assert(chunkData.variable_char.len == 0);

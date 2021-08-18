@@ -12,7 +12,7 @@ extern "C"
         bool materialized,
         const char *const *const partitionByCols,
         int partitionByColsNumber,
-        const char* const* const partitionOrderByCols,
+        const char *const *const partitionOrderByCols,
         const int orderByColsNumber)
     {
         client->SetError(S2ClientError(0, ""));

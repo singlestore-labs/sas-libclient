@@ -1,3 +1,4 @@
+#include <math.h>
 #include <sys/mman.h>
 
 #include "hdat/chunk_reader.hpp"
@@ -14,7 +15,7 @@ SuperChunkReader::ReadFloat(
     }
 
     m_current_chunk->Read8(out);
-    *isnull = (*out == doubleNull);
+    *isnull = isnan(*out);
     return true;
 }
 

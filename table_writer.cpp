@@ -53,10 +53,10 @@ TableWriter::ChunkToTSV(
                     reader->ReadFloat(&float_val, &is_null);
                     // -5.12345678907654321e-300 has length 25,
                     // exponent does not take more than 3 digits, so 30 bytes is enough
-                    char buff[30];
-                    len = sprintf(buff, "%.17e", float_val);
                     if (!is_null)
                     {
+                        char buff[30];
+                        len = sprintf(buff, "%.17e", float_val);
                         m_tsv_rows->write(buff, len);
                     }
                     else
@@ -79,7 +79,8 @@ TableWriter::ChunkToTSV(
                     reader->ReadFixed(&buf, reader->m_row_schema->ColumnInfo[col_num].size, &is_null);
                     if (!is_null)
                     {
-                        *m_tsv_rows << std::quoted(std::string(buf, reader->m_row_schema->ColumnInfo[col_num].size), '"', '\\');
+                        *m_tsv_rows << std::quoted(
+                            std::string(buf, reader->m_row_schema->ColumnInfo[col_num].size), '"', '\\');
                     }
                     else
                     {

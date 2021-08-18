@@ -33,7 +33,7 @@
 
 const char *superchunkTable = "superchunk_table";
 const char *testData =
-    "(-1460002, 12507, 1.2,\
+    "(-1460002, 12507, 1.23456789012345,\
     'textVAL_рус', 'LOOONGVAL', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL',\
     '2021-05-05 12:00:00', '1961-01-01 12:13:14.987654', '2021-05-05', '11:11:11')";
 
@@ -84,7 +84,7 @@ const struct ParsedTestChunk TEST_DATA =
     {
         -1460002,
         12507,
-        1.2,
+        1.23456789012345,
         {"textVAL_рус",
          14},
         {"LOOONGVAL",

@@ -35,7 +35,19 @@ void write_test(S2Client *client)
     {
         WriteInt64(w, i * i);
         WriteInt32(w, i);
-        WriteDouble(w, val_64);
+        if (i % 3 == 0)
+        {
+            WriteDouble(w, doubleNull);
+        }
+        if (i % 3 == 1)
+        {
+            WriteDouble(w, val_64);
+        }
+        if (i % 3 == 2)
+        {
+            WriteDouble(w, (double)i);
+        }
+
         char buffer[33];
         snprintf(buffer, 33, "Cube %d", i * i * i);
         WriteVariable(w, buffer, strlen(buffer));
