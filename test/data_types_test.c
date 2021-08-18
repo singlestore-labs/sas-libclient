@@ -51,6 +51,12 @@ parseTestChunkRow(
     current_offset += 8;
     memcpy(out->variable_text.data, chunk->m_ptr + offset, len);
     out->variable_text.len = len;
+    // Variable, LONGTEXT
+    memcpy(&offset, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(&len, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(out->variable_long_text.data, chunk->m_ptr + offset, len);
     // Variable, VARCHAR
     memcpy(&offset, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
@@ -93,6 +99,7 @@ void null_test(S2Client *client)
 
     ExecuteDDLQuery(client, "DROP TABLE IF EXISTS null_test", &err);
     if (err) PRINT_ERROR("Error creating table: %s\n", S2Error(client));
+    assert(!err);
 
     ExecuteDDLQuery(
         client,
@@ -101,6 +108,7 @@ void null_test(S2Client *client)
         iint INT,\
         ddouble DOUBLE,\
         vtext TEXT,\
+        vlongtext LONGTEXT,\
         vvarchar_10 VARCHAR(10),\
         vvarbinary_20 VARBINARY(20),\
         fchar_16 CHAR(16),\
@@ -112,13 +120,15 @@ void null_test(S2Client *client)
         )",
         &err);
     if (err) printf("Error creating table: %s\n", S2Error(client));
+    assert(!err);
 
     ExecuteDDLQuery(
         client,
         "INSERT INTO null_test VALUES (\
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
         &err);
     if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
+    assert(!err);
 
     const char *query = "SELECT * FROM null_test";
 
@@ -130,6 +140,7 @@ void null_test(S2Client *client)
 
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client)) PRINT_ERROR("S2 Error in null_test: %d %s\n", S2Errno(client), S2Error(client));
+    assert(!S2Errno(client));
 
     int dummy_partition = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
@@ -166,6 +177,7 @@ void null_test(S2Client *client)
 
     ExecuteDDLQuery(client, "DROP TABLE null_test", &err);
     if (err) printf("Error dropping table: %s\n", S2Error(client));
+    assert(!err);
     printf("[SUCCESS] NULL test passed\n");
 }
 

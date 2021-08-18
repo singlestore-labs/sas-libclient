@@ -329,9 +329,9 @@ main(
     const char *orderCols[3] = {"d2"};
 
     parallel_test(client, queryPartition, cols1, 1, orderCols, 1, true);
-    // int err = 0;
-    // ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
-    // cleanup_small_test_table(client);
+    int err = 0;
+    ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
+    cleanup_small_test_table(client);
 
     // free the client
     S2ClientFree(client);

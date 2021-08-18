@@ -15,6 +15,9 @@
 
 int chunkSize = 102400;
 int printInfo = 0;
+int nRowsToWrite = 30;
+
+double val_64 = -1.123456789012345e-300; // 15-digits after comma
 
 void write_test(S2Client *client)
 {
@@ -28,16 +31,17 @@ void write_test(S2Client *client)
     IF_INFO(PrintRowSchema(schema));
 
     SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
-    for (int i = 0; i < 30; ++i)
+    for (int i = 0; i < nRowsToWrite; ++i)
     {
         WriteInt64(w, i * i);
         WriteInt32(w, i);
-        WriteDouble(w, (double)i);
+        WriteDouble(w, val_64);
         char buffer[33];
         snprintf(buffer, 33, "Cube %d", i * i * i);
         WriteVariable(w, buffer, strlen(buffer));
 
-        WriteVariable(w, "txt", 3);
+        WriteVariable(w, "t\nt", 3);
+        WriteVariable(w, "lon\ttxt", 7);
         WriteVariable(w, "\x40\x60", 2);
 
         WriteFixed(w, "юникод", 12, 48);

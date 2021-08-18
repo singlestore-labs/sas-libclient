@@ -34,7 +34,7 @@
 const char *superchunkTable = "superchunk_table";
 const char *testData =
     "(-1460002, 12507, 1.2,\
-    'textVAL_рус', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL',\
+    'textVAL_рус', 'LOOONGVAL', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL',\
     '2021-05-05 12:00:00', '1961-01-01 12:13:14.987654', '2021-05-05', '11:11:11')";
 
 char smallTestData[nSmallTestRows][60] =
@@ -69,6 +69,7 @@ struct ParsedTestChunk
     int32_t int_32;
     double double_val;
     variable variable_text;
+    variable variable_long_text;
     variable variable_char;
     variable variable_binary;
     char fixed_char[49];
@@ -86,6 +87,8 @@ const struct ParsedTestChunk TEST_DATA =
         1.2,
         {"textVAL_рус",
          14},
+        {"LOOONGVAL",
+         9},
         {"varcharVAL",
          10},
         {"varbinaryVAL",
@@ -148,7 +151,7 @@ dummyHandleError(
     ErrorHandler *h = (ErrorHandler *)cb;
     h->errorCode = error;
     printf("[DUMMMY ERROR CALLBACK] Got error: %d %s\n", error, errorString);
-    fflush(stdout);
+    assert(false);
 }
 
 void setup_small_test_table(S2Client *client)
@@ -176,6 +179,7 @@ void setup_small_test_table(S2Client *client)
         strcat(query, smallTestData[i]);
         ExecuteDDLQuery(client, query, &err);
         if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
+        assert(!err);
     }
 }
 
@@ -202,6 +206,7 @@ setup_superchunk_table(
         iint INT,\
         ddouble DOUBLE,\
         vtext TEXT,\
+        vlongtext LONGTEXT,\
         vvarchar_10 VARCHAR(10),\
         vvarbinary_20 VARBINARY(20),\
         fchar_16 CHAR(16),\
@@ -220,6 +225,7 @@ setup_superchunk_table(
         strcat(query, testData);
         ExecuteDDLQuery(client, query, &err);
         if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
+        assert(!err);
     }
 }
 

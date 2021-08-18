@@ -89,11 +89,10 @@ namespace super_chunk
                     }
                     // variable length string
                     case MYSQL_TYPE_VAR_STRING:
-                    {
-                        column_info[i].type = Variable;
-                        break;
-                    }
+                    case MYSQL_TYPE_LONG_BLOB:
+                    case MYSQL_TYPE_MEDIUM_BLOB:
                     case MYSQL_TYPE_BLOB:
+                    case MYSQL_TYPE_TINY_BLOB:
                     {
                         column_info[i].type = Variable;
                         break;
@@ -287,7 +286,7 @@ namespace super_chunk
 
         std::string MakeLoadDataQuery(const std::string& tableName)
         {
-            return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedName(tableName);
+            return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedName(tableName) + "FIELDS OPTIONALLY ENCLOSED BY '\"'";
         }
 
         std::string MakeSelectQueryMeta(const std::string& tableName)

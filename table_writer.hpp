@@ -16,7 +16,7 @@ class TableWriter
   public:
     TableWriter(std::stringstream *rows)
     {
-        tsv_rows = rows;
+        m_tsv_rows = rows;
     };
 
     void
@@ -44,7 +44,7 @@ class TableWriter
         char *error_msg,
         unsigned int error_msg_len);
 
-    std::stringstream *tsv_rows;
+    std::stringstream *m_tsv_rows;
 };
 
 #endif  // TABLE_WRITER_HPP

@@ -1,4 +1,5 @@
 #include <cstring>
+#include <iomanip>
 #include <sstream>
 
 #include "table_writer.hpp"
@@ -20,13 +21,13 @@ TableWriter::ChunkToTSV(
     {
         if (row_num > 0)
         {
-            *(this->tsv_rows) << "\n";
+            *m_tsv_rows << "\n";
         }
         for (int col_num = 0; col_num < reader->m_row_schema->numColumns; ++col_num)
         {
             if (col_num > 0)
             {
-                *(this->tsv_rows) << "\t";
+                *m_tsv_rows << "\t";
             }
             switch (reader->m_row_schema->ColumnInfo[col_num].type)
             {
@@ -34,56 +35,88 @@ TableWriter::ChunkToTSV(
                     reader->ReadInt64(&int_64_val, &is_null);
                     if (!is_null)
                     {
-                        *this->tsv_rows << int_64_val;
+                        *m_tsv_rows << int_64_val;
                     }
                     break;
                 case Int32:
                     reader->ReadInt32(&int_32_val, &is_null);
                     if (!is_null)
                     {
-                        *this->tsv_rows << int_32_val;
+                        *m_tsv_rows << int_32_val;
+                    }
+                    else
+                    {
+                        *m_tsv_rows << "\\N";
                     }
                     break;
                 case Double:
                     reader->ReadFloat(&float_val, &is_null);
+                    // -5.12345678907654321e-300 has length 25,
+                    // exponent does not take more than 3 digits, so 30 bytes is enough
+                    char buff[30];
+                    len = sprintf(buff, "%.17e", float_val);
                     if (!is_null)
                     {
-                        *this->tsv_rows << float_val;
+                        m_tsv_rows->write(buff, len);
+                    }
+                    else
+                    {
+                        *m_tsv_rows << "\\N";
                     }
                     break;
                 case Variable:
                     reader->ReadVariable(&buf, &len, &is_null);
                     if (!is_null)
                     {
-                        this->tsv_rows->write(buf, len);
+                        *m_tsv_rows << std::quoted(std::string(buf, len), '"', '\\');
+                    }
+                    else
+                    {
+                        *m_tsv_rows << "\\N";
                     }
                     break;
                 case Fixed:
                     reader->ReadFixed(&buf, reader->m_row_schema->ColumnInfo[col_num].size, &is_null);
                     if (!is_null)
                     {
-                        this->tsv_rows->write(buf, reader->m_row_schema->ColumnInfo[col_num].size);
+                        *m_tsv_rows << std::quoted(std::string(buf, reader->m_row_schema->ColumnInfo[col_num].size), '"', '\\');
+                    }
+                    else
+                    {
+                        *m_tsv_rows << "\\N";
                     }
                     break;
                 case DateTime:
                     reader->ReadInt64(&int_64_val, &is_null);
                     if (!is_null)
                     {
-                        *this->tsv_rows << fromDateTimeCAS(int_64_val);
+                        *m_tsv_rows << fromDateTimeCAS(int_64_val);
+                    }
+                    else
+                    {
+                        *m_tsv_rows << "\\N";
                     }
                     break;
                 case Time:
                     reader->ReadInt64(&int_64_val, &is_null);
                     if (!is_null)
                     {
-                        *this->tsv_rows << fromTimeCAS(int_64_val);
+                        *m_tsv_rows << fromTimeCAS(int_64_val);
+                    }
+                    else
+                    {
+                        *m_tsv_rows << "\\N";
                     }
                     break;
                 case Date:
                     reader->ReadInt32(&int_32_val, &is_null);
                     if (!is_null)
                     {
-                        *this->tsv_rows << fromDateCAS(int_32_val);
+                        *m_tsv_rows << fromDateCAS(int_32_val);
+                    }
+                    else
+                    {
+                        *m_tsv_rows << "\\N";
                     }
                     break;
                 default:
