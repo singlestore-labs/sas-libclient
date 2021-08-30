@@ -80,7 +80,9 @@ TableWriter::ChunkToTSV(
                     if (!is_null)
                     {
                         *m_tsv_rows << std::quoted(
-                            std::string(buf, reader->m_row_schema->ColumnInfo[col_num].size), '"', '\\');
+                            std::string(buf, reader->m_row_schema->ColumnInfo[col_num].size),
+                            '"',
+                            '\\');
                     }
                     else
                     {

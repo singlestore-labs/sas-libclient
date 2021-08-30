@@ -26,73 +26,22 @@ int nTableRows = 1000;
 const char *resultTable = "tmp";
 const char *queryMain = "SELECT * FROM superchunk_table";
 
-int
-parseTestChunkRow(
-    Chunk *chunk,
-    int current_offset,
-    struct ParsedTestChunk *out)
-{
-    int64_t int_64_val, offset, len;
-    int32_t int_32_val;
-    double double_val;
-
-    // Int64
-    memcpy(&out->int_64, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    // Int32
-    memcpy(&out->int_32, chunk->m_ptr + current_offset, 4);
-    current_offset += 8;
-    // Double
-    memcpy(&out->double_val, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    // Variable, TEXT
-    memcpy(&offset, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    memcpy(&len, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    memcpy(out->variable_text.data, chunk->m_ptr + offset, len);
-    out->variable_text.len = len;
-    // Variable, LONGTEXT
-    memcpy(&offset, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    memcpy(&len, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    memcpy(out->variable_long_text.data, chunk->m_ptr + offset, len);
-    // Variable, VARCHAR
-    memcpy(&offset, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    memcpy(&len, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    memcpy(out->variable_char.data, chunk->m_ptr + offset, len);
-    out->variable_char.len = len;
-    // Variable, VARBINARY
-    memcpy(&offset, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    memcpy(&len, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
-    out->variable_binary.len = len;
-    // Fixed, CHAR(16)
-    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 48);
-    current_offset += 48;
-    // Fixed, BINARY(9)
-    memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 16);
-    current_offset += 16;
-    // DateTime
-    memcpy(&out->date_time, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    // DateTime(6)
-    memcpy(&out->date_time_6, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-    // Date
-    memcpy(&out->date, chunk->m_ptr + current_offset, 4);
-    current_offset += 8;
-    // Time
-    memcpy(&out->time, chunk->m_ptr + current_offset, 8);
-    current_offset += 8;
-
-    return current_offset;
-}
+const struct ParsedTestChunk DATA_TYPES_TEST_DATA =
+    {
+        -1460002,
+        12507,
+        1.23456789012345,
+        {"textVAL_рус", 14},
+        {"LOOONGVAL", 9},
+        {"varcharVAL", 10},
+        {"varbinaryVAL", 12},
+        "русVAL",
+        "fbVAL",
+        1935835200000000,
+        31666394987654,
+        22405,
+        40271000000,
+};
 
 void null_test(S2Client *client)
 {
@@ -217,29 +166,35 @@ void read_test(S2Client *client)
         for (int i = 0; i < chunk->row_count; ++i)
         {
             current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
-            assert(chunkData.int_64 == TEST_DATA.int_64);
-            assert(chunkData.int_32 == TEST_DATA.int_32);
-            assert(chunkData.double_val == TEST_DATA.double_val);
+            assert(chunkData.int_64 == DATA_TYPES_TEST_DATA.int_64);
+            assert(chunkData.int_32 == DATA_TYPES_TEST_DATA.int_32);
+            assert(chunkData.double_val == DATA_TYPES_TEST_DATA.double_val);
 
-            assert(chunkData.variable_text.len == TEST_DATA.variable_text.len);
-            assert(chunkData.variable_char.len == TEST_DATA.variable_char.len);
-            assert(chunkData.variable_binary.len == TEST_DATA.variable_binary.len);
+            assert(chunkData.variable_text.len == DATA_TYPES_TEST_DATA.variable_text.len);
+            assert(chunkData.variable_char.len == DATA_TYPES_TEST_DATA.variable_char.len);
+            assert(chunkData.variable_binary.len == DATA_TYPES_TEST_DATA.variable_binary.len);
 
-            assert(!strncmp(chunkData.variable_text.data, TEST_DATA.variable_text.data, TEST_DATA.variable_text.len));
-            assert(!strncmp(chunkData.variable_char.data, TEST_DATA.variable_char.data, TEST_DATA.variable_char.len));
+            assert(!strncmp(
+                chunkData.variable_text.data,
+                DATA_TYPES_TEST_DATA.variable_text.data,
+                DATA_TYPES_TEST_DATA.variable_text.len));
+            assert(!strncmp(
+                chunkData.variable_char.data,
+                DATA_TYPES_TEST_DATA.variable_char.data,
+                DATA_TYPES_TEST_DATA.variable_char.len));
             assert(!strncmp(
                 chunkData.variable_binary.data,
-                TEST_DATA.variable_binary.data,
-                TEST_DATA.variable_binary.len));
+                DATA_TYPES_TEST_DATA.variable_binary.data,
+                DATA_TYPES_TEST_DATA.variable_binary.len));
 
-            assert(!strcmp(chunkData.fixed_char, TEST_DATA.fixed_char));
-            assert(!strcmp(chunkData.fixed_binary, TEST_DATA.fixed_binary));
+            assert(!strcmp(chunkData.fixed_char, DATA_TYPES_TEST_DATA.fixed_char));
+            assert(!strcmp(chunkData.fixed_binary, DATA_TYPES_TEST_DATA.fixed_binary));
 
             // these values have been found using online epoch converter lol
-            assert(chunkData.date_time == 1935835200000000);
-            assert(chunkData.date_time_6 == 31666394987654);
-            assert(chunkData.date == 22405);
-            assert(chunkData.time == 40271000000);
+            assert(chunkData.date_time == DATA_TYPES_TEST_DATA.date_time);
+            assert(chunkData.date_time_6 == DATA_TYPES_TEST_DATA.date_time_6);
+            assert(chunkData.date == DATA_TYPES_TEST_DATA.date);
+            assert(chunkData.time == DATA_TYPES_TEST_DATA.time);
         }
 
         ChunkFree(chunk);

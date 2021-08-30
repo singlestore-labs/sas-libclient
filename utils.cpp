@@ -125,23 +125,23 @@ namespace super_chunk
             }
         }
 
-        void RowSchemaFree(RowSchema* schema)
-        {
-            if (!schema)
-            {
-                return;
-            }
-            for (int i = 0; i < schema->numColumns; i++)
-            {
-                free(schema->ColumnInfo[i].name);
-            }
-            delete[] schema->ColumnInfo;
-            delete schema;
-            schema = nullptr;
-        }
-
         extern "C"
         {
+            void RowSchemaFree(RowSchema* schema)
+            {
+                if (!schema)
+                {
+                    return;
+                }
+                for (int i = 0; i < schema->numColumns; i++)
+                {
+                    free(schema->ColumnInfo[i].name);
+                }
+                delete[] schema->ColumnInfo;
+                delete schema;
+                schema = nullptr;
+            }
+
             void
             CopyChunk(
                 Chunk* out,

@@ -44,14 +44,14 @@ char smallTestData[nSmallTestRows][60] =
         "(3, -44, 5.6, 7.8, '3x', 'c')",
         "(4, -55, 6.7, 8.9, '4x', 'cc')",
         "(5, -66, -7.8, 0.01, 'xxxxx', 'ccc')",
-        "(6, -77, -8.9, 0.001, 'xxxxx', 'cccc')",
-        "(7, -88, 5.1, 0.001, 'xxxxx', 'ccccc')",
-        "(8, -99, 5.11, 0.0001, 'xxxxx', 'cccccc')",
-        "(9, 101, 5.111, 9.8, 'xxxxx', 'cccccccc')",
-        "(10, 202, 5.1111, 10.8, 'xxxxx', 'cccccccc')",
-        "(11, 303, 5.11111, 11.8, 'xxxxx', 'ccccccccc')",
-        "(12, 404, 5.111111, 12.8, 'xxxxx', 'cccccccccc')",
-        "(13, 505, 5.1111111, 12.8, 'xxxxx', 'ccccccccc')",
+        "(1, -77, -8.9, 0.001, 'xxxxx', 'cccc')",
+        "(2, -88, 5.1, 0.001, 'xxxxx', 'ccccc')",
+        "(2, -99, 5.11, 0.0001, 'xxxxx', 'cccccc')",
+        "(2, 101, 5.111, 9.8, 'xxxxx', 'cccccccc')",
+        "(2, 202, 5.1111, 10.8, 'xxxxx', 'cccccccc')",
+        "(5, 303, 5.11111, 11.8, 'xxxxx', 'ccccccccc')",
+        "(1, 404, 5.111111, 12.8, 'xxxxx', 'cccccccccc')",
+        "(4, 505, 5.1111111, 12.8, 'xxxxx', 'ccccccccc')",
         "(NULL, NULL, NULL, NULL, NULL, NULL)"
 };
 
@@ -80,23 +80,6 @@ struct ParsedTestChunk
     int64_t time;
 };
 
-const struct ParsedTestChunk TEST_DATA =
-    {
-        -1460002,
-        12507,
-        1.23456789012345,
-        {"textVAL_рус",
-         14},
-        {"LOOONGVAL",
-         9},
-        {"varcharVAL",
-         10},
-        {"varbinaryVAL",
-         12},
-        "русVAL",
-        "fbVAL",
-};
-
 typedef enum ReadingMode
 {
     FIRST_PASS,
@@ -110,6 +93,7 @@ typedef struct WorkerArgs
     int db_port;
     bool needRandomRead;
     bool checkAffinity;
+    bool checkOrder;
 } WorkerArgs;
 
 typedef struct ReceivedChunk
@@ -130,7 +114,8 @@ typedef struct ReaderThreadArgs
     int n_chunks_read;
     ReceivedChunk *chunks_read;
 
-    int partition_keys_counter[nSmallTestRows];
+    int partition_key_i1_counter[nSmallTestRows];
+    bool check_partition_order;
 } ReaderThreadArgs;
 
 typedef struct ErrorHandler
@@ -282,12 +267,83 @@ mult_table(
     free(query);
 }
 
+// read data from the chunk constructed by reading the table
+// created in setup_superchunk_table
+int
+parseTestChunkRow(
+    Chunk *chunk,
+    int current_offset,
+    struct ParsedTestChunk *out)
+{
+    int64_t int_64_val, offset, len;
+    int32_t int_32_val;
+    double double_val;
+
+    // Int64
+    memcpy(&out->int_64, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    // Int32
+    memcpy(&out->int_32, chunk->m_ptr + current_offset, 4);
+    current_offset += 8;
+    // Double
+    memcpy(&out->double_val, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    // Variable, TEXT
+    memcpy(&offset, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(&len, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(out->variable_text.data, chunk->m_ptr + offset, len);
+    out->variable_text.len = len;
+    // Variable, LONGTEXT
+    memcpy(&offset, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(&len, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(out->variable_long_text.data, chunk->m_ptr + offset, len);
+    // Variable, VARCHAR
+    memcpy(&offset, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(&len, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(out->variable_char.data, chunk->m_ptr + offset, len);
+    out->variable_char.len = len;
+    // Variable, VARBINARY
+    memcpy(&offset, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(&len, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
+    out->variable_binary.len = len;
+    // Fixed, CHAR(16)
+    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 48);
+    current_offset += 48;
+    // Fixed, BINARY(9)
+    memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 16);
+    current_offset += 16;
+    // DateTime
+    memcpy(&out->date_time, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    // DateTime(6)
+    memcpy(&out->date_time_6, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    // Date
+    memcpy(&out->date, chunk->m_ptr + current_offset, 4);
+    current_offset += 8;
+    // Time
+    memcpy(&out->time, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+
+    return current_offset;
+}
+
 int
 RecordChunk(
     Chunk *chunk,
     bool print,
     ReaderThreadArgs *args,
-    bool read_partition_key)
+    bool read_partition_key,
+    bool check_partition_order)
 {
     if (args->mode == FIRST_PASS)
     {
@@ -314,8 +370,28 @@ RecordChunk(
         int64_t val;
         for (int row_num = 0; row_num < chunk->row_count; ++row_num)
         {
+            // copy the value corresponding to `i1` column to val
             memcpy(&val, chunk->m_ptr + row_num * smallTestFixedSize, 8);
-            args->partition_keys_counter[val]++;
+            args->partition_key_i1_counter[val]++;
+        }
+    }
+    if (check_partition_order)
+    {
+        int64_t int_val, int_prev;
+        double double_val, double_prev;
+        memcpy(&int_prev, chunk->m_ptr, 8);
+        memcpy(&double_prev, chunk->m_ptr + 16, 8);
+        for (int row_num = 1; row_num < chunk->row_count; ++row_num)
+        {
+            memcpy(&int_val, chunk->m_ptr + row_num * smallTestFixedSize, 8);
+            memcpy(&double_val, chunk->m_ptr + row_num * smallTestFixedSize + 16, 8);
+            // assert(int_prev <= int_val);  TODO: uncomment here and above when PARTITION_ORDER_BY works
+            if (int_prev == int_val)
+            {
+                // assert(double_prev <= double_val);
+            }
+            int_prev = int_val;
+            double_prev = double_val;
         }
     }
 

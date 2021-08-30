@@ -45,10 +45,11 @@ namespace super_chunk
             MYSQL_FIELD* fields,
             RowSchema* rowSchema /*out*/);
 
-        void RowSchemaFree(RowSchema* schema);
 
         extern "C"
         {
+            void RowSchemaFree(RowSchema* schema);
+
             void
             CopyChunk(
                 Chunk* out,

@@ -31,8 +31,9 @@ void check_affinity(ReaderThreadArgs readerArgs[])
     {
         for (int thread_id = 0; thread_id < threadsPerWorker; thread_id++)
         {
-            if (readerArgs[thread_id].partition_keys_counter[key])
+            if (readerArgs[thread_id].partition_key_i1_counter[key])
             {
+                PRINT_INFO("key %i read by thread %i\n", key, thread_id);
                 ++marker;
             }
         }
@@ -59,7 +60,7 @@ void *reader_thread(void *input)
     {
         numReceived++;
 
-        TOTAL += RecordChunk(chunk, printInfo, args, true);
+        TOTAL += RecordChunk(chunk, printInfo, args, true, args->check_partition_order);
         ChunkFree(chunk);
     }
 
@@ -102,7 +103,8 @@ void *worker(void *input)
         readerArgs[i].mode = FIRST_PASS;
         readerArgs[i].n_chunks_read = 0;
         readerArgs[i].chunks_read = (ReceivedChunk *)malloc(chunkBufferSize * sizeof(ReceivedChunk));
-        memset(readerArgs[i].partition_keys_counter, 0, sizeof readerArgs[i].partition_keys_counter);
+        memset(readerArgs[i].partition_key_i1_counter, 0, sizeof readerArgs[i].partition_key_i1_counter);
+        readerArgs[i].check_partition_order = args->checkOrder;
 
         pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
     }
@@ -153,7 +155,14 @@ void error_test(S2Client *client)
 {
     // invalid query
     ParallelReadInit(
-        client, resultTable, "SELECT * FROM small_test WHERE non_defined_func(i) = 1", false, NULL, 0, NULL, 0);
+        client,
+        resultTable,
+        "SELECT * FROM small_test WHERE non_defined_func(i) = 1",
+        false,
+        NULL,
+        0,
+        NULL,
+        0);
 
     PRINT_INFO("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
 
@@ -169,7 +178,8 @@ parallel_test(
     const int partitionByColsLen,
     const char *const *const partitionOrderByCols,
     const int orderByColsNumber,
-    bool checkAffinity)
+    bool checkAffinity,
+    bool checkOrder)
 {
     int agg_ports[numWorkers];
     // use MA for every connection
@@ -197,6 +207,8 @@ parallel_test(
         w_args[i].id = i;
         w_args[i].db_port = agg_ports[i];
         w_args[i].checkAffinity = checkAffinity;
+        w_args[i].checkAffinity = checkOrder;
+
         pthread_create(&workers[i], NULL, worker, &w_args[i]);
     }
 
@@ -326,22 +338,22 @@ main(
     error_test(client);
 
     // parallel read modes tests
-    parallel_test(client, queryMain, NULL, 0, NULL, 0, false);
+    // no partitioning
+    parallel_test(client, queryMain, NULL, 0, NULL, 0, false, false);
 
     const char *cols[3] = {"i1", "i2"};
-    parallel_test(client, queryMain, cols, 2, cols, 2, false);
+    parallel_test(client, queryMain, cols, 2, cols, 2, false, false);
 
-    parallel_test(client, queryMain, cols, 2, NULL, 0, false);
+    parallel_test(client, queryMain, cols, 1, NULL, 0, true, false);
 
     mult_table(client, "small_test", "partition_test", 10);
-    const char *cols1[3] = {"d1"};
-    const char *orderCols[3] = {"d2"};
+    const char *partOrderCols[3] = {"i1", "d1"};
 
-    parallel_test(client, queryPartition, cols1, 1, orderCols, 1, true);
+    parallel_test(client, queryPartition, partOrderCols, 1, partOrderCols, 2, true, true);
+
     int err = 0;
     ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
     cleanup_small_test_table(client);
-
     // free the client
     S2ClientFree(client);
 

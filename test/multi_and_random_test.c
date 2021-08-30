@@ -42,7 +42,7 @@ void *reader_thread(void *input)
         {
             numReceived++;
 
-            TOTAL += RecordChunk(chunk, false, args, false);
+            TOTAL += RecordChunk(chunk, false, args, false, false);
             ChunkFree(chunk);
         }
         PRINT_INFO("Finished first pass: worker %d thread %d read %d chunks\n", args->worker_id, args->id, numReceived);

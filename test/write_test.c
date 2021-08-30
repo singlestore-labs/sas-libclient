@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,11 +14,100 @@
 #include "test/db_creds.h"
 #include "test/helpers.h"
 
-int chunkSize = 102400;
+int chunkSize = 1024000;
 int printInfo = 0;
 int nRowsToWrite = 30;
+int queueCapacity = 10;
 
-double val_64 = -1.123456789012345e-300; // 15-digits after comma
+double val_64 = -1.123456789012345e-300;  // 15-digits after comma
+
+const struct ParsedTestChunk TEST_DATA =
+    {
+        0,
+        0,
+        0,
+        {"Cube", 4},
+        {"t\nt", 3},
+        {"lon\ttxt", 7},
+        {"\x40\x60", 2},
+        "юникод",
+        "fixed",
+        1935835200000000,
+        31666394987654,
+        2,
+        40271000000,
+};
+
+void read_and_check(S2Client *client)
+{
+    const char *query = "SELECT * FROM superchunk_table";
+
+    ChunkQueue *q = QueryGetQueue(
+        client,
+        query,
+        chunkSize,
+        queueCapacity);
+
+    assert(q != NULL && "ChunkQueue is NULL");
+    if (S2Errno(client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+    assert(!S2Errno(client));
+
+    int dummy_partition;
+    int err = 0;
+    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
+    int numReceived = 0;
+
+    while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
+    {
+        struct ParsedTestChunk chunkData;
+        int current_offset = 0;
+        for (int i = 0; i < chunk->row_count; ++i)
+        {
+            current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
+
+            // This assumes all the rows are consumed by one chunk
+            assert(chunkData.int_64 == i * i);
+            assert(chunkData.int_32 == i);
+
+            if (i % 3 == 0)
+            {
+                assert(isnan(chunkData.double_val));
+            }
+            if (i % 3 == 1)
+            {
+                assert(chunkData.double_val == val_64);
+            }
+            if (i % 3 == 2)
+            {
+                assert(chunkData.double_val == i);
+            }
+
+            assert(chunkData.variable_text.len > TEST_DATA.variable_text.len);  // Here we added cube of i
+            assert(chunkData.variable_char.len == TEST_DATA.variable_char.len);
+            assert(chunkData.variable_binary.len == TEST_DATA.variable_binary.len);
+
+            assert(!strncmp(chunkData.variable_text.data, TEST_DATA.variable_text.data, TEST_DATA.variable_text.len));
+            assert(!strncmp(chunkData.variable_char.data, TEST_DATA.variable_char.data, TEST_DATA.variable_char.len));
+            assert(!strncmp(
+                chunkData.variable_binary.data,
+                TEST_DATA.variable_binary.data,
+                TEST_DATA.variable_binary.len));
+
+            assert(!strcmp(chunkData.fixed_char, TEST_DATA.fixed_char));
+            assert(!strcmp(chunkData.fixed_binary, TEST_DATA.fixed_binary));
+
+            assert(chunkData.date_time == TEST_DATA.date_time);
+            assert(chunkData.date_time_6 == TEST_DATA.date_time_6);
+            assert(chunkData.date == TEST_DATA.date);
+            assert(chunkData.time == TEST_DATA.time);
+        }
+
+        ChunkFree(chunk);
+    }
+    free(chunk);
+    ChunkQueueFree(q);
+    printf("[SUCCESS] validity checked. Test passed!\n");
+}
 
 void write_test(S2Client *client)
 {
@@ -52,6 +142,7 @@ void write_test(S2Client *client)
         snprintf(buffer, 33, "Cube %d", i * i * i);
         WriteVariable(w, buffer, strlen(buffer));
 
+        // these values are copied from TEST_DATA
         WriteVariable(w, "t\nt", 3);
         WriteVariable(w, "lon\ttxt", 7);
         WriteVariable(w, "\x40\x60", 2);
@@ -59,20 +150,21 @@ void write_test(S2Client *client)
         WriteFixed(w, "юникод", 12, 48);
         WriteFixed(w, "fixed", 5, 9);
 
-        WriteInt64(w, 1935835200000000);
-        WriteInt64(w, 31666394987654);
-        WriteInt32(w, 2);
-        WriteInt64(w, 40271000000);
+        WriteInt64(w, TEST_DATA.date_time);
+        WriteInt64(w, TEST_DATA.date_time_6);
+        WriteInt32(w, TEST_DATA.date);
+        WriteInt64(w, TEST_DATA.time);
 
         WriteRowEnd(w);
     }
 
     LoadDataWrite(client, chunk, schema, superchunkTable, &EH.callback);
     WriterFree(w);
+    RowSchemaFree(schema);
 
     free(chunk);
     free(chunk_data);
-    printf("[SUCCESS] write test passed!\n");
+    printf("[SUCCESS] data written!\n");
 }
 
 int
@@ -100,6 +192,7 @@ main(
 
     setup_superchunk_table(client, 0);
     write_test(client);
+    read_and_check(client);
     cleanup_superchunk_table(client);
 
     // free the client

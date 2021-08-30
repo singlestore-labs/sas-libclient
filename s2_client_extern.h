@@ -159,6 +159,10 @@ GetTableRowSchema(
     const char* table,
     S2ErrorCallback* cb);
 
+// RowSchemaFree should be called when RowSchema*
+// is returned from GetTableRowSchema
+void RowSchemaFree(RowSchema* schema);
+
 // GetPartitionsNumber returns the number of partitions in the database specified in S2ClientInit().
 // The total number of parallel S2 readers will be equal to this number
 int GetPartitionsNumber(S2Client* client);
