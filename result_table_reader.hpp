@@ -36,7 +36,7 @@ class ResultTableReader
 
     ~ResultTableReader()
     {
-        m_stopReading = true;
+        m_stop_reading = true;
         if (m_reading_thread.joinable())
         {
             m_reading_thread.join();
@@ -112,7 +112,7 @@ class ResultTableReader
     S2ClientError m_error;
     std::mutex m_error_mutex;
 
-    std::atomic<bool> m_stopReading = ATOMIC_VAR_INIT(false);
+    std::atomic<bool> m_stop_reading = ATOMIC_VAR_INIT(false);
 
     void Read();
 };

@@ -92,6 +92,11 @@ class ThreadSafeSimpleQueue : public ThreadSafeQueue<T>
             m_emptyCV.notify_all();
         }
     }
+
+    void FreeBatchData(void (*FreeCallback)(T))
+    {
+        assert(false && "FreeBatchData is not supported by ThreadSafeSimpleQueue");
+    }
 };
 
 #endif  // THREAD_SAFE_SIMPLE_QUEUE_HPP

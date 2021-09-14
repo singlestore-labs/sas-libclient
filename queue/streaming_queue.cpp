@@ -128,3 +128,20 @@ StreamingQueue::GetSingleRow(
     SetError(S2ClientError(S2C_ERROR_INV_ARG, "Cannot use streaming queue in random read mode"));
     return nullptr;
 }
+
+StreamingQueue::~StreamingQueue()
+{
+    StopReaders();
+    for (int consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
+    {
+        // delete all chunks that are saved in the queue
+        S2ClientError err(0, "");
+        while (Chunk *c = Get(consumer_id, err))
+        {
+            super_chunk::utils::ChunkFree(c);
+            delete c;
+        }
+        delete m_consumer_queues[consumer_id];
+        m_consumer_queues[consumer_id] = nullptr;
+    }
+}

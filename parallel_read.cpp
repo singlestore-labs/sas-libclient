@@ -154,7 +154,7 @@ extern "C"
         }
 
         *partitionId = res->partition_id;
-        super_chunk::utils::CopyChunk(chunk, res);
+        super_chunk::utils::MoveChunk(chunk, res);
 
         return true;
     }
@@ -179,7 +179,7 @@ extern "C"
             return false;
         }
 
-        super_chunk::utils::CopyChunk(chunk, res);
+        super_chunk::utils::MoveChunk(chunk, res);
 
         return true;
     }
@@ -206,9 +206,8 @@ extern "C"
             return false;
         }
 
-        super_chunk::utils::CopyChunk(chunk, res);
-        delete res;
-
+        super_chunk::utils::MoveChunk(chunk, res);
+    
         return true;
     }
 

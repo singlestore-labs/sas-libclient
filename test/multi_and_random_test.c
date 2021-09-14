@@ -50,9 +50,10 @@ void *reader_thread(void *input)
     }
     if (args->mode == SECOND_PASS)
     {
+        int offset = args->id % 2 ? 0 : 10;
         PRINT_INFO("Starting GetChunkMulti in thread %d worker %d\n", args->id, args->worker_id);
 
-        while (numReceived < args->n_chunks_read && GetChunkMulti(
+        while (numReceived < args->n_chunks_read - offset && GetChunkMulti(
                                                         args->queue,
                                                         (args->chunks_read)[numReceived].partition_id,
                                                         (args->chunks_read)[numReceived].chunk_id,
@@ -72,16 +73,15 @@ void *reader_thread(void *input)
 
             ChunkFree(chunk);
         }
-        if (numReceived != args->n_chunks_read)
+        if (!offset && numReceived != args->n_chunks_read)
         {
             PRINT_ERROR(
-                "[ERROR]: got %d chunks, expected %d, thread %d\n ",
+                "got %d chunks, expected %d, thread %d\n ",
                 numReceived,
                 args->n_chunks_read,
                 args->id);
         }
-
-        assert(numReceived == args->n_chunks_read);
+        offset ? assert(args->n_chunks_read < offset || numReceived == args->n_chunks_read - offset) : assert(numReceived == args->n_chunks_read);
 
         PRINT_INFO(
             "Finished GetChunkMulti in thread %d worker %d, numReceived %d\n",
@@ -107,11 +107,7 @@ void *reader_thread(void *input)
                         args->id,
                         chunk,
                         &EH.callback);
-                    // printf(
-                    //     "Got chunk in GetChunkRow: row_count %d, size %d, consumed %d\n",
-                    //     chunk->row_count,
-                    //     chunk->m_size,
-                    //     chunk->consumed_size);
+                    ChunkFree(chunk);
                     TOTAL_SINGLE_ROWS++;
                     numReceived++;
                 }
@@ -222,6 +218,11 @@ void *worker(void *input)
 
     // free the client
     S2ClientFree(client);
+
+    for (int i = 0; i < threadsPerWorker; i++)
+    {
+        free(readerArgs[i].chunks_read);
+    }
 
     return NULL;
 }

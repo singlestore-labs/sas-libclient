@@ -44,7 +44,7 @@ class S2Connection
         // if the flag m_need_stmt_close is set to true (default behavior)
         // we close the statement before closing the connection.
         // Otherwise we close the statement after connection, this
-        // // only frees the memory on the client side
+        // only frees the memory on the client side
         if (m_stmt && m_need_stmt_close)
         {
             mysql_stmt_close(m_stmt);

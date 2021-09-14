@@ -34,6 +34,8 @@ class MultiPassQueue : public ChunkQueue
     super_chunk::credentials m_credentials;
 
   public:
+    ~MultiPassQueue();
+
     // CreateChunkQueue creates a MultiPassQueue object,
     // creates Readers and starts them.
     // - capacity is the maximum number of chunks that can be saved in the queue

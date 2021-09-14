@@ -143,7 +143,7 @@ namespace super_chunk
             }
 
             void
-            CopyChunk(
+            MoveChunk(
                 Chunk* out,
                 Chunk* in)
             {
@@ -153,6 +153,8 @@ namespace super_chunk
                 out->id = in->id;
                 out->partition_id = in->partition_id;
                 out->consumed_size = in->consumed_size;
+
+                delete in;
             }
 
             void ChunkFree(Chunk* chunk)

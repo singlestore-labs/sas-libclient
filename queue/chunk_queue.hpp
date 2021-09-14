@@ -17,6 +17,9 @@ class ChunkQueue
 {
   public:
     virtual ~ChunkQueue()
+        {};
+
+    void StopReaders()
     {
         bool is_read_finished = true;
         for (auto &reader : m_readers)
@@ -35,19 +38,7 @@ class ChunkQueue
                 reader->NotifyConnUnfinishedStmt();
             }
         }
-        for (int consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
-        {
-            // delete all chunks that are saved in the queue
-            S2ClientError err(0, "");
-            while (Chunk *c = Get(consumer_id, err))
-            {
-                super_chunk::utils::ChunkFree(c);
-                delete c;
-            }
-            delete m_consumer_queues[consumer_id];
-            m_consumer_queues[consumer_id] = nullptr;
-        }
-    };
+    }
 
     // Get retrieves one Chunk from the queue
     Chunk *

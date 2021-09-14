@@ -130,6 +130,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
     void Push(T const& val)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
+ 
         int batchNum = val->id / m_batchSize;
         int valueIndex = targetIndex(val->partition_id, val->id);
 
@@ -234,6 +235,37 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
             m_emptyCV.notify_all();
         }
     }
+
+    void FreeBatchData(void (*FreeCallback)(T))
+    {
+        std::unique_lock<std::mutex> lock(m_mutex);
+        while (m_activeProducers || m_itemsToRead)
+        {
+            while (!m_itemsToRead && m_activeProducers)
+            {
+                m_emptyCV.wait(lock);
+            }
+            // read elements from data array one by one,
+            // in the same way that would be used by CAS readers
+            for (int idx = 0; idx < m_dataArray.size(); ++idx)
+            {
+                if (m_dataArray[idx].isSet)
+                {
+                    m_queue.pop();
+                    T res = readValue(idx);
+
+                    if (isBatchFinished())
+                    {
+                        resetBatch();
+                    }
+
+                    FreeCallback(res);
+                    delete res;
+                    break;
+                }
+            }
+        }
+    };
 };
 
 #endif  // THREAD_SAFE_BATCH_QUEUE_HPP

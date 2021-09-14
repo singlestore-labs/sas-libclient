@@ -64,7 +64,7 @@ void ResultTableReader::StartReading()
 
 void ResultTableReader::StopReading()
 {
-    m_stopReading = true;
+    m_stop_reading = true;
 }
 
 void ResultTableReader::NotifyConnUnfinishedStmt()
@@ -115,7 +115,7 @@ void ResultTableReader::Read()
     try
     {
         int chunkId = 0;
-        while (!m_stopReading && this->m_conn->HasNextRow())
+        while (!m_stop_reading && m_conn->HasNextRow())
         {
             // initialize the chunk to fill
             char *ptr = (char *)malloc(m_chunk_size);
@@ -126,7 +126,7 @@ void ResultTableReader::Read()
             chunk->id = chunkId;
             chunk->partition_id = m_partition;
 
-            this->m_conn->NextChunk(m_chunk_writer, chunk, m_row_schema);
+            m_conn->NextChunk(m_chunk_writer, chunk, m_row_schema);
 
             if (chunk->row_count == 0)
             {
@@ -136,13 +136,13 @@ void ResultTableReader::Read()
                 delete chunk;
                 break;
             }
-            this->m_queue->Push(chunk);
             // we need to store chunks info only for multi-pass queue, for streaming queue
             // m_chunks_info is null
             if (m_chunks_info)
             {
-                this->m_chunks_info->Put(chunk);
+                m_chunks_info->Put(chunk);
             }
+            m_queue->Push(chunk);
             ++chunkId;
         }
     }
@@ -161,7 +161,7 @@ void ResultTableReader::Read()
         std::unique_lock<std::mutex> lock(m_error_mutex);
         m_error = s2_err;
     }
-    this->m_queue->DeleteProducer(m_partition);
+    m_queue->DeleteProducer(m_partition);
     SetActive(false);
 }
 

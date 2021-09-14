@@ -41,6 +41,8 @@ class ThreadSafeQueue
     //
     virtual void DeleteProducer(int producerId) = 0;
 
+    virtual void FreeBatchData(void (*FreeCallback)(T)) = 0;
+
     std::queue<T> m_queue;
 };
 

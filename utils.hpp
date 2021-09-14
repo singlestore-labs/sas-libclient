@@ -51,7 +51,7 @@ namespace super_chunk
             void RowSchemaFree(RowSchema* schema);
 
             void
-            CopyChunk(
+            MoveChunk(
                 Chunk* out,
                 Chunk* in);
 

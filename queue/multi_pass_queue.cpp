@@ -182,3 +182,15 @@ MultiPassQueue::GetSingleRow(
     }
     return nullptr;
 }
+
+MultiPassQueue::~MultiPassQueue()
+{
+    StopReaders();
+    for (int consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
+    {
+        // delete all chunks that are saved in the queue
+        m_consumer_queues[consumer_id]->FreeBatchData(&super_chunk::utils::ChunkFree);
+        delete m_consumer_queues[consumer_id];
+        m_consumer_queues[consumer_id] = nullptr;
+    }
+}

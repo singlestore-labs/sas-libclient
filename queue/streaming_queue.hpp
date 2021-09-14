@@ -15,6 +15,8 @@ class StreamingQueue : public ChunkQueue
         {};
 
   public:
+    ~StreamingQueue();
+
     // CreateChunkQueue creates a StreamingQueue object,
     // creates Readers and starts them.
     // - capacity is the maximum number of chunks that can be stored in the queue
