@@ -141,7 +141,6 @@ extern "C"
         Chunk *chunk /*out*/,
         S2ErrorCallback *cb)
     {
-        // TODO: use readerThreadId
         S2ClientError err(0, "");
         Chunk *res = queue->Get(consumerId, err);
         if (err.m_errorCode)

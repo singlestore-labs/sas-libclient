@@ -207,7 +207,7 @@ parallel_test(
         w_args[i].id = i;
         w_args[i].db_port = agg_ports[i];
         w_args[i].checkAffinity = checkAffinity;
-        w_args[i].checkAffinity = checkOrder;
+        w_args[i].checkOrder = checkOrder;
 
         pthread_create(&workers[i], NULL, worker, &w_args[i]);
     }

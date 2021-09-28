@@ -48,7 +48,7 @@ void null_test(S2Client *client)
     int err = 0;
 
     ExecuteDDLQuery(client, "DROP TABLE IF EXISTS null_test", &err);
-    if (err) PRINT_ERROR("Error creating table: %s\n", S2Error(client));
+    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
     assert(!err);
 
     ExecuteDDLQuery(
@@ -85,7 +85,7 @@ void null_test(S2Client *client)
     ChunkQueue *q = QueryGetQueue(
         client,
         query,
-        200,
+        chunkSize,
         queueCapacity);
 
     assert(q != NULL && "ChunkQueue is NULL");

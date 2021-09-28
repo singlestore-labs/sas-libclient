@@ -90,6 +90,7 @@ class SuperChunk
             }
         }
         m_offset += len;
+        m_chunk->consumed_size += len;
     }
 
     inline void Write8(const void *src)
@@ -116,7 +117,7 @@ class SuperChunk
     {
         static_assert(sizeof(T) == 4, "Write8Typed can only write 4 bytes");
         *((T *)(m_chunk->m_ptr + m_offset)) = val;
-        m_chunk->consumed_size += 8;
+        m_chunk->consumed_size += 4;
         m_offset += 4;
     }
 

@@ -2,6 +2,7 @@
 #define TEST_HELPERS_H
 
 #include <assert.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,6 +31,7 @@
 #define queryLen 1000
 #define maxVariableLen 120
 #define nSmallTestRows 14
+#define collationCharSize 4
 
 const char *superchunkTable = "superchunk_table";
 const char *testData =
@@ -316,8 +318,8 @@ parseTestChunkRow(
     memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
     out->variable_binary.len = len;
     // Fixed, CHAR(16)
-    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 48);
-    current_offset += 48;
+    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * collationCharSize);
+    current_offset += 16 * collationCharSize;
     // Fixed, BINARY(9)
     memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 16);
     current_offset += 16;
@@ -385,10 +387,10 @@ RecordChunk(
         {
             memcpy(&int_val, chunk->m_ptr + row_num * smallTestFixedSize, 8);
             memcpy(&double_val, chunk->m_ptr + row_num * smallTestFixedSize + 16, 8);
-            // assert(int_prev <= int_val);  TODO: uncomment here and above when PARTITION_ORDER_BY works
+            assert(int_prev <= int_val);  // TODO: uncomment here and above when PARTITION_ORDER_BY works
             if (int_prev == int_val)
             {
-                // assert(double_prev <= double_val);
+                assert((isnan(double_prev) && isnan(double_val)) || (double_prev <= double_val));
             }
             int_prev = int_val;
             double_prev = double_val;
