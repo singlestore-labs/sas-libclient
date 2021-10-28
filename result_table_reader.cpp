@@ -8,11 +8,9 @@ ResultTableReader::CreateReader(
     ThreadSafeQueue<Chunk *> *q,
     std::shared_ptr<ChunksInfo> chunks_info,
     const char *resultTableName,
+    RowSchema *schema,
     uint32_t partition,
-    uint64_t size,
-    std::shared_ptr<std::mutex> mu,
-    std::shared_ptr<std::condition_variable> cv,
-    bool row_schema_responsible)
+    uint64_t size)
 {
     // allocate a ResultTableReader object
     std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, partition, size));
@@ -21,11 +19,8 @@ ResultTableReader::CreateReader(
     reader->m_conn = S2Connection::Connect(conn->m_host, conn->m_port, conn->m_db, conn->m_user, conn->m_password);
     // prepare a query that will be executed
     reader->m_query = super_chunk::sql::MakeReadResultTableQuery(resultTableName, partition);
-
+    reader->m_row_schema = schema;
     reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
-    reader->m_row_schema_mutex = mu;
-    reader->m_row_schema_cv = cv;
-    reader->m_row_schema_responsible = row_schema_responsible;
     reader->m_chunks_info = chunks_info;
 
     return reader;
@@ -36,10 +31,8 @@ ResultTableReader::CreateReaderNonParallel(
     std::unique_ptr<S2Connection> &conn,
     ThreadSafeQueue<Chunk *> *q,
     const char *query,
-    uint64_t size,
-    std::shared_ptr<std::mutex> mu,
-    std::shared_ptr<std::condition_variable> cv,
-    bool row_schema_responsible)
+    RowSchema *schema,
+    uint64_t size)
 {
     // allocate a ResultTableReader object
     std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, 0 /*partition*/, size));
@@ -48,11 +41,8 @@ ResultTableReader::CreateReaderNonParallel(
     reader->m_conn = S2Connection::Connect(conn->m_host, conn->m_port, conn->m_db, conn->m_user, conn->m_password);
     // prepare a query that will be executed
     reader->m_query = query;
-
+    reader->m_row_schema = schema;
     reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
-    reader->m_row_schema_mutex = mu;
-    reader->m_row_schema_cv = cv;
-    reader->m_row_schema_responsible = row_schema_responsible;
 
     return reader;
 }
@@ -74,9 +64,21 @@ void ResultTableReader::NotifyConnUnfinishedStmt()
 
 void ResultTableReader::Read()
 {
+    // if row_schema has not been provided by the queue that created the reader,
+    // we stop the reading right away
+    if (!m_row_schema)
+    {
+        std::unique_lock<std::mutex> lock(m_error_mutex);
+        m_error = S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get RowSchmema from the queue");
+
+        m_queue->DeleteProducer(m_partition);
+        SetActive(false);
+        return;
+    }
+
     try
     {
-        m_conn->Prepare(m_query.c_str());
+        m_conn->Prepare(m_query.c_str(), true);
     }
     catch (S2ClientError &s2_err)
     {
@@ -84,29 +86,8 @@ void ResultTableReader::Read()
         m_error = s2_err;
     }
 
-    int has_row_schema_failed = 0;
-
-    if (m_row_schema_responsible)
+    if (m_error.m_errorCode)
     {
-        // this mutex is released when CreateChunkQueue enters "wait" state
-        std::unique_lock<std::mutex> row_schema_lock(*m_row_schema_mutex.get());
-        // get the row schema
-        m_row_schema = m_conn->GetRowSchema(&has_row_schema_failed);
-        m_row_schema_cv->notify_one();
-        row_schema_lock.unlock();
-    }
-    else
-    {
-        m_row_schema = m_conn->GetRowSchema(&has_row_schema_failed);
-    }
-
-    if (m_error.m_errorCode || has_row_schema_failed)
-    {
-        if (!m_error.m_errorCode && has_row_schema_failed)
-        {
-            std::unique_lock<std::mutex> lock(m_error_mutex);
-            m_error = S2ClientError(S2C_ERROR_READER_FAILED, "Failed to get row schema from result table metadata");
-        }
         this->m_queue->DeleteProducer(m_partition);
         SetActive(false);
         return;

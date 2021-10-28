@@ -64,14 +64,14 @@ std::unique_ptr<S2Connection> PrepareDB()
     printf("connected!\n");
     for (auto st : ddl_stmts)
     {
-        conn->Prepare(st.c_str());
+        conn->Prepare(st.c_str(), true);
     }
 
     for (int i = 0; i < 100; ++i)
     {
         for (auto st : insert_stmts)
         {
-            conn->Prepare(st.c_str());
+            conn->Prepare(st.c_str(), true);
         }
     }
 
@@ -97,9 +97,8 @@ testRun(
     int size,
     S2Connection* conn)
 {
-    conn->Prepare((std::string("SELECT * FROM ") + IN_TABLE).c_str());
-    int err;
-    RowSchema* schema = conn->GetRowSchema(&err);
+    conn->Prepare((std::string("SELECT * FROM ") + IN_TABLE).c_str(), true);
+    RowSchema* schema = conn->GetRowSchema();
     Chunk* chunk = nullptr;
 
     try

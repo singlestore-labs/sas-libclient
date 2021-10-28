@@ -45,6 +45,10 @@ namespace super_chunk
             MYSQL_FIELD* fields,
             RowSchema* rowSchema /*out*/);
 
+        void
+        ExplainToRowSchema(
+            std::string explainStr,
+            RowSchema* rowSchema /*out*/);
 
         extern "C"
         {
@@ -91,6 +95,10 @@ namespace super_chunk
 
         std::string MakeSelectQueryMeta(
             const std::string& tableName);
+
+        std::string MakeExplainCreateResultTableQuery(
+            const char* selectQuery);
+
     }  // namespace sql
 }  // namespace super_chunk
 

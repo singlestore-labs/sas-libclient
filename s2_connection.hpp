@@ -62,9 +62,13 @@ class S2Connection
         }
     }
 
-    // Prepare prepares a query using mysql binary protocol and then executes it
-    // It tries to prefetch the first row
-    void Prepare(const char* query);
+    // Prepare prepares a query using mysql binary protocol
+    // If execute is set to true, then executes it
+    // and fetches the first row
+    void
+    Prepare(
+        const char* query,
+        bool execute);
 
     // ExecuteDDL runs a ddl query through text protocol
     void ExecuteDDL(const std::string query);
@@ -74,8 +78,12 @@ class S2Connection
     bool Advance();
 
     // GetRowSchema retrieves the schema of query result
-    // If an error occurred, *err is set to 1
-    RowSchema* GetRowSchema(int* err);
+    // If an error occurred, S2ClientError is thrown
+    RowSchema* GetRowSchema();
+
+    // ExplainRowSchema gets the row schema for the result table
+    // created using selectQuery
+    RowSchema* ExplainRowSchema(const char* selectQuery);
 
     // HasNextRow returns true if the result set has a data
     bool HasNextRow();

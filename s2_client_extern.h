@@ -62,6 +62,7 @@ ChunkQueue*
 ParallelReadGetQueue(
     S2Client* client,
     const char* resultTableName,
+    const char* selectQuery,
     uint64_t chunkSize,
     int queueCapacity,
     int nReaderThreads,

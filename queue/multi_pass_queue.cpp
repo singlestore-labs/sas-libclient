@@ -1,22 +1,21 @@
 #include <vector>
 
-#include "queue/multi_pass_queue.hpp"
-
 #include "result_table_reader.hpp"
+#include "queue/multi_pass_queue.hpp"
 #include "queue/thread_safe_batch_queue.hpp"
+#include "utils.hpp"
 
 std::unique_ptr<MultiPassQueue>
 MultiPassQueue::CreateChunkQueue(
     S2Client *client,
     const char *resultTableName,
+    const char *selectQuery,
     uint32_t capacity,
     uint64_t chunkSize,
     int nConsumers)
 {
     // allocate a ChunkQueue object
     std::unique_ptr<MultiPassQueue> chunkQueue(new MultiPassQueue);
-    std::shared_ptr<std::condition_variable> row_schema_cv(new std::condition_variable);
-    std::shared_ptr<std::mutex> row_schema_mutex(new std::mutex);
 
     chunkQueue->m_credentials.db = client->m_conn->m_db;
     chunkQueue->m_credentials.host = client->m_conn->m_host;
@@ -49,8 +48,15 @@ MultiPassQueue::CreateChunkQueue(
             chunkQueue->m_partition_consumer[p] = consumer_id;
         }
     }
-    // we acquire lock before creating readers
-    std::unique_lock<std::mutex> row_schema_lock(*row_schema_mutex.get());
+    // get the RowSchema
+    try
+    {
+        chunkQueue->m_row_schema = client->m_conn->ExplainRowSchema(selectQuery);
+    }
+    catch (S2ClientError &s2err)
+    {
+        client->SetError(s2err);
+    }
     // create Readers
     chunkQueue->m_readers.reserve(partitions.size());
     for (int i = 0; i < partitions.size(); ++i)
@@ -63,11 +69,9 @@ MultiPassQueue::CreateChunkQueue(
                 chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partitions[i]]],
                 chunkQueue->m_chunks_info,
                 resultTableName,
+                chunkQueue->m_row_schema,
                 partitions[i],
-                chunkSize,
-                row_schema_mutex,
-                row_schema_cv,
-                i == 0 /*row_schema_responsible*/));
+                chunkSize));
     }
 
     // start Readers
@@ -79,24 +83,6 @@ MultiPassQueue::CreateChunkQueue(
     if (chunkQueue->m_readers.empty())
     {
         return chunkQueue;
-    }
-
-    while ((chunkQueue->m_row_schema = chunkQueue->m_readers.front()->GetRowSchema()) == nullptr &&
-           !chunkQueue->m_readers.front()->GetError().m_errorCode)
-    {
-        row_schema_cv->wait_for(row_schema_lock, std::chrono::seconds(10));
-    }
-    if (chunkQueue->m_row_schema == nullptr)
-    {
-        if (chunkQueue->m_readers.front()->GetError().m_errorCode)
-        {
-            client->SetError(chunkQueue->m_readers.front()->GetError());
-        }
-        else
-        {
-            client->SetError(
-                S2ClientError(S2C_ERROR_READER_FAILED, "Failed to fetch row schema from the table reader"));
-        }
     }
 
     chunkQueue->m_consumer_threads_num = nConsumers;
@@ -193,4 +179,6 @@ MultiPassQueue::~MultiPassQueue()
         delete m_consumer_queues[consumer_id];
         m_consumer_queues[consumer_id] = nullptr;
     }
+    super_chunk::utils::RowSchemaFree(m_row_schema);
+    m_row_schema = nullptr;
 }

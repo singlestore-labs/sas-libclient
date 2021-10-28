@@ -11,10 +11,10 @@
 #include "test/db_creds.h"
 #include "test/helpers.h"
 
-#define chunkSize 1048576
+#define chunkSize 15200
 int numWorkers = 2;
-int threadsPerWorker = 5;
-int queueCapacity = 3;
+int threadsPerWorker = 1;
+int queueCapacity = 32;
 
 bool printInfo = 0;
 
@@ -60,7 +60,7 @@ void *reader_thread(void *input)
     {
         numReceived++;
 
-        TOTAL += RecordChunk(chunk, printInfo, args, true, args->check_partition_order);
+        TOTAL += RecordChunk(chunk, printInfo, args);
         ChunkFree(chunk);
     }
 
@@ -85,11 +85,12 @@ void *worker(void *input)
     assert(client != NULL && "S2Client is NULL");
     PRINT_INFO("Worker %d connected to port %d\n", args->id, args->db_port);
 
-    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, queueCapacity, threadsPerWorker, false);
+    ChunkQueue *q =
+        ParallelReadGetQueue(client, resultTable, args->query, chunkSize, queueCapacity, threadsPerWorker, false);
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
-        PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+        PRINT_ERROR("S2 Error in worker after ParallelReadGetQueue: %d %s\n", S2Errno(client), S2Error(client));
         return NULL;
     }
     pthread_t readers[threadsPerWorker];
@@ -122,7 +123,8 @@ void *worker(void *input)
     PRINT_INFO("Calling ChunkQueueFree...\n");
     ChunkQueueFree(q);
 
-    if (S2Errno(client)) PRINT_ERROR("S2 Error in controller %s\n", S2Error(client));
+    if (S2Errno(client))
+        PRINT_ERROR("S2 Error in worker after ChunkQueueFree: %d %s\n", S2Errno(client), S2Error(client));
 
     // free the client
     S2ClientFree(client);
@@ -157,7 +159,7 @@ void error_test(S2Client *client)
     ParallelReadInit(
         client,
         resultTable,
-        "SELECT * FROM small_test WHERE non_defined_func(i) = 1",
+        "SELECT * FROM small_test WHERE non_defined_func(i1) = 1",
         false,
         NULL,
         0,
@@ -208,6 +210,7 @@ parallel_test(
         w_args[i].db_port = agg_ports[i];
         w_args[i].checkAffinity = checkAffinity;
         w_args[i].checkOrder = checkOrder;
+        w_args[i].query = query;
 
         pthread_create(&workers[i], NULL, worker, &w_args[i]);
     }
@@ -347,7 +350,7 @@ main(
     parallel_test(client, queryMain, cols, 1, NULL, 0, true, false);
 
     mult_table(client, "small_test", "partition_test", 10);
-    const char *partOrderCols[3] = {"i1", "d1"};
+    const char *partOrderCols[2] = {"i1", "d1"};
 
     parallel_test(client, queryPartition, partOrderCols, 1, partOrderCols, 2, true, true);
 

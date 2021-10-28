@@ -25,6 +25,7 @@ class StreamingQueue : public ChunkQueue
     CreateChunkQueue(
         S2Client *client,
         const char *resultTableName,
+        const char *selectQuery,
         uint32_t capacity,
         uint64_t chunkSize,
         int nReaderThreads,

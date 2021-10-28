@@ -42,7 +42,7 @@ void *reader_thread(void *input)
         {
             numReceived++;
 
-            TOTAL += RecordChunk(chunk, false, args, false, false);
+            TOTAL += RecordChunk(chunk, false, args);
             ChunkFree(chunk);
         }
         PRINT_INFO("Finished first pass: worker %d thread %d read %d chunks\n", args->worker_id, args->id, numReceived);
@@ -54,11 +54,11 @@ void *reader_thread(void *input)
         PRINT_INFO("Starting GetChunkMulti in thread %d worker %d\n", args->id, args->worker_id);
 
         while (numReceived < args->n_chunks_read - offset && GetChunkMulti(
-                                                        args->queue,
-                                                        (args->chunks_read)[numReceived].partition_id,
-                                                        (args->chunks_read)[numReceived].chunk_id,
-                                                        chunk,
-                                                        &EH.callback))
+                                                                 args->queue,
+                                                                 (args->chunks_read)[numReceived].partition_id,
+                                                                 (args->chunks_read)[numReceived].chunk_id,
+                                                                 chunk,
+                                                                 &EH.callback))
         {
             if (chunk->row_count != args->chunks_read[numReceived].row_count)
             {
@@ -81,7 +81,8 @@ void *reader_thread(void *input)
                 args->n_chunks_read,
                 args->id);
         }
-        offset ? assert(args->n_chunks_read < offset || numReceived == args->n_chunks_read - offset) : assert(numReceived == args->n_chunks_read);
+        offset ? assert(args->n_chunks_read < offset || numReceived == args->n_chunks_read - offset)
+               : assert(numReceived == args->n_chunks_read);
 
         PRINT_INFO(
             "Finished GetChunkMulti in thread %d worker %d, numReceived %d\n",
@@ -141,7 +142,7 @@ void *worker(void *input)
 
     PRINT_INFO("Worker %d connected to port %d\n", w_args->id, w_args->db_port);
 
-    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, chunkSize, batchSize, threadsPerWorker, true);
+    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, testQuery, chunkSize, batchSize, threadsPerWorker, true);
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
@@ -158,6 +159,7 @@ void *worker(void *input)
         readerArgs[i].queue = q;
         readerArgs[i].mode = FIRST_PASS;
         readerArgs[i].n_chunks_read = 0;
+        readerArgs[i].check_partition_order = false;
         readerArgs[i].chunks_read = (ReceivedChunk *)malloc(chunkBufferSize * sizeof(ReceivedChunk));
 
         pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
@@ -181,7 +183,8 @@ void *worker(void *input)
     PRINT_INFO("...Starting second pass in worker %d\n", w_args->id);
 
     // read the second time
-    ChunkQueue *q_multi = ParallelReadGetQueue(client, resultTable, chunkSize, batchSize, threadsPerWorker, true);
+    ChunkQueue *q_multi =
+        ParallelReadGetQueue(client, resultTable, testQuery, chunkSize, batchSize, threadsPerWorker, true);
 
     for (int i = 0; i < threadsPerWorker; i++)
     {

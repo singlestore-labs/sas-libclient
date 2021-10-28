@@ -63,6 +63,7 @@ extern "C"
     ParallelReadGetQueue(
         S2Client *client,
         const char *resultTableName,
+        const char *selectQuery,
         uint64_t chunkSize,
         int queueCapacity,
         int nReaderThreads,
@@ -76,6 +77,7 @@ extern "C"
                 return (ChunkQueue *)MultiPassQueue::CreateChunkQueue(
                            client,
                            resultTableName,
+                           selectQuery,
                            queueCapacity,
                            chunkSize,
                            nReaderThreads)
@@ -84,6 +86,7 @@ extern "C"
             return (ChunkQueue *)StreamingQueue::CreateChunkQueue(
                        client,
                        resultTableName,
+                       selectQuery,
                        queueCapacity,
                        chunkSize,
                        nReaderThreads,
@@ -114,6 +117,7 @@ extern "C"
         {
             return StreamingQueue::CreateChunkQueue(
                        client,
+                       nullptr,
                        query,
                        queueCapacity,
                        chunkSize,
@@ -206,7 +210,7 @@ extern "C"
         }
 
         super_chunk::utils::MoveChunk(chunk, res);
-    
+
         return true;
     }
 

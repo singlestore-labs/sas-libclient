@@ -121,14 +121,8 @@ extern "C"
         std::string query = super_chunk::sql::MakeSelectQueryMeta(table);
         try
         {
-            client->m_conn->Prepare(query.c_str());
-            int err = 0;
-            RowSchema* res = client->m_conn->GetRowSchema(&err);
-            if (err)
-            {
-                cb->setError(cb, S2C_ERROR_UNKNOWN_FAILURE, "Error getting RowSchema in mysql_stmt_result_metadata");
-                return nullptr;
-            }
+            client->m_conn->Prepare(query.c_str(), false);
+            RowSchema* res = client->m_conn->GetRowSchema();
             return res;
         }
         catch (S2ClientError& s2_err)

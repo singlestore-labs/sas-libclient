@@ -18,21 +18,17 @@ class ResultTableReader
         ThreadSafeQueue<Chunk *> *q,
         std::shared_ptr<ChunksInfo> chunks_info,
         const char *resultTableName,
+        RowSchema *schema,
         uint32_t partition,
-        uint64_t size,
-        std::shared_ptr<std::mutex> mu,
-        std::shared_ptr<std::condition_variable> cv,
-        bool row_schema_responsible);
+        uint64_t size);
 
     static std::unique_ptr<ResultTableReader>
     CreateReaderNonParallel(
         std::unique_ptr<S2Connection> &conn,
         ThreadSafeQueue<Chunk *> *q,
         const char *query,
-        uint64_t size,
-        std::shared_ptr<std::mutex> mu,
-        std::shared_ptr<std::condition_variable> cv,
-        bool row_schema_responsible);
+        RowSchema *schema,
+        uint64_t size);
 
     ~ResultTableReader()
     {
@@ -41,9 +37,6 @@ class ResultTableReader
         {
             m_reading_thread.join();
         }
-
-        super_chunk::utils::RowSchemaFree(m_row_schema);
-        m_row_schema = nullptr;
     }
 
     // StartReading starts a new thread which gets chunks from connection
@@ -102,10 +95,6 @@ class ResultTableReader
     const uint64_t m_chunk_size;
 
     RowSchema *m_row_schema = nullptr;
-    // m_row_schema-related variables are shared among the readers of the same chunk queue
-    std::shared_ptr<std::mutex> m_row_schema_mutex;
-    std::shared_ptr<std::condition_variable> m_row_schema_cv;
-    bool m_row_schema_responsible = false;
 
     std::unique_ptr<SuperChunkWriter> m_chunk_writer = nullptr;
 

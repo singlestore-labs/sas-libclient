@@ -96,6 +96,7 @@ typedef struct WorkerArgs
     bool needRandomRead;
     bool checkAffinity;
     bool checkOrder;
+    const char *query;
 } WorkerArgs;
 
 typedef struct ReceivedChunk
@@ -343,9 +344,7 @@ int
 RecordChunk(
     Chunk *chunk,
     bool print,
-    ReaderThreadArgs *args,
-    bool read_partition_key,
-    bool check_partition_order)
+    ReaderThreadArgs *args)
 {
     if (args->mode == FIRST_PASS)
     {
@@ -367,7 +366,7 @@ RecordChunk(
             chunk->row_count,
             chunk->consumed_size);
     }
-    if (read_partition_key)
+    if (args->check_partition_order)
     {
         int64_t val;
         for (int row_num = 0; row_num < chunk->row_count; ++row_num)
@@ -376,9 +375,6 @@ RecordChunk(
             memcpy(&val, chunk->m_ptr + row_num * smallTestFixedSize, 8);
             args->partition_key_i1_counter[val]++;
         }
-    }
-    if (check_partition_order)
-    {
         int64_t int_val, int_prev;
         double double_val, double_prev;
         memcpy(&int_prev, chunk->m_ptr, 8);
@@ -390,7 +386,9 @@ RecordChunk(
             assert(int_prev <= int_val);  // TODO: uncomment here and above when PARTITION_ORDER_BY works
             if (int_prev == int_val)
             {
-                assert((isnan(double_prev) && isnan(double_val)) || (double_prev <= double_val));
+                assert((isnan(double_prev) &&
+                        isnan(double_val)) ||
+                       (double_prev <= double_val));
             }
             int_prev = int_val;
             double_prev = double_val;

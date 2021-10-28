@@ -130,7 +130,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
     void Push(T const& val)
     {
         std::unique_lock<std::mutex> lock(m_mutex);
- 
+
         int batchNum = val->id / m_batchSize;
         int valueIndex = targetIndex(val->partition_id, val->id);
 

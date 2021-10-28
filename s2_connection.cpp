@@ -74,23 +74,27 @@ void S2Connection::ExecuteDDL(std::string query)
     }
 }
 
-void S2Connection::Prepare(
-    const char* query)
+void
+S2Connection::Prepare(
+    const char* query,
+    bool execute)
 {
     if (mysql_stmt_prepare(m_stmt, query, strlen(query)))
     {
         throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
     }
-
-    if (mysql_stmt_execute(m_stmt))
+    if (execute)
     {
-        throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
-    }
+        if (mysql_stmt_execute(m_stmt))
+        {
+            throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
+        }
 
-    // if we have the result set then prefetch the first row
-    if (mysql_stmt_field_count(m_stmt))
-    {
-        Advance();
+        // if we have the result set then prefetch the first row
+        if (mysql_stmt_field_count(m_stmt))
+        {
+            Advance();
+        }
     }
 }
 
@@ -214,13 +218,12 @@ bool S2Connection::Advance()
     return true;
 }
 
-RowSchema* S2Connection::GetRowSchema(int* err)
+RowSchema* S2Connection::GetRowSchema()
 {
     MySQLResultPtr res(mysql_stmt_result_metadata(m_stmt), &mysql_free_result);
-    if (res == nullptr)
+    if (!res)
     {
-        *err = 1;
-        return nullptr;
+        throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
     }
 
     unsigned int num_fields = mysql_num_fields(res.get());
@@ -247,6 +250,31 @@ RowSchema* S2Connection::GetRowSchema(int* err)
     // it should be freed by the RowSchemaFree
     column_info.release();
     return row_schema.release();
+}
+
+RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
+{
+    MYSQL_RES* res;
+    MYSQL_ROW row;
+    RowSchema* schema = new RowSchema;
+    std::string query = super_chunk::sql::MakeExplainCreateResultTableQuery(selectQuery);
+    if (mysql_query(m_conn, query.c_str()))
+    {
+        throw S2ClientError(mysql_errno(this->m_conn), mysql_error(this->m_conn));
+    }
+    res = mysql_store_result(m_conn);
+    if (!res)
+    {
+        throw S2ClientError(
+            S2C_ERROR_UNKNOWN_FAILURE, "Failed to get the result of EXPLAIN EXTENDED CREATE RESULT TABLE AS...");
+    }
+    row = mysql_fetch_row(res);
+    unsigned long* lengths = mysql_fetch_lengths(res);
+    super_chunk::utils::ExplainToRowSchema(std::string(row[0], lengths[0]), schema);
+
+    mysql_free_result(res);
+    // printf("Returning schema %p\n", schema);
+    return schema;
 }
 
 bool S2Connection::HasNextRow()
@@ -288,7 +316,7 @@ S2Connection::GetSingleRow(
     const int partitionRowId)
 {
     std::string query = super_chunk::sql::MakePointInTimeQuery(resultTable.c_str(), partitionId, partitionRowId);
-    Prepare(query.c_str());
+    Prepare(query.c_str(), true);
 
     uint64_t chunk_size = rowSize(schema, m_last_fetched_lengths);
 

@@ -1,11 +1,13 @@
 #include <chrono>
 
 #include "queue/streaming_queue.hpp"
+#include "utils.hpp"
 
 std::unique_ptr<StreamingQueue>
 StreamingQueue::CreateChunkQueue(
     S2Client *client,
     const char *resultTableName,
+    const char *selectQuery,
     uint32_t capacity,
     uint64_t chunkSize,
     int nConsumers,
@@ -39,14 +41,18 @@ StreamingQueue::CreateChunkQueue(
             chunkQueue->m_partition_consumer[p] = consumer_id;
         }
     }
-
-    // we acquire lock before creating readers
-    std::unique_lock<std::mutex> row_schema_lock(*row_schema_mutex.get());
-    // create Readers
+    // get the RowSchema and create Readers
     chunkQueue->m_readers.reserve(partitions.size());
-
     if (doesParallelRead)
     {
+        try
+        {
+            chunkQueue->m_row_schema = client->m_conn->ExplainRowSchema(selectQuery);
+        }
+        catch (S2ClientError &s2err)
+        {
+            client->SetError(s2err);
+        }
         for (int i = 0; i < partitions.size(); ++i)
         {
             // client->m_conn is used to find out connection parameters.
@@ -57,52 +63,34 @@ StreamingQueue::CreateChunkQueue(
                     chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partitions[i]]],
                     nullptr,
                     resultTableName,
+                    chunkQueue->m_row_schema,
                     partitions[i],
-                    chunkSize,
-                    row_schema_mutex,
-                    row_schema_cv,
-                    i == 0 /*row_schema_responsible*/));
+                    chunkSize));
         }
     }
     else
     {
+        try
+        {
+            client->m_conn->Prepare(selectQuery, false);
+            chunkQueue->m_row_schema = client->m_conn->GetRowSchema();
+        }
+        catch (S2ClientError &s2err)
+        {
+            client->SetError(s2err);
+        }
         chunkQueue->m_readers.push_back(
             ResultTableReader::CreateReaderNonParallel(
                 client->m_conn,
                 chunkQueue->m_consumer_queues[0],
-                resultTableName /*query*/,
-                chunkSize,
-                row_schema_mutex,
-                row_schema_cv,
-                true /*row_schema_responsible*/));
+                selectQuery,
+                chunkQueue->m_row_schema,
+                chunkSize));
     }
     // start Readers
     for (auto &reader : chunkQueue->m_readers)
     {
         reader->StartReading();
-    }
-
-    if (chunkQueue->m_readers.empty())
-    {
-        return chunkQueue;
-    }
-
-    while ((chunkQueue->m_row_schema = chunkQueue->m_readers.front()->GetRowSchema()) == nullptr &&
-           !chunkQueue->m_readers.front()->GetError().m_errorCode)
-    {
-        row_schema_cv->wait_for(row_schema_lock, std::chrono::seconds(10));
-    }
-    if (chunkQueue->m_row_schema == nullptr)
-    {
-        if (chunkQueue->m_readers.front()->GetError().m_errorCode)
-        {
-            client->SetError(chunkQueue->m_readers.front()->GetError());
-        }
-        else
-        {
-            client->SetError(
-                S2ClientError(S2C_ERROR_READER_FAILED, "Failed to fetch row schema from the table reader"));
-        }
     }
     return chunkQueue;
 }
@@ -144,4 +132,6 @@ StreamingQueue::~StreamingQueue()
         delete m_consumer_queues[consumer_id];
         m_consumer_queues[consumer_id] = nullptr;
     }
+    super_chunk::utils::RowSchemaFree(m_row_schema);
+    m_row_schema = nullptr;
 }
