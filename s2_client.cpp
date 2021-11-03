@@ -71,13 +71,13 @@ extern "C"
         delete s2Client;
     }
 
-    int
+    int64_t
     ExecuteDDLQuery(
         S2Client* client,
         const char* query,
         int* err)
     {
-        int affected_rows = 0;
+        int64_t affected_rows = 0;
         try
         {
             affected_rows = client->m_conn->ExecuteDDL(query);

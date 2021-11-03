@@ -66,7 +66,7 @@ int S2Connection::GetPartitionsNumber()
     return numPartitions;
 }
 
-int S2Connection::ExecuteDDL(std::string query)
+int64_t S2Connection::ExecuteDDL(std::string query)
 {
     if (mysql_query(m_conn, query.c_str()))
     {
@@ -201,7 +201,7 @@ bool S2Connection::Advance()
         }
         else
         {
-            int len = m_last_fetched_lengths[i];
+            unsigned long len = m_last_fetched_lengths[i];
             char* tmp = new char[len];
             m_last_fetched_row[i] = tmp;
         }
@@ -314,7 +314,7 @@ S2Connection::GetSingleRow(
     RowSchema* schema,
     const std::string resultTable,
     const uint32_t partitionId,
-    const int partitionRowId)
+    const int64_t partitionRowId)
 {
     std::string query = super_chunk::sql::MakePointInTimeQuery(resultTable.c_str(), partitionId, partitionRowId);
     Prepare(query.c_str(), true);

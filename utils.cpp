@@ -438,7 +438,7 @@ namespace super_chunk
         MakePointInTimeQuery(
             const char* table,
             int partition_id,
-            int row_id)
+            int64_t row_id)
         {
             std::string resultQuery = "SELECT * FROM ::" + QuotedName(table);
             resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);

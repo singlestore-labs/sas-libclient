@@ -88,7 +88,7 @@ namespace super_chunk
         MakePointInTimeQuery(
             const char* table,
             int partition_id,
-            int row_id);
+            int64_t row_id);
 
         std::string MakeLoadDataQuery(
             const std::string& tableName);

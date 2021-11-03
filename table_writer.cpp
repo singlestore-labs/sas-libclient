@@ -9,7 +9,7 @@
 void
 TableWriter::ChunkToTSV(
     std::unique_ptr<SuperChunkReader> &reader,
-    int row_count)
+    int64_t row_count)
 {
     bool is_null;
     int64_t int_64_val;
@@ -17,7 +17,7 @@ TableWriter::ChunkToTSV(
     double float_val;
     const char *buf;
     uint64_t len;
-    for (int row_num = 0; row_num < row_count; ++row_num)
+    for (int64_t row_num = 0; row_num < row_count; ++row_num)
     {
         if (row_num > 0)
         {

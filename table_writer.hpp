@@ -22,7 +22,7 @@ class TableWriter
     void
     ChunkToTSV(
         std::unique_ptr<SuperChunkReader> &reader,
-        int row_count);
+        int64_t row_count);
 
     static int
     ss_local_infile_init(

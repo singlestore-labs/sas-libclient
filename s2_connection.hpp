@@ -71,7 +71,7 @@ class S2Connection
         bool execute);
 
     // ExecuteDDL runs a ddl query through text protocol
-    int ExecuteDDL(const std::string query);
+    int64_t ExecuteDDL(const std::string query);
 
     // Advance retrieves the next row from the result set and saves a result in the
     // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
@@ -101,7 +101,7 @@ class S2Connection
         RowSchema* schema,
         const std::string resultTable,
         const uint32_t partitionId,
-        const int partitionRowId);
+        const int64_t partitionRowId);
 
     // GetPartitionsNumber returns the number of partitions in the table
     int GetPartitionsNumber();
