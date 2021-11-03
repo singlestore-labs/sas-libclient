@@ -121,8 +121,9 @@ ParallelReadFree(
 
 // general query execution functions
 
-// ExecuteDDLQuery is used when no results need to be fetched (DDL or DML query)
-void
+// ExecuteDDLQuery is used when no results need to be fetched (DDL or DML query).
+// For INSERT, UPDATE, DELETE queries, the number of affected rows is returned
+int
 ExecuteDDLQuery(
     S2Client* client,
     const char* query,

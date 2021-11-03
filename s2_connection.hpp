@@ -71,7 +71,7 @@ class S2Connection
         bool execute);
 
     // ExecuteDDL runs a ddl query through text protocol
-    void ExecuteDDL(const std::string query);
+    int ExecuteDDL(const std::string query);
 
     // Advance retrieves the next row from the result set and saves a result in the
     // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables

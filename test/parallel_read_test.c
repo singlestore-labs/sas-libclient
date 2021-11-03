@@ -142,12 +142,29 @@ void ddl_test(S2Client *client)
         return;
     }
 
-    ExecuteDDLQuery(client, "INSERT INTO ddl_test VALUES (1), (2), (3)", &err);
+    int affected = ExecuteDDLQuery(client, "INSERT INTO ddl_test VALUES (1), (2), (3)", &err);
     if (err)
     {
         PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
         return;
     }
+    assert(affected == 3);
+
+    affected = ExecuteDDLQuery(client, "DELETE FROM ddl_test WHERE col_0 < 2", &err);
+    if (err)
+    {
+        PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
+        return;
+    }
+    assert(affected == 1);
+
+    affected = ExecuteDDLQuery(client, "UPDATE ddl_test SET col_0 = col_0 * 2", &err);
+    if (err)
+    {
+        PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
+        return;
+    }
+    assert(affected == 2);
 
     ExecuteDDLQuery(client, "DROP TABLE ddl_test", &err);
     if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));

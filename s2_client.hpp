@@ -69,7 +69,7 @@ extern "C"
 
     void S2ClientFree(S2Client* s2Client);
 
-    void
+    int
     ExecuteDDLQuery(
         S2Client* client,
         const char* query,

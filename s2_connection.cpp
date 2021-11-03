@@ -66,12 +66,13 @@ int S2Connection::GetPartitionsNumber()
     return numPartitions;
 }
 
-void S2Connection::ExecuteDDL(std::string query)
+int S2Connection::ExecuteDDL(std::string query)
 {
     if (mysql_query(m_conn, query.c_str()))
     {
         throw S2ClientError(mysql_errno(this->m_conn), mysql_error(this->m_conn));
     }
+    return mysql_affected_rows(this->m_conn);
 }
 
 void
