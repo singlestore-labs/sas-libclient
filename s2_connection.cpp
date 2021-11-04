@@ -149,20 +149,58 @@ bool S2Connection::Advance()
     memset(bind.get(), 0, sizeof(MYSQL_BIND) * m_last_columns_num);
 
     my_bool is_null_arr[m_last_columns_num];
+    my_bool need_column_re_fetch[m_last_columns_num];
     for (int i = 0; i < m_last_columns_num; i++)
     {
-        // according to mysql C API docs we are able to pass zero length buffer in order to determine the actual
-        // field lengths but it doesn't work, so we are passing 8 bytes buffer (it is the minimal buffer length
-        // which is enough for all numeric data types)
         int buffer_length = 8;
-        if (fields[i].type == MYSQL_TYPE_DATETIME ||
-            fields[i].type == MYSQL_TYPE_DATE ||
-            fields[i].type == MYSQL_TYPE_TIME ||
-            fields[i].type == MYSQL_TYPE_DATETIME2 ||
-            fields[i].type == MYSQL_TYPE_NEWDATE)
+        switch (fields[i].type)
         {
-            buffer_length = sizeof(MYSQL_TIME);
+            // for numeric and date/time types, actual data is fetched when mysql_stmt_fetch()
+            // is called. For string types, we need to fetch the length first, then call
+            // mysql_stmt_fetch_column to fetch the actual data
+            case MYSQL_TYPE_LONG:
+            {
+                buffer_length = 4;
+                need_column_re_fetch[i] = false;
+                break;
+            }
+            case MYSQL_TYPE_LONGLONG:
+            case MYSQL_TYPE_DOUBLE:
+            {
+                buffer_length = 8;
+                need_column_re_fetch[i] = false;
+                break;
+            }
+            // fixed size string
+            case MYSQL_TYPE_STRING:
+            case MYSQL_TYPE_VAR_STRING:
+            case MYSQL_TYPE_LONG_BLOB:
+            case MYSQL_TYPE_MEDIUM_BLOB:
+            case MYSQL_TYPE_BLOB:
+            case MYSQL_TYPE_TINY_BLOB:
+            {
+                buffer_length = 8;  // could be 0 potentially
+                need_column_re_fetch[i] = true;
+                break;
+            }
+            // date and time
+            case MYSQL_TYPE_DATETIME:
+            case MYSQL_TYPE_DATE:
+            case MYSQL_TYPE_TIME:
+            case MYSQL_TYPE_NEWDATE:
+            case MYSQL_TYPE_DATETIME2:
+            {
+                buffer_length = sizeof(MYSQL_TIME);
+                need_column_re_fetch[i] = false;
+                break;
+            }
+            default:
+            // should never get here, but for unsupported types it can happen
+                buffer_length = 8;
+                need_column_re_fetch[i] = true;
+                break;
         }
+
         m_last_fetched_row[i] = new char[buffer_length];
         bind[i].buffer = m_last_fetched_row[i];
         bind[i].buffer_length = buffer_length;
@@ -192,20 +230,24 @@ bool S2Connection::Advance()
     // fetch actual fields
     for (int i = 0; i < m_last_columns_num; i++)
     {
-        delete[] m_last_fetched_row[i];
         if (*bind[i].is_null)
         {
+            delete[] m_last_fetched_row[i];
             m_last_fetched_row[i] = nullptr;
             m_last_fetched_lengths[i] = 0;
             continue;
         }
+        else if (!need_column_re_fetch[i])
+        {
+            continue;
+        }
         else
         {
+            delete[] m_last_fetched_row[i];
             unsigned long len = m_last_fetched_lengths[i];
             char* tmp = new char[len];
             m_last_fetched_row[i] = tmp;
         }
-
         bind[i].buffer = m_last_fetched_row[i];
         bind[i].buffer_length = m_last_fetched_lengths[i];
         bind[i].length = nullptr;
