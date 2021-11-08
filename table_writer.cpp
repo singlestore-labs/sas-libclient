@@ -11,7 +11,7 @@ TableWriter::ChunkToTSV(
     std::unique_ptr<SuperChunkReader> &reader,
     int64_t row_count)
 {
-    bool is_null;
+    bool is_null = 0;
     int64_t int_64_val;
     int32_t int_32_val;
     double float_val;

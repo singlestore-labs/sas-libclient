@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "libmysql/mysql.h"
+#include "mysql.h"
 
 #include "chunk_extern.h"
 #include "s2_client_error.hpp"

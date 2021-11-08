@@ -11,7 +11,7 @@
 #include "test/db_creds.h"
 #include "test/helpers.h"
 
-#include "libmysql/mysql.h"
+#include "mysql.h"
 
 Column true_columns[] =
     {

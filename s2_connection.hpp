@@ -8,7 +8,7 @@
 
 #include <iostream>
 
-#include "libmysql/mysql.h"
+#include "mysql.h"
 
 #include "chunk_extern.h"
 #include "utils.hpp"

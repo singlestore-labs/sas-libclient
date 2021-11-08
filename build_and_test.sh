@@ -8,6 +8,7 @@ display_usage() {
 	}
 
 build_lib() {
+    cd $PATH_TO_LIBCLIENT
     mkdir -p build
     mkdir -p build/test
     cd "${PATH_TO_LIBCLIENT}"/build
@@ -26,7 +27,7 @@ fi
 place_shared() {
     cd $PATH_TO_LIBCLIENT
     mkdir -p build/share
-    cp test/data_types_test.c test/parallel_read_test.c test/write_test.c test/db_creds.h test/helpers.h s2_client_extern.h chunk_extern.h hdat_write_extern.h build/libs2client.so build/share/
+    cp test/data_types_test.c test/parallel_read_test.c test/write_test.c test/db_creds.h test/helpers.h s2_client_extern.h chunk_extern.h hdat_write_extern.h build/libs2client.so libmariadb/libmariadb.so.3 build/share/
     echo 'gcc -I "${PATH_TO_HEADERS}"/ -L "${PATH_TO_LIBS2CLIENT_SO}" test/parallel_read_test.c -o parallel_read_test -ls2client -lpthread
 ./parallel_read_test' > build/share/run_test.sh
     echo "Successfully copied files for sharing to /build/share"

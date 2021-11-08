@@ -31,7 +31,7 @@
 #define queryLen 1000
 #define maxVariableLen 120
 #define nSmallTestRows 14
-#define collationCharSize 4
+#define collationCharSize 3
 
 const char *superchunkTable = "superchunk_table";
 const char *testData =

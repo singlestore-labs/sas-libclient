@@ -15,7 +15,7 @@
 #include "test/helpers.h"
 
 int chunkSize = 1024000;
-int printInfo = 0;
+int printInfo = 1;
 int nRowsToWrite = 30;
 int queueCapacity = 10;
 
@@ -112,9 +112,11 @@ void read_and_check(S2Client *client)
 void write_test(S2Client *client)
 {
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
-    char *chunk_data = (char *)malloc(chunkSize);
+    char *chunk_data = (char *)malloc(chunkSize * sizeof(char));
     chunk->m_ptr = chunk_data;
     chunk->m_size = chunkSize;
+    chunk->consumed_size = 0;
+    chunk->row_count = 0;
 
     RowSchema *schema = GetTableRowSchema(client, superchunkTable, &EH.callback);
 
