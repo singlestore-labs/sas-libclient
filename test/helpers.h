@@ -8,7 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "mysql.h"
+
 #include "chunk_extern.h"
+#include "db_creds.h"
 #include "s2_client_extern.h"
 #include "hdat_read_extern.h"
 
@@ -31,7 +34,6 @@
 #define queryLen 1000
 #define maxVariableLen 120
 #define nSmallTestRows 14
-#define collationCharSize 3
 
 const char *superchunkTable = "superchunk_table";
 const char *testData =
@@ -270,6 +272,36 @@ mult_table(
     free(query);
 }
 
+int get_db_char_size()
+{
+    MYSQL* mysql = mysql_init(NULL);
+    MYSQL_RES *res;
+    MYSQL_ROW row;
+    char *collation;
+    int char_size = 1;
+    const char *query = "SELECT @@collation_database";
+
+    if (!mysql_real_connect(mysql, db_creds.host, db_creds.user, db_creds.password, db_creds.db, db_creds.ma_port, NULL, 0))
+        return 0;
+    if (mysql_query(mysql, query))
+        return 0;
+    res = mysql_store_result(mysql);
+    if ( (row = mysql_fetch_row(res)) )
+        collation = row[0];
+    else
+    {
+    mysql_free_result(res);
+    return 0;
+    }
+    if (!strncmp(collation, "utf8mb4", 7))
+        char_size = 4;
+    else if (!strncmp(collation, "utf8", 4))
+        char_size = 3;
+    mysql_free_result(res);
+    mysql_close(mysql);
+    return char_size;
+}
+
 // read data from the chunk constructed by reading the table
 // created in setup_superchunk_table
 int
@@ -319,8 +351,8 @@ parseTestChunkRow(
     memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
     out->variable_binary.len = len;
     // Fixed, CHAR(16)
-    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * collationCharSize);
-    current_offset += 16 * collationCharSize;
+    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * get_db_char_size());
+    current_offset += 16 * get_db_char_size();
     // Fixed, BINARY(9)
     memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 16);
     current_offset += 16;

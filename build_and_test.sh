@@ -38,13 +38,13 @@ mkdir -p "${LD_LIBRARY_PATH}"
 
 # compile and run the test binaries
 test_c() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" "$1" -o build/"$1".o -ls2client -lpthread -g
+    gcc -I "${PATH_TO_LIBCLIENT}"  -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${LD_LIBRARY_PATH}" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -g
     echo 'Running' "$1"...
     ./build/"$1".o $2
 }
 
 test_cpp() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -L "${LD_LIBRARY_PATH}" "$1" -o build/"$1".o -ls2client -lpthread -g
+    g++ -I "${PATH_TO_LIBCLIENT}"  -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${LD_LIBRARY_PATH}" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -g
     echo 'Running' "$1" test...
     ./build/"$1" $2
 }
