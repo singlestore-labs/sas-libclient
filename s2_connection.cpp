@@ -61,8 +61,14 @@ int S2Connection::GetPartitionsNumber()
     {
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
     }
-
-    int numPartitions = mysql_num_rows(res.get());
+    int totalPartitions = mysql_num_rows(res.get());  // this includes both Master and Slave partitions
+    int numPartitions = 0;
+    MYSQL_ROW row;
+    for (int i = 0; i < totalPartitions; ++i)
+    {
+        row = mysql_fetch_row(res.get());
+        if (!strcasecmp(row[3], "master")) ++numPartitions;
+    }
     return numPartitions;
 }
 
@@ -195,7 +201,7 @@ bool S2Connection::Advance()
                 break;
             }
             default:
-            // should never get here, but for unsupported types it can happen
+                // should never get here, but for unsupported types it can happen
                 buffer_length = 8;
                 need_column_re_fetch[i] = true;
                 break;
@@ -309,7 +315,8 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     if (!res)
     {
         throw S2ClientError(
-            S2C_ERROR_UNKNOWN_FAILURE, "Failed to get the result of EXPLAIN EXTENDED CREATE RESULT TABLE AS...");
+            S2C_ERROR_UNKNOWN_FAILURE,
+            "Failed to get the result of EXPLAIN EXTENDED CREATE RESULT TABLE AS...");
     }
     row = mysql_fetch_row(res);
     unsigned long* lengths = mysql_fetch_lengths(res);
