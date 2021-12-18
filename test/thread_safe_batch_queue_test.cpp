@@ -16,26 +16,26 @@ int cnt_get[nProducers];
 
 std::mutex cnt_mutex;
 
-typedef struct intContainer
+typedef struct IntContainer
 {
     int val;
     int id;
-    int producer_id;
-} intContainer;
+    int partition_id;
+} IntContainer;
 
 void
 pushToQueue(
-    ThreadSafeBatchQueue<intContainer *> *q,
+    ThreadSafeBatchQueue<IntContainer *> *q,
     int selfId)
 {
     for (int i = 0; i < pushesInOneThread + selfId; i++)
     {
         int value = (i + 1) + pushesInOneThread * selfId;
-        intContainer *data = new intContainer
+        IntContainer *data = new IntContainer
             {
                 .val = value,
                 .id = i,
-                .producer_id = selfId
+                .partition_id = selfId
             };
 
         q->Push(data);
@@ -45,11 +45,11 @@ pushToQueue(
 
 void
 popFromQueue(
-    ThreadSafeBatchQueue<intContainer *> *q,
-    std::vector<intContainer *> *received,
+    ThreadSafeBatchQueue<IntContainer *> *q,
+    std::vector<IntContainer *> *received,
     int selfId)
 {
-    intContainer *cur;
+    IntContainer *cur;
     while (true)
     {
         try
@@ -57,7 +57,7 @@ popFromQueue(
             cur = q->Pop();
             (*received).push_back(cur);
             std::unique_lock<std::mutex> lock(cnt_mutex);
-            ++cnt_pop[cur->producer_id];
+            ++cnt_pop[cur->partition_id];
             lock.unlock();
         }
         catch (const std::out_of_range &e)
@@ -70,22 +70,22 @@ popFromQueue(
 
 void
 getFromQueue(
-    ThreadSafeBatchQueue<intContainer *> *q,
-    std::vector<intContainer *> *received,
+    ThreadSafeBatchQueue<IntContainer *> *q,
+    std::vector<IntContainer *> *received,
     int selfId)
 {
-    intContainer *val;
-    std::vector<intContainer *> received2;
+    IntContainer *val;
+    std::vector<IntContainer *> received2;
 
     for (auto item : *received)
     {
         try
         {
-            val = q->Get(item->producer_id, item->id);
+            val = q->Get(item->partition_id, item->id);
             received2.push_back(val);
             {
                 std::unique_lock<std::mutex> lock(cnt_mutex);
-                cnt_get[item->producer_id]++;
+                cnt_get[item->partition_id]++;
             }
         }
         catch (const std::out_of_range &e)
@@ -97,7 +97,7 @@ getFromQueue(
     {
         if (!(((*received)[i]->val == received2[i]->val) &&
               ((*received)[i]->id == received2[i]->id) &&
-              ((*received)[i]->producer_id == received2[i]->producer_id)))
+              ((*received)[i]->partition_id == received2[i]->partition_id)))
         {
             printf(
                 "%d %d\t%d %d\t%d %d\n",
@@ -105,26 +105,35 @@ getFromQueue(
                 received2[i]->val,
                 (*received)[i]->id,
                 received2[i]->id,
-                (*received)[i]->producer_id,
-                received2[i]->producer_id);
+                (*received)[i]->partition_id,
+                received2[i]->partition_id);
         }
         assert(
             ((*received)[i]->val == received2[i]->val) &&
             ((*received)[i]->id == received2[i]->id) &&
-            ((*received)[i]->producer_id == received2[i]->producer_id));
+            ((*received)[i]->partition_id == received2[i]->partition_id));
     }
     printf("Getting finished for %d! Got %d items\n", selfId, received2.size());
 }
 
 int main()
 {
-    ThreadSafeBatchQueue<intContainer *> q(batchSize, std::vector<int>{0,1,2,3,4});
+    ThreadSafeBatchQueue<IntContainer *> q(
+        batchSize,
+        std::vector<int>
+        {
+            0,
+            1,
+            2,
+            3,
+            4
+        });
 
     std::vector<std::thread> threads;
-    std::vector<std::vector<intContainer *> *> received_by_thread;
+    std::vector<std::vector<IntContainer *> *> received_by_thread;
     for (int i = 0; i < nConsumers; i++)
     {
-        auto c = new std::vector<intContainer *>;
+        auto c = new std::vector<IntContainer *>;
         received_by_thread.push_back(c);
         threads.push_back(std::thread(popFromQueue, &q, received_by_thread[i], i));
     }
@@ -144,7 +153,16 @@ int main()
     }
     printf("Pop OK\n");
 
-    ThreadSafeBatchQueue<intContainer *> q1(batchSize, std::vector<int>{0,1,2,3,4});
+    ThreadSafeBatchQueue<IntContainer *> q1(
+        batchSize,
+        std::vector<int>
+        {
+            0,
+            1,
+            2,
+            3,
+            4
+        });
 
     std::vector<std::thread> new_threads;
     for (int i = 0; i < nConsumers; i++)

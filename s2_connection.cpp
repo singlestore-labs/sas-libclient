@@ -7,7 +7,7 @@
 
 #define MySQLResultPtr std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)>
 
-std::unique_ptr<S2Connection> S2Connection::Connect(const super_chunk::credentials& creds)
+std::unique_ptr<S2Connection> S2Connection::Connect(const Credentials& creds)
 {
     return Connect(creds.host.c_str(), creds.port, creds.db.c_str(), creds.user.c_str(), creds.password.c_str());
 }
@@ -70,6 +70,38 @@ int S2Connection::GetPartitionsNumber()
         if (!strcasecmp(row[3], "master")) ++numPartitions;
     }
     return numPartitions;
+}
+
+std::vector<AggregatorNode> S2Connection::GetAggregators()
+{
+    std::vector<AggregatorNode> aggregatorsList;
+    std::string query = sql::MakeGetAggregatorsQuery();
+    if (mysql_query(m_conn, query.c_str()))
+    {
+        throw S2ClientError(mysql_errno(this->m_conn), mysql_error(this->m_conn));
+    }
+    MYSQL_RES* res = mysql_store_result(m_conn);
+    if (!res)
+    {
+        throw S2ClientError(
+            S2C_ERROR_UNKNOWN_FAILURE,
+            "Failed to get the list of aggregators from information_schema.mv_nodes");
+    }
+    MYSQL_ROW row;
+    AggregatorNode node;
+    while ((row = mysql_fetch_row(res)))
+    {
+        aggregatorsList.push_back(AggregatorNode
+                                  {
+                                      .host = row[1] ? std::string(row[1]) : "",
+                                      .port = row[2] ? atoi(row[2]) : 0,
+                                      .externalHost = row[3] ? std::string(row[3]) : "",
+                                      .externalPort = row[4] ? atoi(row[4]) : 0
+                                  });
+    }
+    mysql_free_result(res);
+
+    return aggregatorsList;
 }
 
 int64_t S2Connection::ExecuteDDL(std::string query)
@@ -293,7 +325,7 @@ RowSchema* S2Connection::GetRowSchema()
     std::unique_ptr<Column[], decltype(freeColumns)> column_info(new Column[num_fields], freeColumns);
     memset(column_info.get(), 0, sizeof(Column) * num_fields);
     std::unique_ptr<RowSchema> row_schema(new RowSchema{column_info.get(), num_fields});
-    super_chunk::utils::FieldsToRowSchema(num_fields, fields, row_schema.get());
+    utils::FieldsToRowSchema(num_fields, fields, row_schema.get());
 
     // release column_info as
     // it should be freed by the RowSchemaFree
@@ -306,7 +338,7 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     MYSQL_RES* res;
     MYSQL_ROW row;
     RowSchema* schema = new RowSchema;
-    std::string query = super_chunk::sql::MakeExplainCreateResultTableQuery(selectQuery);
+    std::string query = sql::MakeExplainCreateResultTableQuery(selectQuery);
     if (mysql_query(m_conn, query.c_str()))
     {
         throw S2ClientError(mysql_errno(this->m_conn), mysql_error(this->m_conn));
@@ -320,7 +352,7 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     }
     row = mysql_fetch_row(res);
     unsigned long* lengths = mysql_fetch_lengths(res);
-    super_chunk::utils::ExplainToRowSchema(std::string(row[0], lengths[0]), schema);
+    utils::ExplainToRowSchema(std::string(row[0], lengths[0]), schema);
 
     mysql_free_result(res);
     // printf("Returning schema %p\n", schema);
@@ -365,7 +397,7 @@ S2Connection::GetSingleRow(
     const uint32_t partitionId,
     const int64_t partitionRowId)
 {
-    std::string query = super_chunk::sql::MakePointInTimeQuery(resultTable.c_str(), partitionId, partitionRowId);
+    std::string query = sql::MakePointInTimeQuery(resultTable.c_str(), partitionId, partitionRowId);
     Prepare(query.c_str(), true);
 
     uint64_t chunk_size = rowSize(schema, m_last_fetched_lengths);
@@ -419,7 +451,7 @@ S2Connection::WriteChunk(
         tw.ss_local_infile_error,
         &tsv_output);
 
-    std::string query = super_chunk::sql::MakeLoadDataQuery(table);
+    std::string query = sql::MakeLoadDataQuery(table);
 
     if (mysql_query(m_conn, query.c_str()))
     {

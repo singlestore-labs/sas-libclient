@@ -22,15 +22,14 @@ StreamingQueue::CreateChunkQueue(
     std::vector<int> partitions{0};
     if (doesParallelRead)
     {
-        partitions =
-            super_chunk::utils::WorkerPartitions(client->m_numWorkers, client->m_workerId, client->m_numPartitions);
+        partitions = utils::WorkerPartitions(client->m_numWorkers, client->m_workerId, client->m_numPartitions);
     }
     chunkQueue->m_partition_consumer = std::vector<int>(client->m_numPartitions, -1);
 
     // create ThreadSafeQueue for each consumer
     for (int consumer_id = 0; consumer_id < nConsumers; ++consumer_id)
     {
-        std::vector<int> consumer_partitions = super_chunk::utils::ConsumerPartitions(
+        std::vector<int> consumer_partitions = utils::ConsumerPartitions(
             nConsumers,
             consumer_id,
             partitions);
@@ -53,18 +52,39 @@ StreamingQueue::CreateChunkQueue(
         {
             client->SetError(s2err);
         }
-        for (int i = 0; i < partitions.size(); ++i)
+        std::vector<AggregatorNode> aggregators;
+        try
         {
-            // client->m_conn is used to find out connection parameters.
+            aggregators = client->m_conn->GetAggregators();
+        }
+        catch (S2ClientError &s2err)
+        {
+            client->SetError(s2err);
+        }
+        if (S2Errno(client))
+        {
+            return nullptr;
+        }
+        Credentials creds = Credentials
+        {
+            .host = client->m_conn->m_host,
+            .port = client->m_conn->m_port,
+            .db = client->m_conn->m_db,
+            .user = client->m_conn->m_user,
+            .password = client->m_conn->m_password
+        };
+        for (int partition : partitions)
+        {
+            utils::FillCredentials(aggregators, partition, &creds);
             // ResultTableReader will create its own connection to run queries
             chunkQueue->m_readers.push_back(
                 ResultTableReader::CreateReader(
-                    client->m_conn,
-                    chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partitions[i]]],
+                    creds,
+                    chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
                     nullptr,
                     resultTableName,
                     chunkQueue->m_row_schema,
-                    partitions[i],
+                    partition,
                     chunkSize));
         }
     }
@@ -126,12 +146,12 @@ StreamingQueue::~StreamingQueue()
         S2ClientError err(0, "");
         while (Chunk *c = Get(consumer_id, err))
         {
-            super_chunk::utils::ChunkFree(c);
+            utils::ChunkFree(c);
             delete c;
         }
         delete m_consumer_queues[consumer_id];
         m_consumer_queues[consumer_id] = nullptr;
     }
-    super_chunk::utils::RowSchemaFree(m_row_schema);
+    utils::RowSchemaFree(m_row_schema);
     m_row_schema = nullptr;
 }

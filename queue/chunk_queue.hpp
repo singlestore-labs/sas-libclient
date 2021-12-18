@@ -1,7 +1,6 @@
 #ifndef QUEUE_CHUNK_QUEUE_HPP
 #define QUEUE_CHUNK_QUEUE_HPP
 
-#include <unordered_map>
 #include <vector>
 
 #include "result_table_reader.hpp"

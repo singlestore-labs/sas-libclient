@@ -46,7 +46,7 @@ test_c() {
 test_cpp() {
     g++ -I "${PATH_TO_LIBCLIENT}"  -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${LD_LIBRARY_PATH}" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -g
     echo 'Running' "$1" test...
-    ./build/"$1" $2
+    ./build/"$1".o $2
 }
 
 if [ $1 = "share" ]

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <mutex>
 #include <queue>
+#include <unordered_map>
 
 #include "queue/thread_safe_queue.hpp"
 #include "utils.hpp"

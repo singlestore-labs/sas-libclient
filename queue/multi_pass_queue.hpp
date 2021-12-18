@@ -31,7 +31,7 @@ class MultiPassQueue : public ChunkQueue
 
     std::shared_ptr<ChunksInfo> m_chunks_info;
 
-    super_chunk::credentials m_credentials;
+    Credentials m_credentials;
 
   public:
     ~MultiPassQueue();

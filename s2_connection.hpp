@@ -27,7 +27,7 @@ class S2Connection
     const char* m_user;
     const char* m_password;
 
-    static std::unique_ptr<S2Connection> Connect(const super_chunk::credentials& creds);
+    static std::unique_ptr<S2Connection> Connect(const Credentials& creds);
 
     // Connect creates an instance of S2Connection and connects to the S2 using mysql C client lib
     static std::unique_ptr<S2Connection>
@@ -105,6 +105,9 @@ class S2Connection
 
     // GetPartitionsNumber returns the number of partitions in the table
     int GetPartitionsNumber();
+
+    // GetAggregators returns the list of all aggregators in the cluster
+    std::vector<AggregatorNode> GetAggregators();
 
     // DiscardStmtClose sets the flag that indicates that we skip
     // closing the prepared statement which is being processed.

@@ -61,21 +61,21 @@ char smallTestData[nSmallTestRows][60] =
 
 const int smallTestFixedSize = 8 + 8 + 8 + 8 + 16 + 16;
 
-typedef struct variable
+typedef struct VariableLen
 {
     char data[maxVariableLen];
     int len;
-} variable;
+} VariableLen;
 
 struct ParsedTestChunk
 {
     int64_t int_64;
     int32_t int_32;
     double double_val;
-    variable variable_text;
-    variable variable_long_text;
-    variable variable_char;
-    variable variable_binary;
+    VariableLen variable_text;
+    VariableLen variable_long_text;
+    VariableLen variable_char;
+    VariableLen variable_binary;
     char fixed_char[49];
     char fixed_binary[17];
     int64_t date_time;
@@ -274,24 +274,24 @@ mult_table(
 
 int get_db_char_size()
 {
-    MYSQL* mysql = mysql_init(NULL);
+    MYSQL *mysql = mysql_init(NULL);
     MYSQL_RES *res;
     MYSQL_ROW row;
     char *collation;
     int char_size = 1;
     const char *query = "SELECT @@collation_database";
 
-    if (!mysql_real_connect(mysql, db_creds.host, db_creds.user, db_creds.password, db_creds.db, db_creds.ma_port, NULL, 0))
+    if (!mysql_real_connect(
+            mysql, db_creds.host, db_creds.user, db_creds.password, db_creds.db, db_creds.ma_port, NULL, 0))
         return 0;
-    if (mysql_query(mysql, query))
-        return 0;
+    if (mysql_query(mysql, query)) return 0;
     res = mysql_store_result(mysql);
-    if ( (row = mysql_fetch_row(res)) )
+    if ((row = mysql_fetch_row(res)))
         collation = row[0];
     else
     {
-    mysql_free_result(res);
-    return 0;
+        mysql_free_result(res);
+        return 0;
     }
     if (!strncmp(collation, "utf8mb4", 7))
         char_size = 4;
@@ -439,7 +439,7 @@ PrintChunk(
     ResetReader(reader, chunk, schema);
     int64_t int_64_val, date_time, time;
     int32_t int_32_val, date;
-    int64_t len;
+    uint64_t len;
     bool is_null;
     double float_val;
     for (int row_num = 0; row_num < chunk->row_count; ++row_num)

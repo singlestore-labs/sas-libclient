@@ -5,11 +5,11 @@
 
 #include "s2_connection.hpp"
 #include "s2_client.hpp"
+
 #include "hdat/chunk_reader.hpp"
 #include "utils.hpp"
 
 #include "test/db_creds.h"
-#include "test/helpers.h"
 
 #include "mysql.h"
 
@@ -97,6 +97,13 @@ testRun(
     int size,
     S2Connection* conn)
 {
+    auto aggs = conn->GetAggregators();
+    std::cout << "Aggregators:\n";
+    for (auto agg : aggs)
+    {
+        std::cout << agg.host << ":" << agg.port << "; " << agg.externalHost << ":" << agg.externalPort << std::endl;   
+    }
+    
     conn->Prepare((std::string("SELECT * FROM ") + IN_TABLE).c_str(), true);
     RowSchema* schema = conn->GetRowSchema();
     Chunk* chunk = nullptr;
@@ -138,7 +145,7 @@ testRun(
             std::cerr << e.m_errorCode << ' ' << e.m_errorMessage << '\n';
         }
     }
-    super_chunk::utils::ChunkFree(chunk);
+    utils::ChunkFree(chunk);
     free(chunk);
 }
 

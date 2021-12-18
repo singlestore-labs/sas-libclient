@@ -25,7 +25,7 @@ MultiPassQueue::CreateChunkQueue(
 
     chunkQueue->m_result_table = resultTableName;
 
-    std::vector<int> partitions = super_chunk::utils::WorkerPartitions(
+    std::vector<int> partitions = utils::WorkerPartitions(
         client->m_numWorkers,
         client->m_workerId,
         client->m_numPartitions);
@@ -38,7 +38,7 @@ MultiPassQueue::CreateChunkQueue(
     // create ThreadSafeBatchQueue for each consumer
     for (int consumer_id = 0; consumer_id < nConsumers; ++consumer_id)
     {
-        std::vector<int> consumer_partitions = super_chunk::utils::ConsumerPartitions(
+        std::vector<int> consumer_partitions = utils::ConsumerPartitions(
             nConsumers,
             consumer_id,
             partitions);
@@ -57,20 +57,42 @@ MultiPassQueue::CreateChunkQueue(
     {
         client->SetError(s2err);
     }
+    std::vector<AggregatorNode> aggregators;
+    try
+    {
+        aggregators = client->m_conn->GetAggregators();
+    }
+    catch (S2ClientError &s2err)
+    {
+        client->SetError(s2err);
+    }
+    if (S2Errno(client))
+    {
+        return nullptr;
+    }
+    Credentials creds = Credentials
+        {
+            .host = chunkQueue->m_credentials.host,
+            .port = chunkQueue->m_credentials.port,
+            .db = chunkQueue->m_credentials.db,
+            .user = chunkQueue->m_credentials.user,
+            .password = chunkQueue->m_credentials.password
+        };
     // create Readers
     chunkQueue->m_readers.reserve(partitions.size());
-    for (int i = 0; i < partitions.size(); ++i)
+    for (int partition : partitions)
     {
-        // client->m_conn is used to find out connection parameters.
-        // ResultTableReader will create its own connection to run queries
+        utils::FillCredentials(aggregators, partition, &creds);
+
+        // ResultTableReader will create its own connection to read from partition
         chunkQueue->m_readers.push_back(
             ResultTableReader::CreateReader(
-                client->m_conn,
-                chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partitions[i]]],
+                creds,
+                chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
                 chunkQueue->m_chunks_info,
                 resultTableName,
                 chunkQueue->m_row_schema,
-                partitions[i],
+                partition,
                 chunkSize));
     }
 
@@ -79,7 +101,6 @@ MultiPassQueue::CreateChunkQueue(
     {
         reader->StartReading();
     }
-
     if (chunkQueue->m_readers.empty())
     {
         return chunkQueue;
@@ -175,10 +196,10 @@ MultiPassQueue::~MultiPassQueue()
     for (int consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
     {
         // delete all chunks that are saved in the queue
-        m_consumer_queues[consumer_id]->FreeBatchData(&super_chunk::utils::ChunkFree);
+        m_consumer_queues[consumer_id]->FreeBatchData(&utils::ChunkFree);
         delete m_consumer_queues[consumer_id];
         m_consumer_queues[consumer_id] = nullptr;
     }
-    super_chunk::utils::RowSchemaFree(m_row_schema);
+    utils::RowSchemaFree(m_row_schema);
     m_row_schema = nullptr;
 }

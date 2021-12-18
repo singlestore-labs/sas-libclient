@@ -14,7 +14,7 @@ class ResultTableReader
     // CreateReader creates a ResultTableReader object with a new connection
     static std::unique_ptr<ResultTableReader>
     CreateReader(
-        std::unique_ptr<S2Connection> &conn,
+        const Credentials &creds,
         ThreadSafeQueue<Chunk *> *q,
         std::shared_ptr<ChunksInfo> chunks_info,
         const char *resultTableName,

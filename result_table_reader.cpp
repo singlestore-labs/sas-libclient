@@ -4,7 +4,7 @@
 
 std::unique_ptr<ResultTableReader>
 ResultTableReader::CreateReader(
-    std::unique_ptr<S2Connection> &conn,
+    const Credentials &creds,
     ThreadSafeQueue<Chunk *> *q,
     std::shared_ptr<ChunksInfo> chunks_info,
     const char *resultTableName,
@@ -16,13 +16,12 @@ ResultTableReader::CreateReader(
     std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, partition, size));
 
     // create a new connection
-    reader->m_conn = S2Connection::Connect(conn->m_host, conn->m_port, conn->m_db, conn->m_user, conn->m_password);
+    reader->m_conn = S2Connection::Connect(creds);
     // prepare a query that will be executed
-    reader->m_query = super_chunk::sql::MakeReadResultTableQuery(resultTableName, partition);
+    reader->m_query = sql::MakeReadResultTableQuery(resultTableName, partition);
     reader->m_row_schema = schema;
     reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
     reader->m_chunks_info = chunks_info;
-
     return reader;
 }
 

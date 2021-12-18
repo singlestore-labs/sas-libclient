@@ -18,7 +18,7 @@ extern "C"
         client->SetError(S2ClientError(0, ""));
         try
         {
-            std::string newQuery = super_chunk::sql::MakeCreateResultTableQuery(
+            std::string newQuery = sql::MakeCreateResultTableQuery(
                 resultTableName,
                 selectQuery,
                 materialized,
@@ -46,7 +46,7 @@ extern "C"
         client->SetError(S2ClientError(0, ""));
         try
         {
-            std::string dropQuery = super_chunk::sql::MakeDropQuery(resultTableName);
+            std::string dropQuery = sql::MakeDropQuery(resultTableName);
             client->m_conn->ExecuteDDL(dropQuery);
         }
         catch (S2ClientError &s2_err)
@@ -157,7 +157,7 @@ extern "C"
         }
 
         *partitionId = res->partition_id;
-        super_chunk::utils::MoveChunk(chunk, res);
+        utils::MoveChunk(chunk, res);
 
         return true;
     }
@@ -182,7 +182,7 @@ extern "C"
             return false;
         }
 
-        super_chunk::utils::MoveChunk(chunk, res);
+        utils::MoveChunk(chunk, res);
 
         return true;
     }
@@ -209,7 +209,7 @@ extern "C"
             return false;
         }
 
-        super_chunk::utils::MoveChunk(chunk, res);
+        utils::MoveChunk(chunk, res);
 
         return true;
     }

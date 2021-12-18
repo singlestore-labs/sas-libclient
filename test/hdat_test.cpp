@@ -9,7 +9,6 @@
 #include "utils.hpp"
 
 #include "test/db_creds.h"
-#include "test/helpers.h"
 
 #include "mysql.h"
 
@@ -106,7 +105,7 @@ testRun(
                 {
                     case Int64:
                         int64_t int_val;
-                        reader->ReadInteger(&int_val, &is_null);
+                        reader->ReadInt64(&int_val, &is_null);
                         std::cout << int_val << " ";
                         break;
                     case Double:
@@ -131,7 +130,7 @@ testRun(
             std::cout << std::endl;
         }
     }
-    super_chunk::utils::ChunkFree(chunk);
+    utils::ChunkFree(chunk);
 }
 
 int
@@ -140,14 +139,14 @@ main(
     char* argv[])
 {
     auto conn = PrepareDB();
-    if (!conn)
-    {
-        return 1;
-    }
+    if (!conn) return 1;
     for (auto chunk_size = 1; chunk_size < 1 << 8; ++chunk_size)
     {
         testRun(chunk_size, conn.get(), false);
     }
     testRun(1 << 12, conn.get(), true);
+
+    conn->ExecuteDDL("DROP TABLE 6_col_test");
+
     return 0;
 }

@@ -14,92 +14,103 @@
 #include "chunk_extern.h"
 #include "s2_client_error.hpp"
 
-namespace super_chunk
+typedef struct Credentials
 {
-    typedef struct credentials
-    {
-        std::string host;
-        uint32_t port;
-        std::string db;
-        std::string user;
-        std::string password;
-    } credentials;
+    std::string host;
+    uint32_t port;
+    std::string db;
+    std::string user;
+    std::string password;
+} Credentials;
 
-    namespace utils
-    {
-        std::vector<int>
-        ConsumerPartitions(
-            int nConsumers,
-            int consumerId,
-            std::vector<int> workerPartitions);
+typedef struct AggregatorNode
+{
+    std::string host;
+    int port;
+    std::string externalHost;
+    int externalPort;
+} AggregatorNode;
 
-        std::vector<int>
-        WorkerPartitions(
-            int numWorkers,
-            int workerId,
-            int totalPartitions);
+namespace utils
+{
+    std::vector<int>
+    ConsumerPartitions(
+        int nConsumers,
+        int consumerId,
+        std::vector<int> workerPartitions);
+
+    std::vector<int>
+    WorkerPartitions(
+        int numWorkers,
+        int workerId,
+        int totalPartitions);
+
+    void
+    FieldsToRowSchema(
+        int num_fields,
+        MYSQL_FIELD* fields,
+        RowSchema* rowSchema /*out*/);
+
+    void FillCredentials(
+        const std::vector<AggregatorNode> &aggregators,
+        const int partition,
+        Credentials *creds /*out*/);
+
+    void
+    ExplainToRowSchema(
+        std::string explainStr,
+        RowSchema* rowSchema /*out*/);
+
+    extern "C"
+    {
+        void RowSchemaFree(RowSchema* schema);
 
         void
-        FieldsToRowSchema(
-            int num_fields,
-            MYSQL_FIELD* fields,
-            RowSchema* rowSchema /*out*/);
+        MoveChunk(
+            Chunk* out,
+            Chunk* in);
 
-        void
-        ExplainToRowSchema(
-            std::string explainStr,
-            RowSchema* rowSchema /*out*/);
+        void ChunkFree(Chunk* chunk);
 
-        extern "C"
-        {
-            void RowSchemaFree(RowSchema* schema);
+        const char* S2GetClientVersion();
+    }
+}  // namespace utils
 
-            void
-            MoveChunk(
-                Chunk* out,
-                Chunk* in);
+namespace sql
+{
+    std::string
+    MakeCreateResultTableQuery(
+        const char* resultTableName,
+        const char* selectQuery,
+        bool materialized,
+        const char* const* const partitionByCols,
+        const int partitionByColsNumber,
+        const char* const* const partitionOrderByCols,
+        const int orderByColsNumber);
 
-            void ChunkFree(Chunk* chunk);
+    std::string MakeDropQuery(const char* resultTableName);
 
-            const char* S2GetClientVersion();
-        }
-    }  // namespace utils
+    std::string
+    MakeReadResultTableQuery(
+        const char* resultTableName,
+        uint32_t partition);
 
-    namespace sql
-    {
-        std::string
-        MakeCreateResultTableQuery(
-            const char* resultTableName,
-            const char* selectQuery,
-            bool materialized,
-            const char* const* const partitionByCols,
-            const int partitionByColsNumber,
-            const char* const* const partitionOrderByCols,
-            const int orderByColsNumber);
+    std::string
+    MakePointInTimeQuery(
+        const char* table,
+        int partition_id,
+        int64_t row_id);
 
-        std::string MakeDropQuery(const char* resultTableName);
+    std::string MakeLoadDataQuery(
+        const std::string& tableName);
 
-        std::string
-        MakeReadResultTableQuery(
-            const char* resultTableName,
-            uint32_t partition);
+    std::string MakeSelectQueryMeta(
+        const std::string& tableName);
 
-        std::string
-        MakePointInTimeQuery(
-            const char* table,
-            int partition_id,
-            int64_t row_id);
+    std::string MakeExplainCreateResultTableQuery(
+        const char* selectQuery);
 
-        std::string MakeLoadDataQuery(
-            const std::string& tableName);
-
-        std::string MakeSelectQueryMeta(
-            const std::string& tableName);
-
-        std::string MakeExplainCreateResultTableQuery(
-            const char* selectQuery);
-
-    }  // namespace sql
-}  // namespace super_chunk
+    std::string MakeGetAggregatorsQuery();
+}  // namespace sql
 
 #endif  // UTILS_HPP

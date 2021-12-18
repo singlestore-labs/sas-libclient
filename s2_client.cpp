@@ -121,7 +121,7 @@ extern "C"
         const char* table,
         S2ErrorCallback* cb)
     {
-        std::string query = super_chunk::sql::MakeSelectQueryMeta(table);
+        std::string query = sql::MakeSelectQueryMeta(table);
         try
         {
             client->m_conn->Prepare(query.c_str(), false);
