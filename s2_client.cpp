@@ -61,7 +61,7 @@ extern "C"
         }
         catch (S2ClientError& s2_err)
         {
-            cb->setError(cb, s2_err.m_errorCode, std::move(s2_err.m_errorMessage).c_str());
+            cb->setError(cb, s2_err.m_errorCode, std::move(s2_err.m_errorMessage).c_str(), S2C_SEVERITY_ERROR);
             return nullptr;
         }
     }
@@ -111,7 +111,7 @@ extern "C"
         }
         catch (S2ClientError& s2_err)
         {
-            cb->setError(cb, s2_err.m_errorCode, std::move(s2_err.m_errorMessage).c_str());
+            cb->setError(cb, s2_err.m_errorCode, std::move(s2_err.m_errorMessage).c_str(), S2C_SEVERITY_ERROR);
         }
     }
 
@@ -130,7 +130,7 @@ extern "C"
         }
         catch (S2ClientError& s2_err)
         {
-            cb->setError(cb, s2_err.m_errorCode, std::move(s2_err.m_errorMessage).c_str());
+            cb->setError(cb, s2_err.m_errorCode, std::move(s2_err.m_errorMessage).c_str(), S2C_SEVERITY_ERROR);
         }
         return nullptr;
     }

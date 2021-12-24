@@ -27,7 +27,7 @@ S2Connection::Connect(
     s2Connection->m_conn = mysql_init(nullptr);
     if (!s2Connection->m_conn)
     {
-        throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to create a connection using MySQL C client");
+        throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to init a connection using MySQL C client");
     }
 
     if ((!user) || (user[0] == '\0'))

@@ -111,7 +111,7 @@ extern "C"
     {
         if (!chunk)
         {
-            cb->setError(cb, S2C_ERROR_INV_ARG, "NULL pointer passed as Chunk*");
+            cb->setError(cb, S2C_ERROR_INV_ARG, "NULL pointer passed as Chunk*", S2C_SEVERITY_ERROR);
             return nullptr;
         }
         try
@@ -120,7 +120,11 @@ extern "C"
         }
         catch (std::bad_alloc& e)
         {
-            cb->setError(cb, S2C_ERROR_MEMORY_ALLOCATION, "Memory allocation error in CreateWriter");
+            cb->setError(
+                cb,
+                S2C_ERROR_MEMORY_ALLOCATION,
+                "Memory allocation error in CreateWriter",
+                S2C_SEVERITY_ERROR);
             return nullptr;
         }
     }

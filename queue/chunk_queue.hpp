@@ -108,6 +108,8 @@ class ChunkQueue
     std::string m_result_table;
     std::vector<std::unique_ptr<ResultTableReader>> m_readers;
 
+    Credentials m_credentials;
+
     int m_consumers;
     std::vector<ThreadSafeQueue<Chunk *> *> m_consumer_queues;
     // m_partition_consumer stores partition -> cas_reader_thread_id correspondence

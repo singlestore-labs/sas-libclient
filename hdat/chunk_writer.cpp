@@ -315,7 +315,7 @@ extern "C"
     {
         if (!chunk || !schema)
         {
-            cb->setError(cb, S2C_ERROR_INV_ARG, "NULL pointer passed as Chunk* or RowSchema*");
+            cb->setError(cb, S2C_ERROR_INV_ARG, "NULL pointer passed as Chunk* or RowSchema*", S2C_SEVERITY_ERROR);
             return nullptr;
         }
         try
@@ -324,7 +324,11 @@ extern "C"
         }
         catch (std::bad_alloc &e)
         {
-            cb->setError(cb, S2C_ERROR_MEMORY_ALLOCATION, "Memory allocation error in CreateWriter");
+            cb->setError(
+                cb,
+                S2C_ERROR_MEMORY_ALLOCATION,
+                "Memory allocation error in CreateWriter",
+                S2C_SEVERITY_ERROR);
             return nullptr;
         }
     }

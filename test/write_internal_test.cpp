@@ -101,9 +101,9 @@ testRun(
     std::cout << "Aggregators:\n";
     for (auto agg : aggs)
     {
-        std::cout << agg.host << ":" << agg.port << "; " << agg.externalHost << ":" << agg.externalPort << std::endl;   
+        std::cout << agg.host << ":" << agg.port << "; " << agg.externalHost << ":" << agg.externalPort << std::endl;
     }
-    
+
     conn->Prepare((std::string("SELECT * FROM ") + IN_TABLE).c_str(), true);
     RowSchema* schema = conn->GetRowSchema();
     Chunk* chunk = nullptr;

@@ -11,12 +11,17 @@ StreamingQueue::CreateChunkQueue(
     uint32_t capacity,
     uint64_t chunkSize,
     int nConsumers,
-    bool doesParallelRead)
+    bool doesParallelRead,
+    S2ErrorCallback *cb)
 {
     // allocate a ChunkQueue object
     std::unique_ptr<StreamingQueue> chunkQueue(new StreamingQueue);
-    std::shared_ptr<std::condition_variable> row_schema_cv(new std::condition_variable);
-    std::shared_ptr<std::mutex> row_schema_mutex(new std::mutex);
+
+    chunkQueue->m_credentials.db = client->m_conn->m_db;
+    chunkQueue->m_credentials.host = client->m_conn->m_host;
+    chunkQueue->m_credentials.port = client->m_conn->m_port;
+    chunkQueue->m_credentials.user = client->m_conn->m_user;
+    chunkQueue->m_credentials.password = client->m_conn->m_password;
 
     // we use a single dummy partition 0 in case of non-parallel read
     std::vector<int> partitions{0};
@@ -65,14 +70,9 @@ StreamingQueue::CreateChunkQueue(
         {
             return nullptr;
         }
-        Credentials creds = Credentials
-        {
-            .host = client->m_conn->m_host,
-            .port = client->m_conn->m_port,
-            .db = client->m_conn->m_db,
-            .user = client->m_conn->m_user,
-            .password = client->m_conn->m_password
-        };
+        const Credentials masterCreds = chunkQueue->m_credentials;
+        Credentials creds = masterCreds;  // we need this to fill user, password, db
+
         for (int partition : partitions)
         {
             utils::FillCredentials(aggregators, partition, &creds);
@@ -80,12 +80,14 @@ StreamingQueue::CreateChunkQueue(
             chunkQueue->m_readers.push_back(
                 ResultTableReader::CreateReader(
                     creds,
+                    masterCreds,
                     chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
                     nullptr,
                     resultTableName,
                     chunkQueue->m_row_schema,
                     partition,
-                    chunkSize));
+                    chunkSize,
+                    cb));
         }
     }
     else
@@ -110,6 +112,10 @@ StreamingQueue::CreateChunkQueue(
     // start Readers
     for (auto &reader : chunkQueue->m_readers)
     {
+        if (!reader)
+        {
+            return nullptr;
+        }
         reader->StartReading();
     }
     return chunkQueue;

@@ -5,18 +5,42 @@
 std::unique_ptr<ResultTableReader>
 ResultTableReader::CreateReader(
     const Credentials &creds,
+    const Credentials &externalCreds,
     ThreadSafeQueue<Chunk *> *q,
     std::shared_ptr<ChunksInfo> chunks_info,
     const char *resultTableName,
     RowSchema *schema,
     uint32_t partition,
-    uint64_t size)
+    uint64_t size,
+    S2ErrorCallback *cb)
 {
     // allocate a ResultTableReader object
     std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, partition, size));
 
     // create a new connection
-    reader->m_conn = S2Connection::Connect(creds);
+    try
+    {
+        // reader->m_conn = S2Connection::Connect(creds);
+        // TODO: PLAT-6005 uncomment line above and delete line below when Child Aggs are ready for connection
+        reader->m_conn = S2Connection::Connect(externalCreds);
+    }
+    catch (S2ClientError &s2_err)
+    {
+        std::string error = "Cannot connect using data from information_schema.mv_nodes: ";
+        error += std::string(s2_err.what()) + " partition: " + std::to_string(partition) + "\n";
+        cb->setError(cb, S2C_ERROR_BAD_CONNECTION, std::move(error).c_str(), S2C_SEVERITY_WARNING);
+        try
+        {
+            reader->m_conn = S2Connection::Connect(externalCreds);
+        }
+        catch (S2ClientError &s2_err)
+        {
+            std::string error = "Cannot connect to server using data from CAS worker's S2Client: ";
+            error += s2_err.what() + '\n';
+            cb->setError(cb, S2C_ERROR_BAD_CONNECTION, std::move(error).c_str(), S2C_SEVERITY_ERROR);
+            return nullptr;
+        }
+    }
     // prepare a query that will be executed
     reader->m_query = sql::MakeReadResultTableQuery(resultTableName, partition);
     reader->m_row_schema = schema;

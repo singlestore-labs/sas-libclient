@@ -186,7 +186,7 @@ TableWriter::ss_local_infile_error(
     if (ss->bad())
     {
         strncpy(error_msg, "Read/write error on i/o operation", error_msg_len);
-        return S2_IO_ERROR;
+        return S2C_IO_ERROR;
     }
 
     strncpy(error_msg, "Unknown error in LOAD DATA LOCAL INFILE", error_msg_len);

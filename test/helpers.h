@@ -136,7 +136,8 @@ void
 dummyHandleError(
     S2ErrorCallback *cb,
     int error,
-    const char *errorString)
+    const char *errorString,
+    int severity)
 {
     ErrorHandler *h = (ErrorHandler *)cb;
     h->errorCode = error;
@@ -282,7 +283,14 @@ int get_db_char_size()
     const char *query = "SELECT @@collation_database";
 
     if (!mysql_real_connect(
-            mysql, db_creds.host, db_creds.user, db_creds.password, db_creds.db, db_creds.ma_port, NULL, 0))
+            mysql,
+            db_creds.host,
+            db_creds.user,
+            db_creds.password,
+            db_creds.db,
+            db_creds.ma_port,
+            NULL,
+            0))
         return 0;
     if (mysql_query(mysql, query)) return 0;
     res = mysql_store_result(mysql);

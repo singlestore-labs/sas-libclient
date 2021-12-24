@@ -142,7 +142,15 @@ void *worker(void *input)
 
     PRINT_INFO("Worker %d connected to port %d\n", w_args->id, w_args->db_port);
 
-    ChunkQueue *q = ParallelReadGetQueue(client, resultTable, testQuery, chunkSize, batchSize, threadsPerWorker, true);
+    ChunkQueue *q = ParallelReadGetQueue(
+        client,
+        resultTable,
+        testQuery,
+        chunkSize,
+        batchSize,
+        threadsPerWorker,
+        true,
+        &EH.callback);
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
@@ -183,8 +191,15 @@ void *worker(void *input)
     PRINT_INFO("...Starting second pass in worker %d\n", w_args->id);
 
     // read the second time
-    ChunkQueue *q_multi =
-        ParallelReadGetQueue(client, resultTable, testQuery, chunkSize, batchSize, threadsPerWorker, true);
+    ChunkQueue *q_multi = ParallelReadGetQueue(
+        client,
+        resultTable,
+        testQuery,
+        chunkSize,
+        batchSize,
+        threadsPerWorker,
+        true,
+        &EH.callback);
 
     for (int i = 0; i < threadsPerWorker; i++)
     {

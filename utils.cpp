@@ -57,13 +57,13 @@ namespace utils
         return result;
     }
 
-    void FillCredentials(
-        const std::vector<AggregatorNode> &aggregators,
+    void
+    FillCredentials(
+        const std::vector<AggregatorNode>& aggregators,
         const int partition,
-        Credentials *creds)
+        Credentials* creds)
     {
-        if (!aggregators.size())
-            return;
+        if (!aggregators.size()) return;
         int aggNumber = partition % aggregators.size();
         if (aggregators[aggNumber].externalHost.size())
         {

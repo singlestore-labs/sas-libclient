@@ -66,7 +66,8 @@ ParallelReadGetQueue(
     uint64_t chunkSize,
     int queueCapacity,
     int nReaderThreads,
-    bool isMultiPass);
+    bool isMultiPass,
+    S2ErrorCallback* cb);
 
 // GetNextChunk is called in a loop until false is returned meaning all results
 // have been added to the queue and retrieved from it. This is used in
@@ -136,7 +137,8 @@ QueryGetQueue(
     S2Client* client,
     const char* query,
     uint64_t chunkSize,
-    int queueCapacity);
+    int queueCapacity,
+    S2ErrorCallback* cb);
 
 // LoadDataWrite takes a chunk along with its Row Schema
 // and writes it to the table using simulated LOAD DATA LOCAL INFILE statement

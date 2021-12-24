@@ -31,8 +31,6 @@ class MultiPassQueue : public ChunkQueue
 
     std::shared_ptr<ChunksInfo> m_chunks_info;
 
-    Credentials m_credentials;
-
   public:
     ~MultiPassQueue();
 
@@ -49,7 +47,8 @@ class MultiPassQueue : public ChunkQueue
         const char *selectQuery,
         uint32_t capacity,
         uint64_t chunkSize,
-        int nReaderThreads);
+        int nReaderThreads,
+        S2ErrorCallback *cb);
 
     Chunk *
     GetById(

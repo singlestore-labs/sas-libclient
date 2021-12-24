@@ -85,8 +85,15 @@ void *worker(void *input)
     assert(client != NULL && "S2Client is NULL");
     PRINT_INFO("Worker %d connected to port %d\n", args->id, args->db_port);
 
-    ChunkQueue *q =
-        ParallelReadGetQueue(client, resultTable, args->query, chunkSize, queueCapacity, threadsPerWorker, false);
+    ChunkQueue *q = ParallelReadGetQueue(
+        client,
+        resultTable,
+        args->query,
+        chunkSize,
+        queueCapacity,
+        threadsPerWorker,
+        false,
+        &EH.callback);
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))
     {
@@ -251,7 +258,8 @@ void non_parallel_test(S2Client *client)
         client,
         query_bad,
         200,
-        queueCapacity);
+        queueCapacity,
+        &EH.callback);
 
     assert(S2Errno(client));
     PRINT_INFO("[EXPECTED] S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
@@ -264,7 +272,8 @@ void non_parallel_test(S2Client *client)
         client,
         query,
         200,
-        queueCapacity);
+        queueCapacity,
+        &EH.callback);
 
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));

@@ -51,10 +51,11 @@ namespace utils
         MYSQL_FIELD* fields,
         RowSchema* rowSchema /*out*/);
 
-    void FillCredentials(
-        const std::vector<AggregatorNode> &aggregators,
+    void
+    FillCredentials(
+        const std::vector<AggregatorNode>& aggregators,
         const int partition,
-        Credentials *creds /*out*/);
+        Credentials* creds /*out*/);
 
     void
     ExplainToRowSchema(

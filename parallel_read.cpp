@@ -67,7 +67,8 @@ extern "C"
         uint64_t chunkSize,
         int queueCapacity,
         int nReaderThreads,
-        bool isMultiPass)
+        bool isMultiPass,
+        S2ErrorCallback *cb)
     {
         client->SetError(S2ClientError(0, ""));
         try
@@ -80,7 +81,8 @@ extern "C"
                            selectQuery,
                            queueCapacity,
                            chunkSize,
-                           nReaderThreads)
+                           nReaderThreads,
+                           cb)
                     .release();
             }
             return (ChunkQueue *)StreamingQueue::CreateChunkQueue(
@@ -90,7 +92,8 @@ extern "C"
                        queueCapacity,
                        chunkSize,
                        nReaderThreads,
-                       true /* doesParallelRead */)
+                       true /* doesParallelRead */,
+                       cb)
                 .release();
         }
         catch (S2ClientError &s2_err)
@@ -110,7 +113,8 @@ extern "C"
         S2Client *client,
         const char *query,
         uint64_t chunkSize,
-        int queueCapacity)
+        int queueCapacity,
+        S2ErrorCallback *cb)
     {
         client->SetError(S2ClientError(0, ""));
         try
@@ -122,7 +126,8 @@ extern "C"
                        queueCapacity,
                        chunkSize,
                        1,  // TODO: check if we need thread affinity here
-                       false /* doesParallelRead */)
+                       false /* doesParallelRead */,
+                       cb)
                 .release();
         }
         catch (S2ClientError &s2_err)
@@ -149,7 +154,7 @@ extern "C"
         Chunk *res = queue->Get(consumerId, err);
         if (err.m_errorCode)
         {
-            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str());
+            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str(), S2C_SEVERITY_ERROR);
         }
         if (!res)
         {
@@ -175,7 +180,7 @@ extern "C"
 
         if (err.m_errorCode)
         {
-            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str());
+            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str(), S2C_SEVERITY_ERROR);
         }
         if (!res)
         {
@@ -202,7 +207,7 @@ extern "C"
 
         if (err.m_errorCode)
         {
-            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage.c_str()));
+            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage.c_str()), S2C_SEVERITY_ERROR);
         }
         if (!res)
         {

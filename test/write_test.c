@@ -50,7 +50,8 @@ void read_and_check(S2Client *client)
         client,
         query,
         chunkSize,
-        queueCapacity);
+        queueCapacity,
+        &EH.callback);
 
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));

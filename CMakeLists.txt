@@ -25,6 +25,16 @@ set(LIBCLIENT_SOURCES
 
 add_library(s2client SHARED ${LIBCLIENT_SOURCES})
 
-target_include_directories(s2client PUBLIC $ENV{PATH_TO_LIBCLIENT} libmariadb/include)
+target_include_directories(s2client PUBLIC $ENV{PATH_TO_LIBCLIENT}
+                                           libmariadb/include)
 
-target_link_libraries(s2client mariadb dl pthread crypto ssl z rt m)
+target_link_libraries(
+  s2client
+  mariadb
+  dl
+  pthread
+  crypto
+  ssl
+  z
+  rt
+  m)

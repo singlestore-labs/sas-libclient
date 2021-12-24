@@ -15,12 +15,14 @@ class ResultTableReader
     static std::unique_ptr<ResultTableReader>
     CreateReader(
         const Credentials &creds,
+        const Credentials &externalCreds,
         ThreadSafeQueue<Chunk *> *q,
         std::shared_ptr<ChunksInfo> chunks_info,
         const char *resultTableName,
         RowSchema *schema,
         uint32_t partition,
-        uint64_t size);
+        uint64_t size,
+        S2ErrorCallback *cb);
 
     static std::unique_ptr<ResultTableReader>
     CreateReaderNonParallel(

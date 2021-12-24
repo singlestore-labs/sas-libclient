@@ -90,7 +90,8 @@ void null_test(S2Client *client)
         client,
         query,
         chunkSize,
-        queueCapacity);
+        queueCapacity,
+        NULL);
 
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client)) PRINT_ERROR("S2 Error in null_test: %d %s\n", S2Errno(client), S2Error(client));
@@ -137,7 +138,7 @@ void null_test(S2Client *client)
 
 void read_test(S2Client *client)
 {
-    ChunkQueue *q = QueryGetQueue(client, queryMain, chunkSize, queueCapacity);
+    ChunkQueue *q = QueryGetQueue(client, queryMain, chunkSize, queueCapacity, NULL);
 
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))

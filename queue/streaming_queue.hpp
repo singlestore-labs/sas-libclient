@@ -29,7 +29,8 @@ class StreamingQueue : public ChunkQueue
         uint32_t capacity,
         uint64_t chunkSize,
         int nReaderThreads,
-        bool doesParallelRead);
+        bool doesParallelRead,
+        S2ErrorCallback *cb);
 
     Chunk *
     GetById(

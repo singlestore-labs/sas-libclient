@@ -12,7 +12,8 @@ MultiPassQueue::CreateChunkQueue(
     const char *selectQuery,
     uint32_t capacity,
     uint64_t chunkSize,
-    int nConsumers)
+    int nConsumers,
+    S2ErrorCallback *cb)
 {
     // allocate a ChunkQueue object
     std::unique_ptr<MultiPassQueue> chunkQueue(new MultiPassQueue);
@@ -70,14 +71,9 @@ MultiPassQueue::CreateChunkQueue(
     {
         return nullptr;
     }
-    Credentials creds = Credentials
-        {
-            .host = chunkQueue->m_credentials.host,
-            .port = chunkQueue->m_credentials.port,
-            .db = chunkQueue->m_credentials.db,
-            .user = chunkQueue->m_credentials.user,
-            .password = chunkQueue->m_credentials.password
-        };
+    const Credentials masterCreds = chunkQueue->m_credentials;
+    Credentials creds = masterCreds;  // we need this to fill user, password, db
+
     // create Readers
     chunkQueue->m_readers.reserve(partitions.size());
     for (int partition : partitions)
@@ -88,17 +84,22 @@ MultiPassQueue::CreateChunkQueue(
         chunkQueue->m_readers.push_back(
             ResultTableReader::CreateReader(
                 creds,
+                masterCreds,
                 chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
                 chunkQueue->m_chunks_info,
                 resultTableName,
                 chunkQueue->m_row_schema,
                 partition,
-                chunkSize));
+                chunkSize,
+                cb));
     }
-
     // start Readers
     for (auto &reader : chunkQueue->m_readers)
     {
+        if (!reader)
+        {
+            return nullptr;
+        }
         reader->StartReading();
     }
     if (chunkQueue->m_readers.empty())
