@@ -36,7 +36,8 @@ class SuperChunkWriter
     WriteFixed(
         const void *val,
         const int64_t data_size,
-        const int64_t field_size);
+        const int64_t field_size,
+        const bool pad_with_zero);
 
     void
     WriteVariable(
@@ -163,7 +164,8 @@ extern "C"
         SuperChunkWriter *writer,
         const void *val,
         const int64_t data_size,
-        const int64_t field_size);
+        const int64_t field_size,
+        const bool pad_with_zero);
 
     bool
     WriteVariable(

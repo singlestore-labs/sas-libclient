@@ -98,7 +98,7 @@ void read_and_check(S2Client *client)
                 TEST_DATA.variable_binary.data,
                 TEST_DATA.variable_binary.len));
 
-            assert(!strcmp(chunkData.fixed_char, TEST_DATA.fixed_char));
+            assert(!strncmp(chunkData.fixed_char, TEST_DATA.fixed_char, strlen(TEST_DATA.fixed_char)));
             assert(!strcmp(chunkData.fixed_binary, TEST_DATA.fixed_binary));
 
             assert(chunkData.date_time == TEST_DATA.date_time);
@@ -154,8 +154,8 @@ void write_test(S2Client *client)
         WriteVariable(w, "lon\ttxt", 7);
         WriteVariable(w, "\x40\x60", 2);
 
-        WriteFixed(w, "юникод", 12, 16 * get_db_char_size());
-        WriteFixed(w, "fixed", 5, 9);
+        WriteFixed(w, "юникод", 12, 16 * get_db_char_size(), false);
+        WriteFixed(w, "fixed", 5, 9, true);
 
         WriteInt64(w, TEST_DATA.date_time);
         WriteInt64(w, TEST_DATA.date_time_6);

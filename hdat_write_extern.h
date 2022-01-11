@@ -39,7 +39,8 @@ WriteFixed(
     SuperChunkWriter* writer,
     const void* val,
     const int64_t data_size,
-    const int64_t field_size);
+    const int64_t field_size,
+    const bool is_binary);
 
 bool
 WriteVariable(

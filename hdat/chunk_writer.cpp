@@ -41,12 +41,13 @@ void
 SuperChunkWriter::WriteFixed(
     const void *val,
     const int64_t data_size,
-    const int64_t field_size)
+    const int64_t field_size,
+    const bool pad_with_zero)
 {
     RecordColumn();
     m_current_chunk->Write(val, data_size);
     uint64_t alignedLen = sizeofAligned8(field_size);
-    m_current_chunk->Pad(alignedLen - data_size, true);
+    m_current_chunk->Pad(alignedLen - data_size, true, pad_with_zero ? '\0' : ' ');
 }
 
 void SuperChunkWriter::WriteInt64(const void *val)
@@ -60,7 +61,7 @@ void SuperChunkWriter::WriteInt32(const void *val)
     RecordColumn();
 
     m_current_chunk->Write4(val);
-    m_current_chunk->Pad(4, false);
+    m_current_chunk->Pad(4, false, ' ');
 }
 
 void
@@ -100,7 +101,7 @@ inline void SuperChunkWriter::WriteInt32Null()
 {
     RecordColumn();
     m_current_chunk->Write4Typed<int32_t>(int32Null);
-    m_current_chunk->Pad(4, false);
+    m_current_chunk->Pad(4, false, ' ');
 }
 
 inline void SuperChunkWriter::WriteDoubleNull()
@@ -113,7 +114,7 @@ inline void SuperChunkWriter::WriteFixedNull(const int len)
 {
     RecordColumn();
     uint64_t alignedLen = sizeofAligned8(len);
-    m_current_chunk->Pad(alignedLen, true);
+    m_current_chunk->Pad(alignedLen, true, '\0');
 }
 
 inline void SuperChunkWriter::WriteVariableNull()
@@ -139,7 +140,7 @@ inline void SuperChunkWriter::WriteInt32Numeric(const T val)
     RecordColumn();
     int32_t val4 = (int32_t)val;
     m_current_chunk->Write4Typed<int32_t>(val4);
-    m_current_chunk->Pad(4, false);
+    m_current_chunk->Pad(4, false, ' ');
 }
 
 template<typename T>
@@ -275,7 +276,9 @@ SuperChunkWriter::WriteRow(
                 }
                 else
                 {
-                    WriteFixed(column_value, data_length, column_type.size);
+                    // when we read data from db, fixed length binary data
+                    // does not need padding, so we set pad_with_zero to false
+                    WriteFixed(column_value, data_length, column_type.size, false);
                 }
                 break;
             }
@@ -391,13 +394,14 @@ extern "C"
         SuperChunkWriter *writer,
         const void *val,
         int64_t data_size,
-        int64_t field_size)
+        int64_t field_size,
+        const bool pad_with_zero)
     {
         if (!writer->HasEnoughSpace(sizeofAligned8(field_size)))
         {
             return false;
         }
-        writer->WriteFixed(val, data_size, field_size);
+        writer->WriteFixed(val, data_size, field_size, pad_with_zero);
         return true;
     }
 

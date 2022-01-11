@@ -192,7 +192,8 @@ void read_test(S2Client *client)
                 DATA_TYPES_TEST_DATA.variable_binary.data,
                 DATA_TYPES_TEST_DATA.variable_binary.len));
 
-            assert(!strcmp(chunkData.fixed_char, DATA_TYPES_TEST_DATA.fixed_char));
+            assert(!strncmp(
+                chunkData.fixed_char, DATA_TYPES_TEST_DATA.fixed_char, strlen(DATA_TYPES_TEST_DATA.fixed_char)));
             assert(!strcmp(chunkData.fixed_binary, DATA_TYPES_TEST_DATA.fixed_binary));
 
             // these values have been found using online epoch converter lol

@@ -46,7 +46,7 @@ SuperChunkReader::ReadInt32(
         return false;
     }
     m_current_chunk->Read4(out);
-    m_current_chunk->Pad(4, false);
+    m_current_chunk->Pad(4, false, ' ');
 
     *isnull = (*out == int32Null);
     return true;

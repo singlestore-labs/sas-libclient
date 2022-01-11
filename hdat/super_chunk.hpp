@@ -80,14 +80,12 @@ class SuperChunk
     void
     Pad(
         uint64_t len,
-        bool fill_with_zero)
+        bool is_fill_needed,
+        char fill_character)
     {
-        if (fill_with_zero)
+        if (is_fill_needed)
         {
-            for (int i = 0; i < len; ++i)
-            {
-                *(m_chunk->m_ptr + m_offset + i) = '\0';
-            }
+            memset(m_chunk->m_ptr + m_offset, fill_character, len);
         }
         m_offset += len;
         m_chunk->consumed_size += len;
