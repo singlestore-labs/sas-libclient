@@ -42,6 +42,12 @@ const struct ParsedTestChunk TEST_DATA =
         40271000000,
 };
 
+int is_const_buffer(char *buff, int size, char exp_char)
+{
+    while(size--) if(*buff++ != exp_char) return 0;
+    return 1;
+}
+
 void read_and_check(S2Client *client)
 {
     const char *query = "SELECT * FROM superchunk_table";
@@ -60,17 +66,36 @@ void read_and_check(S2Client *client)
     int dummy_partition;
     int err = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
-    int numReceived = 0;
 
+    // This assumes all the rows are consumed by one chunk
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
         struct ParsedTestChunk chunkData;
         int current_offset = 0;
+        assert(chunk->row_count == nRowsToWrite + 1);
         for (int i = 0; i < chunk->row_count; ++i)
         {
             current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
+            if (i >= nRowsToWrite)
+            {
+                assert(chunkData.int_64 == int64Null);
+                assert(chunkData.int_32 == int32Null);
+                assert(isnan(chunkData.double_val));
 
-            // This assumes all the rows are consumed by one chunk
+                assert(!chunkData.variable_text.len);
+                assert(!chunkData.variable_char.len);
+                assert(!chunkData.variable_binary.len);
+
+                assert(is_const_buffer(chunkData.fixed_char, 16 * get_db_char_size(), '\0'));
+                assert(is_const_buffer(chunkData.fixed_binary, 9, '\0'));
+
+                assert(chunkData.date_time == int64Null);
+                assert(chunkData.date_time_6 == int64Null);
+                assert(chunkData.date == int32Null);
+                assert(chunkData.time == int64Null);
+                break;
+            }
+
             assert(chunkData.int_64 == i * i);
             assert(chunkData.int_32 == i);
 
@@ -162,6 +187,25 @@ void write_test(S2Client *client)
         WriteInt32(w, TEST_DATA.date);
         WriteInt64(w, TEST_DATA.time);
 
+        WriteRowEnd(w);
+    }
+    {
+        WriteInt64(w, int64Null);
+        WriteInt32(w, int32Null);
+        WriteDouble(w, doubleNull);
+
+        WriteVariable(w, "", 0);
+        WriteVariable(w, "", 0);
+        WriteVariable(w, "", 0);
+        WriteVariable(w, "", 0);
+
+        WriteFixed(w, "", 0, 16 * get_db_char_size(), false);
+        WriteFixed(w, "", 0, 9, true);
+
+        WriteInt64(w, int64Null);
+        WriteInt64(w, int64Null);
+        WriteInt32(w, int32Null);
+        WriteInt64(w, int64Null);
         WriteRowEnd(w);
     }
 

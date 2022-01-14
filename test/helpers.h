@@ -76,8 +76,8 @@ struct ParsedTestChunk
     VariableLen variable_long_text;
     VariableLen variable_char;
     VariableLen variable_binary;
-    char fixed_char[49];
-    char fixed_binary[17];
+    char fixed_char[64];
+    char fixed_binary[9];
     int64_t date_time;
     int64_t date_time_6;
     int32_t date;

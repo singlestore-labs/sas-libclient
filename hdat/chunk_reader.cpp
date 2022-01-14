@@ -2,6 +2,7 @@
 #include <sys/mman.h>
 
 #include "hdat/chunk_reader.hpp"
+#include "utils.hpp"
 
 bool
 SuperChunkReader::ReadFloat(
@@ -98,7 +99,11 @@ SuperChunkReader::ReadFixed(
         *isnull = true;
         return true;
     }
-    return m_current_chunk->ReadAligned8(out, len);
+    if (!m_current_chunk->ReadAligned8(out, len))
+        return false;
+    if (utils::IsNullBuffer(*out, len))
+        *isnull = true;
+    return true;
 }
 
 extern "C"

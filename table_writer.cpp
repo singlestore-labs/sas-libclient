@@ -37,6 +37,10 @@ TableWriter::ChunkToTSV(
                     {
                         *m_tsv_rows << int_64_val;
                     }
+                    else
+                    {
+                        *m_tsv_rows << "\\N";
+                    }
                     break;
                 case Int32:
                     reader->ReadInt32(&int_32_val, &is_null);

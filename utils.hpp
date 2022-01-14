@@ -51,6 +51,8 @@ namespace utils
         MYSQL_FIELD* fields,
         RowSchema* rowSchema /*out*/);
 
+    bool IsNullBuffer(const char *buff, int size);
+
     void
     FillCredentials(
         const std::vector<AggregatorNode>& aggregators,

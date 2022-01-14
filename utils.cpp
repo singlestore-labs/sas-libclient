@@ -57,6 +57,23 @@ namespace utils
         return result;
     }
 
+    // IsNullBuffer returns true if buff consists of only zero bytes (BINARY NULL)
+    // or spaces (CHAR NULL)
+    bool IsNullBuffer(const char *buff, int size)
+    {
+        char firstChar = *buff;
+        if(firstChar != ' ' && firstChar != '\0') return false;
+        buff++;
+        size--;
+    
+        while(size--)
+        {
+            if(*buff != firstChar) return false;
+            buff++;
+        }
+        return true;
+    }
+
     void
     FillCredentials(
         const std::vector<AggregatorNode>& aggregators,

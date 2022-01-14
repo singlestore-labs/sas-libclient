@@ -142,7 +142,7 @@ class SuperChunk
         uint64_t len)
     {
         uint64_t alignedLen = sizeofAligned8(len);
-        if (Size() - m_offset < len)
+        if (Size() - m_offset < alignedLen)
         {
             return false;
         }
