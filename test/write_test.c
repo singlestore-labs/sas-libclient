@@ -39,7 +39,7 @@ const struct ParsedTestChunk TEST_DATA =
         1935835200000000,
         31666394987654,
         2,
-        40271000000,
+        40271001234,
 };
 
 int is_const_buffer(char *buff, int size, char exp_char)

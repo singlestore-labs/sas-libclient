@@ -39,7 +39,7 @@ const char *superchunkTable = "superchunk_table";
 const char *testData =
     "(-1460002, 12507, 1.23456789012345,\
     'textVAL_рус', 'LOOONGVAL', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL',\
-    '2021-05-05 12:00:00', '1961-01-01 12:13:14.987654', '2021-05-05', '11:11:11')";
+    '2021-05-05 12:00:00', '1961-01-01 12:13:14.987654', '2021-05-05', '11:11:11.001234')";
 
 char smallTestData[nSmallTestRows][60] =
     {
@@ -205,7 +205,7 @@ setup_superchunk_table(
         idatetime DATETIME,\
         idatetime_6 DATETIME(6),\
         idate DATE,\
-        itime TIME\
+        itime TIME(6)\
         )",
         &err);
 

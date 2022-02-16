@@ -1,6 +1,7 @@
 #ifndef HDAT_COMMON_HPP
 #define HDAT_COMMON_HPP
 
+#include <iomanip>
 #include <sstream>
 
 #include <unistd.h>
@@ -63,12 +64,13 @@ inline int64_t toTimeCAS(const char* input)
 inline std::string fromTimeCAS(const int64_t cas_time)
 {
     int64_t total_seconds = cas_time / secToMicroSec;
+    int64_t microseconds = cas_time % secToMicroSec;
     int32_t seconds = total_seconds % 60;
     int32_t total_minutes = (int32_t)total_seconds / 60;
     int32_t minutes = total_minutes % 60;
     int32_t hours = total_minutes / 60;
     std::stringstream ss;
-    ss << hours << ":" << minutes << ":" << seconds;
+    ss << hours << ":" << minutes << ":" << seconds << "." << std::setfill('0') << std::setw(6) << microseconds;
     return ss.str();
 }
 

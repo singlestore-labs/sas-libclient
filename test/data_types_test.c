@@ -44,7 +44,7 @@ const struct ParsedTestChunk DATA_TYPES_TEST_DATA =
         1935835200000000,
         31666394987654,
         22405,
-        40271000000,
+        40271001234,
 };
 
 void null_test(S2Client *client)
@@ -70,7 +70,7 @@ void null_test(S2Client *client)
         idatetime DATETIME,\
         idatetime_6 DATETIME(6),\
         idate DATE,\
-        itime TIME\
+        itime TIME(6)\
         )",
         &err);
     if (err) printf("Error creating table: %s\n", S2Error(client));
