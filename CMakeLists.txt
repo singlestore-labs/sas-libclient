@@ -5,6 +5,8 @@ if(COMMAND cmake_policy)
   cmake_policy(SET CMP0003 NEW)
 endif(COMMAND cmake_policy)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
+
 set(LIBCLIENT_SOURCES
     hdat/chunk_reader.cpp
     hdat/chunk_writer.cpp

@@ -9,7 +9,13 @@
 
 std::unique_ptr<S2Connection> S2Connection::Connect(const Credentials& creds)
 {
-    return Connect(creds.host.c_str(), creds.port, creds.db.c_str(), creds.user.c_str(), creds.password.c_str());
+    return Connect(
+        creds.host.c_str(),
+        creds.port,
+        creds.db.c_str(),
+        creds.user.c_str(),
+        creds.password.c_str(),
+        creds.ssl_ca);
 }
 
 std::unique_ptr<S2Connection>
@@ -18,10 +24,11 @@ S2Connection::Connect(
     uint32_t port,
     const char* db,
     const char* user,
-    const char* password)
+    const char* password,
+    const char* ssl_ca)
 {
     // allocate a S2Connection object
-    std::unique_ptr<S2Connection> s2Connection(new S2Connection(host, port, db, user, password));
+    std::unique_ptr<S2Connection> s2Connection(new S2Connection(host, port, db, user, password, ssl_ca));
 
     // create a mysql client connection
     s2Connection->m_conn = mysql_init(nullptr);
@@ -30,9 +37,15 @@ S2Connection::Connect(
         throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to init a connection using MySQL C client");
     }
 
-    if ((!user) || (user[0] == '\0'))
+    if (!user || user[0] == '\0')
     {
         user = "root";
+    }
+
+    if (ssl_ca && ssl_ca[0] != '\0')
+    {
+        mysql_options(s2Connection->m_conn, MYSQL_OPT_SSL_CA, ssl_ca);
+        s2Connection->m_conn->options.use_ssl = 1;
     }
 
     if (!mysql_real_connect(s2Connection->m_conn, host, user, password, db, port, nullptr, 0))
@@ -40,8 +53,7 @@ S2Connection::Connect(
         throw S2ClientError(mysql_errno(s2Connection->m_conn), mysql_error(s2Connection->m_conn));
     }
 
-    s2Connection->m_stmt = mysql_stmt_init(s2Connection->m_conn);
-    if (!s2Connection->m_stmt)
+    if (!(s2Connection->m_stmt = mysql_stmt_init(s2Connection->m_conn)))
     {
         throw S2ClientError(mysql_errno(s2Connection->m_conn), mysql_error(s2Connection->m_conn));
     }
@@ -67,6 +79,11 @@ int S2Connection::GetPartitionsNumber()
     for (int i = 0; i < totalPartitions; ++i)
     {
         row = mysql_fetch_row(res.get());
+        if (!row[3])
+        {
+            throw S2ClientError(
+                S2C_ERROR_UNKNOWN_FAILURE, "Failed to get SHOW PARTITIONS result: database returned invalid data");
+        }
         if (!strcasecmp(row[3], "master")) ++numPartitions;
     }
     return numPartitions;
@@ -78,7 +95,7 @@ std::vector<AggregatorNode> S2Connection::GetAggregators()
     std::string query = sql::MakeGetAggregatorsQuery();
     if (mysql_query(m_conn, query.c_str()))
     {
-        throw S2ClientError(mysql_errno(this->m_conn), mysql_error(this->m_conn));
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
     }
     MYSQL_RES* res = mysql_store_result(m_conn);
     if (!res)
@@ -108,9 +125,9 @@ int64_t S2Connection::ExecuteDDL(std::string query)
 {
     if (mysql_query(m_conn, query.c_str()))
     {
-        throw S2ClientError(mysql_errno(this->m_conn), mysql_error(this->m_conn));
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
     }
-    return mysql_affected_rows(this->m_conn);
+    return mysql_affected_rows(m_conn);
 }
 
 void
@@ -118,6 +135,10 @@ S2Connection::Prepare(
     const char* query,
     bool execute)
 {
+    if (!(m_stmt = mysql_stmt_init(m_conn)))
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
     if (mysql_stmt_prepare(m_stmt, query, strlen(query)))
     {
         throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
@@ -137,7 +158,14 @@ S2Connection::Prepare(
     }
 }
 
-void S2Connection::freeResult()
+void S2Connection::CleanupStatement(bool needFreeResult)
+{
+    mysql_stmt_close(m_stmt);
+    m_stmt = nullptr;
+    if (needFreeResult) FreeResult();
+}
+
+void S2Connection::FreeResult()
 {
     // delete actual fields of the result
     for (int i = 0; i < m_last_columns_num; i++)
@@ -159,7 +187,7 @@ void S2Connection::freeResult()
 bool S2Connection::Advance()
 {
     // free the previous result set
-    freeResult();
+    FreeResult();
 
     // find the columns number
     m_last_columns_num = mysql_stmt_field_count(m_stmt);
@@ -168,14 +196,14 @@ bool S2Connection::Advance()
     MySQLResultPtr metadata(mysql_stmt_result_metadata(m_stmt), &mysql_free_result);
     if (metadata == nullptr)
     {
-        freeResult();
+        FreeResult();
         throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get result set metadata");
     }
 
     MYSQL_FIELD* fields = mysql_fetch_fields(metadata.get());
     if (fields == nullptr)
     {
-        freeResult();
+        FreeResult();
         throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get result set metadata fields");
     }
 
@@ -249,19 +277,19 @@ bool S2Connection::Advance()
 
     if (mysql_stmt_bind_result(m_stmt, bind.get()))
     {
-        freeResult();
+        FreeResult();
         throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
     }
 
     int status = mysql_stmt_fetch(m_stmt);
     if (status == MYSQL_NO_DATA)
     {
-        freeResult();
+        CleanupStatement(true /* needFreeResult */);
         return false;
     }
     else if (status != MYSQL_DATA_TRUNCATED && status != 0)
     {
-        freeResult();
+        FreeResult();
         throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
     }
 
@@ -291,7 +319,7 @@ bool S2Connection::Advance()
         bind[i].length = nullptr;
         if (mysql_stmt_fetch_column(m_stmt, &bind[i], i, 0))
         {
-            freeResult();
+            FreeResult();
             throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
         }
     }
@@ -312,7 +340,7 @@ RowSchema* S2Connection::GetRowSchema()
 
     auto freeColumns = [num_fields](Column column_info[])
     {
-        for (int i = 0; i < num_fields; i++)
+        for (uint i = 0; i < num_fields; i++)
         {
             // name is created using strdup
             // so it should be deleted using free
@@ -341,7 +369,7 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     std::string query = sql::MakeExplainCreateResultTableQuery(selectQuery);
     if (mysql_query(m_conn, query.c_str()))
     {
-        throw S2ClientError(mysql_errno(this->m_conn), mysql_error(this->m_conn));
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
     }
     res = mysql_store_result(m_conn);
     if (!res)
@@ -355,7 +383,6 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     utils::ExplainToRowSchema(std::string(row[0], lengths[0]), schema);
 
     mysql_free_result(res);
-    // printf("Returning schema %p\n", schema);
     return schema;
 }
 
@@ -375,7 +402,7 @@ S2Connection::NextChunk(
     uint64_t row_count = 0;
     while (HasNextRow())
     {
-        bool was_row_written = writer->WriteRow(this->m_last_fetched_row, this->m_last_fetched_lengths);
+        bool was_row_written = writer->WriteRow(m_last_fetched_row, m_last_fetched_lengths);
         if (was_row_written)
         {
             row_count++;
@@ -412,7 +439,9 @@ S2Connection::GetSingleRow(
     chunk->consumed_size = 0;
 
     writer->Reset(chunk, schema);
-    writer->WriteRow(this->m_last_fetched_row, this->m_last_fetched_lengths);
+    writer->WriteRow(m_last_fetched_row, m_last_fetched_lengths);
+
+    CleanupStatement(true /* needFreeResult */);
 
     return chunk;
 }
@@ -427,12 +456,12 @@ S2Connection::WriteChunk(
     int is_infile_enabled;
     if (mysql_get_option(m_conn, MYSQL_OPT_LOCAL_INFILE, &is_infile_enabled))
     {
-        freeResult();
+        FreeResult();
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
     }
     if (!is_infile_enabled)
     {
-        freeResult();
+        FreeResult();
         throw S2ClientError(S2C_ERROR_BAD_CONNECTION, "LOAD DATA INFILE LOCAL is disabled on the server side");
     }
 

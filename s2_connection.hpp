@@ -26,6 +26,7 @@ class S2Connection
     const char* m_db;
     const char* m_user;
     const char* m_password;
+    const char* m_ssl_ca;
 
     static std::unique_ptr<S2Connection> Connect(const Credentials& creds);
 
@@ -36,19 +37,19 @@ class S2Connection
         const uint32_t port,
         const char* db,
         const char* user,
-        const char* password);
+        const char* password,
+        const char* ssl_ca);
 
     ~S2Connection()
     {
-        freeResult();
+        FreeResult();
         // if the flag m_need_stmt_close is set to true (default behavior)
         // we close the statement before closing the connection.
         // Otherwise we close the statement after connection, this
         // only frees the memory on the client side
         if (m_stmt && m_need_stmt_close)
         {
-            mysql_stmt_close(m_stmt);
-            m_stmt = nullptr;
+            CleanupStatement(false /* needFreeResult */);
         }
         if (m_conn)
         {
@@ -57,8 +58,7 @@ class S2Connection
         }
         if (m_stmt)
         {
-            mysql_stmt_close(m_stmt);
-            m_stmt = nullptr;
+            CleanupStatement(false /* needFreeResult */);
         }
     }
 
@@ -69,6 +69,11 @@ class S2Connection
     Prepare(
         const char* query,
         bool execute);
+
+    // CleanupStatement is called to reset m_stmt to NULL
+    // and free the memory used to fetch results, if needed
+    void
+    CleanupStatement(bool needFreeResult);
 
     // ExecuteDDL runs a ddl query through text protocol
     int64_t ExecuteDDL(const std::string query);
@@ -139,16 +144,18 @@ class S2Connection
         const uint32_t port,
         const char* db,
         const char* user,
-        const char* password)
+        const char* password,
+        const char* ssl_ca)
         :
         m_host(host),
         m_port(port),
         m_db(db),
         m_user(user),
-        m_password(password)
+        m_password(password),
+        m_ssl_ca(ssl_ca)
             {};
 
-    void freeResult();
+    void FreeResult();
 };
 
 #endif  // S2_CONNECTION_HPP

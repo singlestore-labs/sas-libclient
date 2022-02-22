@@ -17,6 +17,7 @@ S2ClientInit(
     const char* db,
     const char* user,
     const char* password,
+    const char* ssl_ca,
     int numWorkers,
     int workerId,
     S2ErrorCallback* cb);

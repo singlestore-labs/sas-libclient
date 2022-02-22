@@ -23,6 +23,7 @@ MultiPassQueue::CreateChunkQueue(
     chunkQueue->m_credentials.port = client->m_conn->m_port;
     chunkQueue->m_credentials.user = client->m_conn->m_user;
     chunkQueue->m_credentials.password = client->m_conn->m_password;
+    chunkQueue->m_credentials.ssl_ca = client->m_conn->m_ssl_ca;
 
     chunkQueue->m_result_table = resultTableName;
 
@@ -194,7 +195,7 @@ MultiPassQueue::GetSingleRow(
 MultiPassQueue::~MultiPassQueue()
 {
     StopReaders();
-    for (int consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
+    for (uint64_t consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
     {
         // delete all chunks that are saved in the queue
         m_consumer_queues[consumer_id]->FreeBatchData(&utils::ChunkFree);

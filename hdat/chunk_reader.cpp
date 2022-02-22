@@ -99,10 +99,8 @@ SuperChunkReader::ReadFixed(
         *isnull = true;
         return true;
     }
-    if (!m_current_chunk->ReadAligned8(out, len))
-        return false;
-    if (utils::IsNullBuffer(*out, len))
-        *isnull = true;
+    if (!m_current_chunk->ReadAligned8(out, len)) return false;
+    if (utils::IsNullBuffer(*out, len)) *isnull = true;
     return true;
 }
 

@@ -163,7 +163,7 @@ rowSize(
     const unsigned long* lengths)
 {
     uint64_t total_size = 0;
-    for (auto i = 0; i < schema->numColumns; ++i)
+    for (uint32_t i = 0; i < schema->numColumns; ++i)
     {
         switch (schema->ColumnInfo[i].type)
         {

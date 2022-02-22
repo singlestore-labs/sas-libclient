@@ -5,7 +5,7 @@
 std::unique_ptr<ResultTableReader>
 ResultTableReader::CreateReader(
     const Credentials &creds,
-    const Credentials &externalCreds,
+    const Credentials &masterCreds,
     ThreadSafeQueue<Chunk *> *q,
     std::shared_ptr<ChunksInfo> chunks_info,
     const char *resultTableName,
@@ -22,7 +22,7 @@ ResultTableReader::CreateReader(
     {
         // reader->m_conn = S2Connection::Connect(creds);
         // TODO: PLAT-6005 uncomment line above and delete line below when Child Aggs are ready for connection
-        reader->m_conn = S2Connection::Connect(externalCreds);
+        reader->m_conn = S2Connection::Connect(masterCreds);
     }
     catch (S2ClientError &s2_err)
     {
@@ -31,7 +31,7 @@ ResultTableReader::CreateReader(
         cb->setError(cb, S2C_ERROR_BAD_CONNECTION, std::move(error).c_str(), S2C_SEVERITY_WARNING);
         try
         {
-            reader->m_conn = S2Connection::Connect(externalCreds);
+            reader->m_conn = S2Connection::Connect(masterCreds);
         }
         catch (S2ClientError &s2_err)
         {
@@ -61,7 +61,8 @@ ResultTableReader::CreateReaderNonParallel(
     std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, 0 /*partition*/, size));
 
     // create a new connection
-    reader->m_conn = S2Connection::Connect(conn->m_host, conn->m_port, conn->m_db, conn->m_user, conn->m_password);
+    reader->m_conn =
+        S2Connection::Connect(conn->m_host, conn->m_port, conn->m_db, conn->m_user, conn->m_password, conn->m_ssl_ca);
     // prepare a query that will be executed
     reader->m_query = query;
     reader->m_row_schema = schema;

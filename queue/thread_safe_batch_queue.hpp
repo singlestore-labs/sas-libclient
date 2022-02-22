@@ -24,8 +24,13 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
   private:
     std::queue<T> m_queue;
 
+    // m_batchSize indicates how many items from each producer can push
+    // at a single stage of processing
+    const int m_batchSize;
+
     const int m_totalProducers;
     int m_activeProducers;
+
     // m_producerActiveArray contains the state of producers
     std::vector<bool> m_producerActiveArray;
     std::vector<int> m_producerIds;
@@ -34,9 +39,6 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
     // m_dataArray stores the data that is written to/read from the queue
     std::vector<DataContainer<T>> m_dataArray;
 
-    // m_batchSize indicates how many items from each producer can push
-    // at a single stage of processing
-    const int m_batchSize;
     // m_currentBatch indicates which batch is being processed
     int m_currentBatch;
     // m_readInBatch contains the number of items pushed by each producer
@@ -248,7 +250,7 @@ class ThreadSafeBatchQueue : public ThreadSafeQueue<T>
             }
             // read elements from data array one by one,
             // in the same way that would be used by CAS readers
-            for (int idx = 0; idx < m_dataArray.size(); ++idx)
+            for (uint64_t idx = 0; idx < m_dataArray.size(); ++idx)
             {
                 if (m_dataArray[idx].isSet)
                 {

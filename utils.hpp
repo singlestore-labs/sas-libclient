@@ -21,6 +21,7 @@ typedef struct Credentials
     std::string db;
     std::string user;
     std::string password;
+    const char* ssl_ca;
 } Credentials;
 
 typedef struct AggregatorNode
@@ -51,7 +52,10 @@ namespace utils
         MYSQL_FIELD* fields,
         RowSchema* rowSchema /*out*/);
 
-    bool IsNullBuffer(const char *buff, int size);
+    bool
+    IsNullBuffer(
+        const char* buff,
+        int size);
 
     void
     FillCredentials(

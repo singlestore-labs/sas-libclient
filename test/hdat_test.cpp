@@ -43,7 +43,8 @@ std::unique_ptr<S2Connection> PrepareDB()
         db_creds.ma_port,
         db_creds.db,
         db_creds.user,
-        db_creds.password);
+        db_creds.password,
+        db_creds.ssl_ca);
     if (!conn)
     {
         printf("no connection!\n");

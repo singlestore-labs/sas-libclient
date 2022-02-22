@@ -22,6 +22,7 @@ StreamingQueue::CreateChunkQueue(
     chunkQueue->m_credentials.port = client->m_conn->m_port;
     chunkQueue->m_credentials.user = client->m_conn->m_user;
     chunkQueue->m_credentials.password = client->m_conn->m_password;
+    chunkQueue->m_credentials.ssl_ca = client->m_conn->m_ssl_ca;
 
     // we use a single dummy partition 0 in case of non-parallel read
     std::vector<int> partitions{0};
@@ -129,7 +130,7 @@ StreamingQueue::GetById(
 {
     SetError(S2ClientError(S2C_ERROR_INV_ARG, "Cannot use streaming queue in multi-pass mode"));
     return nullptr;
-};
+}
 
 Chunk *
 StreamingQueue::GetSingleRow(
@@ -146,7 +147,7 @@ StreamingQueue::GetSingleRow(
 StreamingQueue::~StreamingQueue()
 {
     StopReaders();
-    for (int consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
+    for (uint64_t consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
     {
         // delete all chunks that are saved in the queue
         S2ClientError err(0, "");

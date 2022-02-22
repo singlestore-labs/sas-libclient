@@ -105,7 +105,7 @@ typedef struct ReceivedChunk
 {
     int chunk_id;
     int partition_id;
-    int row_count;
+    uint64_t row_count;
 } ReceivedChunk;
 
 typedef struct ReaderThreadArgs
@@ -276,6 +276,7 @@ mult_table(
 int get_db_char_size()
 {
     MYSQL *mysql = mysql_init(NULL);
+    mysql_options(mysql, MYSQL_OPT_SSL_CA, db_creds.ssl_ca);
     MYSQL_RES *res;
     MYSQL_ROW row;
     char *collation;
@@ -409,7 +410,7 @@ RecordChunk(
     if (args->check_partition_order)
     {
         int64_t val;
-        for (int row_num = 0; row_num < chunk->row_count; ++row_num)
+        for (uint64_t row_num = 0; row_num < chunk->row_count; ++row_num)
         {
             // copy the value corresponding to `i1` column to val
             memcpy(&val, chunk->m_ptr + row_num * smallTestFixedSize, 8);
@@ -419,11 +420,11 @@ RecordChunk(
         double double_val, double_prev;
         memcpy(&int_prev, chunk->m_ptr, 8);
         memcpy(&double_prev, chunk->m_ptr + 16, 8);
-        for (int row_num = 1; row_num < chunk->row_count; ++row_num)
+        for (uint64_t row_num = 1; row_num < chunk->row_count; ++row_num)
         {
             memcpy(&int_val, chunk->m_ptr + row_num * smallTestFixedSize, 8);
             memcpy(&double_val, chunk->m_ptr + row_num * smallTestFixedSize + 16, 8);
-            assert(int_prev <= int_val);  // TODO: uncomment here and above when PARTITION_ORDER_BY works
+            assert(int_prev <= int_val);
             if (int_prev == int_val)
             {
                 assert((isnan(double_prev) &&
@@ -450,11 +451,11 @@ PrintChunk(
     uint64_t len;
     bool is_null;
     double float_val;
-    for (int row_num = 0; row_num < chunk->row_count; ++row_num)
+    for (uint64_t row_num = 0; row_num < chunk->row_count; ++row_num)
     {
         const char *buf;
         printf("Reading row number %d:\n", row_num);
-        for (int col = 0; col < schema->numColumns; ++col)
+        for (uint32_t col = 0; col < schema->numColumns; ++col)
         {
             Column col_info = schema->ColumnInfo[col];
             printf("\tcolumn %s: ", col_info.name);
@@ -474,7 +475,7 @@ PrintChunk(
                     break;
                 case Variable:
                     ReadVariable(reader, &buf, &len, &is_null);
-                    for (int i = 0; i < len; ++i)
+                    for (uint32_t i = 0; i < len; ++i)
                     {
                         printf("%c", buf[i]);
                     }
@@ -483,7 +484,7 @@ PrintChunk(
                 case Fixed:
                     len = col_info.size;
                     ReadFixed(reader, &buf, len, &is_null);
-                    for (int i = 0; i < len; ++i)
+                    for (uint32_t i = 0; i < len; ++i)
                     {
                         printf("%c", buf[i]);
                     }
@@ -514,7 +515,7 @@ PrintChunk(
 void PrintRowSchema(RowSchema *s)
 {
     printf("RowSchema:\n");
-    for (int i = 0; i < s->numColumns; ++i)
+    for (uint32_t i = 0; i < s->numColumns; ++i)
     {
         printf(
             "\tidx %d, name %s; type %d, size: %d\n",

@@ -79,6 +79,7 @@ void *worker(void *input)
         db_creds.db,
         db_creds.user,
         db_creds.password,
+        db_creds.ssl_ca,
         numWorkers,
         args->id,
         &EH.callback);
@@ -295,7 +296,7 @@ void non_parallel_test(S2Client *client)
         numReceived++;
 
         int current_offset = 0;
-        for (int i = 0; i < chunk->row_count; ++i)
+        for (uint64_t i = 0; i < chunk->row_count; ++i)
         {
             int64_t offset, len;
             memcpy(&offset, chunk->m_ptr + current_offset, 8);
@@ -347,6 +348,7 @@ main(
         db_creds.db,
         db_creds.user,
         db_creds.password,
+        db_creds.ssl_ca,
         numWorkers,
         -1,
         &EH.callback);

@@ -11,13 +11,14 @@ S2Client::Connect(
     uint32_t port,
     const char* db,
     const char* user,
-    const char* password)
+    const char* password,
+    const char* ssl_ca)
 {
     // allocate a S2Client object
     std::unique_ptr<S2Client> s2Client(new S2Client(workerId, numWorkers));
 
     // create a connection
-    s2Client->m_conn = S2Connection::Connect(host, port, db, user, password);
+    s2Client->m_conn = S2Connection::Connect(host, port, db, user, password, ssl_ca);
 
     // get the number of partitions
     s2Client->m_numPartitions = s2Client->m_conn->GetPartitionsNumber();
@@ -51,13 +52,14 @@ extern "C"
         const char* db,
         const char* user,
         const char* password,
+        const char* ssl_ca,
         int numWorkers,
         int workerId,
         S2ErrorCallback* cb)
     {
         try
         {
-            return S2Client::Connect(workerId, numWorkers, host, port, db, user, password).release();
+            return S2Client::Connect(workerId, numWorkers, host, port, db, user, password, ssl_ca).release();
         }
         catch (S2ClientError& s2_err)
         {

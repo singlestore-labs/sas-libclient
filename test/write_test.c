@@ -16,7 +16,7 @@
 
 int chunkSize = 1024000;
 int printInfo = 1;
-int nRowsToWrite = 30;
+uint64_t nRowsToWrite = 30;
 int queueCapacity = 10;
 
 double val_64 = -1.123456789012345e-300;  // 15-digits after comma
@@ -42,9 +42,14 @@ const struct ParsedTestChunk TEST_DATA =
         40271001234,
 };
 
-int is_const_buffer(char *buff, int size, char exp_char)
+int
+is_const_buffer(
+    char *buff,
+    int size,
+    char exp_char)
 {
-    while(size--) if(*buff++ != exp_char) return 0;
+    while (size--)
+        if (*buff++ != exp_char) return 0;
     return 1;
 }
 
@@ -73,7 +78,7 @@ void read_and_check(S2Client *client)
         struct ParsedTestChunk chunkData;
         int current_offset = 0;
         assert(chunk->row_count == nRowsToWrite + 1);
-        for (int i = 0; i < chunk->row_count; ++i)
+        for (uint64_t i = 0; i < chunk->row_count; ++i)
         {
             current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
             if (i >= nRowsToWrite)
@@ -96,8 +101,8 @@ void read_and_check(S2Client *client)
                 break;
             }
 
-            assert(chunkData.int_64 == i * i);
-            assert(chunkData.int_32 == i);
+            assert(chunkData.int_64 == (int64_t)(i * i));
+            assert(chunkData.int_32 == (int32_t)i);
 
             if (i % 3 == 0)
             {
@@ -153,7 +158,7 @@ void write_test(S2Client *client)
     IF_INFO(PrintRowSchema(schema));
 
     SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
-    for (int i = 0; i < nRowsToWrite; ++i)
+    for (uint64_t i = 0; i < nRowsToWrite; ++i)
     {
         WriteInt64(w, i * i);
         WriteInt32(w, i);
@@ -236,6 +241,7 @@ main(
         db_creds.db,
         db_creds.user,
         db_creds.password,
+        db_creds.ssl_ca,
         1,
         -1,
         &EH.callback);

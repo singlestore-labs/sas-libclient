@@ -38,8 +38,9 @@ mkdir -p "${LD_LIBRARY_PATH}"
 
 # compile and run the test binaries
 test_c() {
-    gcc -I "${PATH_TO_LIBCLIENT}"  -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${LD_LIBRARY_PATH}" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -g
+    gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${PATH_TO_LIBCLIENT}/build" -L "${PATH_TO_LIBCLIENT}/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -W -g
     echo 'Running' "$1"...
+    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/libmariadb:$LD_LIBRARY_PATH
     ./build/"$1".o $2
 }
 

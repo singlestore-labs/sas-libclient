@@ -186,7 +186,7 @@ SuperChunkWriter::WriteRow(
         }
         return false;
     }
-    for (int i = 0; i < this->m_row_schema->numColumns; ++i)
+    for (uint32_t i = 0; i < this->m_row_schema->numColumns; ++i)
     {
         const Column column_type = this->m_row_schema->ColumnInfo[i];
 

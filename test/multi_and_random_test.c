@@ -98,7 +98,7 @@ void *reader_thread(void *input)
         {
             for (int i = 0; i < args->n_chunks_read; ++i)
             {
-                for (int row_num = 0; row_num < args->chunks_read[i].row_count; ++row_num)
+                for (uint64_t row_num = 0; row_num < args->chunks_read[i].row_count; ++row_num)
                 {
                     GetChunkRow(
                         args->queue,
@@ -135,6 +135,7 @@ void *worker(void *input)
         db_creds.db,
         db_creds.user,
         db_creds.password,
+        db_creds.ssl_ca,
         numWorkers,
         w_args->id,
         &EH.callback);
@@ -318,6 +319,7 @@ main(
         db_creds.db,
         db_creds.user,
         db_creds.password,
+        db_creds.ssl_ca,
         numWorkers,
         -1,
         &EH.callback);

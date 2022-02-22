@@ -106,7 +106,7 @@ void null_test(S2Client *client)
 
         int current_offset = 0;
         struct ParsedTestChunk chunkData;
-        for (int i = 0; i < chunk->row_count; ++i)
+        for (uint64_t i = 0; i < chunk->row_count; ++i)
         {
             current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
             assert(chunkData.int_64 == int64Null);
@@ -168,7 +168,7 @@ void read_test(S2Client *client)
 
         struct ParsedTestChunk chunkData;
         int current_offset = 0;
-        for (int i = 0; i < chunk->row_count; ++i)
+        for (uint64_t i = 0; i < chunk->row_count; ++i)
         {
             current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
             assert(chunkData.int_64 == DATA_TYPES_TEST_DATA.int_64);
@@ -193,7 +193,9 @@ void read_test(S2Client *client)
                 DATA_TYPES_TEST_DATA.variable_binary.len));
 
             assert(!strncmp(
-                chunkData.fixed_char, DATA_TYPES_TEST_DATA.fixed_char, strlen(DATA_TYPES_TEST_DATA.fixed_char)));
+                chunkData.fixed_char,
+                DATA_TYPES_TEST_DATA.fixed_char,
+                strlen(DATA_TYPES_TEST_DATA.fixed_char)));
             assert(!strcmp(chunkData.fixed_binary, DATA_TYPES_TEST_DATA.fixed_binary));
 
             // these values have been found using online epoch converter lol
@@ -230,6 +232,7 @@ main(
         db_creds.db,
         db_creds.user,
         db_creds.password,
+        db_creds.ssl_ca,
         numWorkers,
         -1,
         &EH.callback);
@@ -238,6 +241,20 @@ main(
     null_test(client);
 
     setup_superchunk_table(client, 10);
+
+    // init the client
+    S2Client *client1 = S2ClientInit(
+        db_creds.host,
+        db_creds.ma_port,
+        db_creds.db,
+        db_creds.user,
+        db_creds.password,
+        db_creds.ssl_ca,
+        numWorkers,
+        -1,
+        &EH.callback);
+    assert(client1 != NULL && "S2Client is NULL");
+
     read_test(client);
     cleanup_superchunk_table(client);
     // free the client

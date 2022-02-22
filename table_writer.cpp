@@ -23,7 +23,7 @@ TableWriter::ChunkToTSV(
         {
             *m_tsv_rows << "\n";
         }
-        for (int col_num = 0; col_num < reader->m_row_schema->numColumns; ++col_num)
+        for (uint32_t col_num = 0; col_num < reader->m_row_schema->numColumns; ++col_num)
         {
             if (col_num > 0)
             {

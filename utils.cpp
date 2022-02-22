@@ -21,8 +21,7 @@ namespace utils
         std::size_t field_end;
     } FieldDefSplit;
 
-    std::vector<int>
-    ConsumerPartitions(
+    std::vector<int> ConsumerPartitions(
         int nConsumers,
         int consumerId,
         std::vector<int> workerPartitions)
@@ -32,15 +31,14 @@ namespace utils
             throw S2ClientError(S2C_ERROR_INV_ARG, "received negative nConsumers");
         }
         std::vector<int> result;
-        for (int i = consumerId; i < workerPartitions.size(); i += nConsumers)
+        for (uint64_t i = consumerId; i < workerPartitions.size(); i += nConsumers)
         {
             result.push_back(workerPartitions[i]);
         }
         return result;
     }
 
-    std::vector<int>
-    WorkerPartitions(
+    std::vector<int> WorkerPartitions(
         int numWorkers,
         int workerId,
         int totalPartitions)
@@ -59,23 +57,24 @@ namespace utils
 
     // IsNullBuffer returns true if buff consists of only zero bytes (BINARY NULL)
     // or spaces (CHAR NULL)
-    bool IsNullBuffer(const char *buff, int size)
+    bool IsNullBuffer(
+        const char* buff,
+        int size)
     {
         char firstChar = *buff;
-        if(firstChar != ' ' && firstChar != '\0') return false;
+        if (firstChar != ' ' && firstChar != '\0') return false;
         buff++;
         size--;
-    
-        while(size--)
+
+        while (size--)
         {
-            if(*buff != firstChar) return false;
+            if (*buff != firstChar) return false;
             buff++;
         }
         return true;
     }
 
-    void
-    FillCredentials(
+    void FillCredentials(
         const std::vector<AggregatorNode>& aggregators,
         const int partition,
         Credentials* creds)
@@ -99,8 +98,7 @@ namespace utils
         }
     }
 
-    void
-    FieldsToRowSchema(
+    void FieldsToRowSchema(
         int num_fields,
         MYSQL_FIELD* fields,
         RowSchema* rowSchema /*out*/)
@@ -175,8 +173,7 @@ namespace utils
         }
     }
 
-    void
-    ShowColumnsToRowSchemaHelper(
+    void ShowColumnsToRowSchemaHelper(
         std::string explainStr,
         const std::vector<FieldDefSplit>& fieldDefs,
         RowSchema* schema /*out*/)
@@ -185,7 +182,7 @@ namespace utils
         std::string collation_part;
         schema->numColumns = fieldDefs.size();
         schema->ColumnInfo = new Column[schema->numColumns];
-        for (int i = 0; i < fieldDefs.size(); ++i)
+        for (uint64_t i = 0; i < fieldDefs.size(); ++i)
         {
             schema->ColumnInfo[i].name = strndup(
                 explainStr.c_str() + fieldDefs[i].name_start,
@@ -284,8 +281,7 @@ namespace utils
     - character set is indicated after the column type
       - for CHAR(length) data type, if charset part contains substring "utf8mb4", char size is 4. Otherwise itis 3
     */
-    void
-    ExplainToRowSchema(
+    void ExplainToRowSchema(
         std::string explainStr,
         RowSchema* rowSchema /*out*/)
     {
@@ -334,7 +330,7 @@ namespace utils
             {
                 return;
             }
-            for (int i = 0; i < schema->numColumns; i++)
+            for (uint32_t i = 0; i < schema->numColumns; i++)
             {
                 free(schema->ColumnInfo[i].name);
             }
@@ -343,8 +339,7 @@ namespace utils
             schema = nullptr;
         }
 
-        void
-        MoveChunk(
+        void MoveChunk(
             Chunk* out,
             Chunk* in)
         {
@@ -382,8 +377,7 @@ namespace sql
         return out.str();
     }
 
-    std::string
-    PartitionBy(
+    std::string PartitionBy(
         const char* const* const partitionByCols,
         const int partitionByColsNumber,
         const char* const* const partitionOrderByCols,
@@ -417,8 +411,7 @@ namespace sql
         return result;
     }
 
-    std::string
-    MakeCreateResultTableQuery(
+    std::string MakeCreateResultTableQuery(
         const char* resultTableName,
         const char* selectQuery,
         bool materialized,
@@ -460,8 +453,7 @@ namespace sql
         return resultQuery;
     }
 
-    std::string
-    MakeReadResultTableQuery(
+    std::string MakeReadResultTableQuery(
         const char* resultTableName,
         uint32_t partition)
     {
@@ -477,8 +469,7 @@ namespace sql
         return resultQuery;
     }
 
-    std::string
-    MakePointInTimeQuery(
+    std::string MakePointInTimeQuery(
         const char* table,
         int partition_id,
         int64_t row_id)

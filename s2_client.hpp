@@ -29,7 +29,8 @@ class S2Client
         uint32_t port,
         const char* db,
         const char* user,
-        const char* password);
+        const char* password,
+        const char* ssl_ca);
 
     void SetError(S2ClientError);
 
@@ -63,6 +64,7 @@ extern "C"
         const char* db,
         const char* user,
         const char* password,
+        const char* ssl_ca,
         int numWorkers,
         int workerId,
         S2ErrorCallback* cb);
