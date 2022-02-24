@@ -2,7 +2,7 @@
 #define CLIENT_CONFIG_H
 
 #define S2_SERVER_VERSION "7.8.0"
-#define S2_CLIENT_VERSION "1.0.3"
+#define S2_CLIENT_VERSION "1.1.0"
 #define MARIADB_VERSION_USED "3.2.5"
 
 // #define REGULAR_TABLE_MODE
