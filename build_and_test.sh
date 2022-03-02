@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-PATH_TO_LIBCLIENT=$(pwd) 
+export PATH_TO_LIBCLIENT=$(pwd)
 
 display_usage() { 
 	echo -e "Usage: $0 [lib|share|test_name...]. \n\tUse 'lib' to build sources, 'share' to copy headers and libs2client.so to /build/share directory
