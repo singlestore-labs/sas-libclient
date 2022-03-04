@@ -28,10 +28,17 @@ S2Client::Connect(
     return s2Client;
 }
 
-void S2Client::SetError(S2ClientError err)
+void
+S2Client::SetError(
+    S2ClientError s2_err,
+    S2ErrorCallback* cb)
 {
+    if (cb)
+    {
+        cb->setError(cb, s2_err.m_errorCode, s2_err.m_errorMessage.c_str(), S2C_SEVERITY_ERROR);
+    }
     std::unique_lock<std::mutex> lock(m_error_mutex);
-    m_error = std::move(err);
+    m_error = std::move(s2_err);
 }
 
 void
@@ -87,7 +94,7 @@ extern "C"
         }
         catch (S2ClientError& s2_err)
         {
-            client->SetError(s2_err);
+            client->SetError(s2_err, nullptr);
             *err = s2_err.m_errorCode;
             affected_rows = -1;
         }

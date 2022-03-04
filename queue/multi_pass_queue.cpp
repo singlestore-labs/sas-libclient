@@ -55,21 +55,23 @@ MultiPassQueue::CreateChunkQueue(
     {
         chunkQueue->m_row_schema = client->m_conn->ExplainRowSchema(selectQuery);
     }
-    catch (S2ClientError &s2err)
+    catch (S2ClientError &s2_err)
     {
-        client->SetError(s2err);
+        chunkQueue->m_error_before_read = true;
+        client->SetError(s2_err, cb);
+
+        return nullptr;
     }
     std::vector<AggregatorNode> aggregators;
     try
     {
         aggregators = client->m_conn->GetAggregators();
     }
-    catch (S2ClientError &s2err)
+    catch (S2ClientError &s2_err)
     {
-        client->SetError(s2err);
-    }
-    if (S2Errno(client))
-    {
+        chunkQueue->m_error_before_read = true;
+        client->SetError(s2_err, cb);
+
         return nullptr;
     }
     const Credentials masterCreds = chunkQueue->m_credentials;
@@ -198,7 +200,10 @@ MultiPassQueue::~MultiPassQueue()
     for (uint64_t consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
     {
         // delete all chunks that are saved in the queue
-        m_consumer_queues[consumer_id]->FreeBatchData(&utils::ChunkFree);
+        if (!m_error_before_read)
+        {
+            m_consumer_queues[consumer_id]->FreeBatchData(&utils::ChunkFree);
+        }
         delete m_consumer_queues[consumer_id];
         m_consumer_queues[consumer_id] = nullptr;
     }

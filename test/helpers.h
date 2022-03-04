@@ -142,7 +142,6 @@ dummyHandleError(
     ErrorHandler *h = (ErrorHandler *)cb;
     h->errorCode = error;
     printf("[DUMMMY ERROR CALLBACK] Got error: %d %s\n", error, errorString);
-    assert(false);
 }
 
 void setup_small_test_table(S2Client *client)

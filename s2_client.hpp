@@ -32,7 +32,10 @@ class S2Client
         const char* password,
         const char* ssl_ca);
 
-    void SetError(S2ClientError);
+    void
+    SetError(
+        S2ClientError err,
+        S2ErrorCallback* cb);
 
     void
     LoadDataWrite(

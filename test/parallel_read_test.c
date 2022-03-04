@@ -251,8 +251,30 @@ parallel_test(
     ParallelReadFree(client, resultTable);
 }
 
-void non_parallel_test(S2Client *client)
+void non_parallel_test()
 {
+    S2Client *client = S2ClientInit(
+        db_creds.host,
+        db_creds.ma_port,
+        db_creds.db,
+        db_creds.user,
+        db_creds.password,
+        db_creds.ssl_ca,
+        1,
+        -1,
+        &EH.callback);
+
+    int err1 = 0;
+    ExecuteDDLQuery(
+        client,
+        "CREATE TABLE `DOCA257802354748E4CA9D02625ECEFF4C5` (\
+        a DOUBLE , \
+        b DOUBLE , \
+        c DOUBLE , \
+        SHARD KEY() , \
+        KEY USING CLUSTERED COLUMNSTORE())",
+        &err1);
+
     const char *query_bad = "SELECT table_name, something_wrong FROM information_schema.tables";
 
     ChunkQueue *q_bad = QueryGetQueue(
@@ -272,12 +294,12 @@ void non_parallel_test(S2Client *client)
     ChunkQueue *q = QueryGetQueue(
         client,
         query,
-        200,
-        queueCapacity,
+        10000,
+        1,
         &EH.callback);
 
-    assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+    assert(q != NULL && "ChunkQueue is NULL");
 
     int dummy_partition;
     int err = 0;
@@ -359,35 +381,42 @@ main(
 
     setup_small_test_table(client);
 
-    // misc tests
+    // [TEST] ddl statements
     ddl_test(client);
 
-    non_parallel_test(client);
+    // [TEST] regular query processing
+    non_parallel_test();
 
+    // [TEST] check correct error handling
     error_test(client);
 
     // parallel read modes tests
-    // no partitioning
+    const char *partCols[3] = {"i1", "i2"};
+    const char *partOrderCols[2] = {"i1", "d1"};
+    mult_table(client, "small_test", "partition_test", 10);
+
+    // [TEST] no partitioning
     parallel_test(client, queryMain, NULL, 0, NULL, 0, false, false);
 
-    const char *cols[3] = {"i1", "i2"};
-    parallel_test(client, queryMain, cols, 2, cols, 2, false, false);
+    // [TEST] only partitioning, no order
+    parallel_test(client, queryMain, partCols, 1, NULL, 0, true, false);
 
-    parallel_test(client, queryMain, cols, 1, NULL, 0, true, false);
+    // [TEST] partitioning and order
+    parallel_test(client, queryMain, partCols, 2, partCols, 2, false, false);
 
-    mult_table(client, "small_test", "partition_test", 10);
-    const char *partOrderCols[2] = {"i1", "d1"};
-
+    // [TEST] partitioning and order with affinity check
     parallel_test(client, queryPartition, partOrderCols, 1, partOrderCols, 2, true, true);
 
-    ExecuteDDLQuery(client, "CREATE TABLE IF NOT EXISTS show_columns_test(`col_0_]` INT, `col_1_]` TEXT, `col[` DATE)", &err);
+    ExecuteDDLQuery(
+        client,
+        "CREATE TABLE IF NOT EXISTS show_columns_test(`col_0_]` INT, `col_1_]` TEXT, `col[` DATE)",
+        &err);
     parallel_test(client, "SELECT * FROM show_columns_test", NULL, 0, NULL, 0, false, false);
 
     ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
     ExecuteDDLQuery(client, "DROP TABLE show_columns_test", &err);
 
     cleanup_small_test_table(client);
-    // free the client
     S2ClientFree(client);
 
     printf("[SUCCESS] parallel read test passed!\n");

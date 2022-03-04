@@ -11,23 +11,23 @@ typedef struct DBCreds
     const char* ssl_ca;
 } DBCreds;
 
-// DBCreds db_creds =
-//     {
-//         .host = "127.0.0.1",
-//         .ma_port = 3306,
-//         .db = "testdb",
-//         .user = "root",
-//         .password = "p",
-// };
-
 DBCreds db_creds =
     {
         .host = "127.0.0.1",
         .ma_port = 3306,
         .db = "testdb",
-        .user = "ssl_user",
+        .user = "root",
         .password = "p",
-        .ssl_ca = "/home/pmishchenko-ua/certs/ca-cert.pem"
 };
+
+// DBCreds db_creds =
+//     {
+//         .host = "127.0.0.1",
+//         .ma_port = 3306,
+//         .db = "testdb",
+//         .user = "ssl_user",
+//         .password = "p",
+//         .ssl_ca = "/home/pmishchenko-ua/certs/ca-cert.pem"
+// };
 
 #endif  // TEST_DB_CREDS_H

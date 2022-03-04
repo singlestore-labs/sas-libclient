@@ -82,7 +82,8 @@ int S2Connection::GetPartitionsNumber()
         if (!row[3])
         {
             throw S2ClientError(
-                S2C_ERROR_UNKNOWN_FAILURE, "Failed to get SHOW PARTITIONS result: database returned invalid data");
+                S2C_ERROR_UNKNOWN_FAILURE,
+                "Failed to get SHOW PARTITIONS result: database returned invalid data");
         }
         if (!strcasecmp(row[3], "master")) ++numPartitions;
     }
@@ -376,11 +377,19 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     {
         throw S2ClientError(
             S2C_ERROR_UNKNOWN_FAILURE,
-            "Failed to get the result of EXPLAIN EXTENDED CREATE RESULT TABLE AS...");
+            "Failed to get the result of query: " + query);
     }
     row = mysql_fetch_row(res);
     unsigned long* lengths = mysql_fetch_lengths(res);
+
+    std::string explainResult = std::string(row[0], lengths[0]);
     utils::ExplainToRowSchema(std::string(row[0], lengths[0]), schema);
+    if (!schema->numColumns)
+    {
+        throw S2ClientError(
+            S2C_ERROR_UNKNOWN_FAILURE,
+            "Unable to parse EXPLAIN result to get row schema: " + explainResult);
+    }
 
     mysql_free_result(res);
     return schema;

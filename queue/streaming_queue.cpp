@@ -54,21 +54,21 @@ StreamingQueue::CreateChunkQueue(
         {
             chunkQueue->m_row_schema = client->m_conn->ExplainRowSchema(selectQuery);
         }
-        catch (S2ClientError &s2err)
+        catch (S2ClientError &s2_err)
         {
-            client->SetError(s2err);
+            chunkQueue->m_error_before_read = true;
+            client->SetError(s2_err, cb);
+            return nullptr;
         }
         std::vector<AggregatorNode> aggregators;
         try
         {
             aggregators = client->m_conn->GetAggregators();
         }
-        catch (S2ClientError &s2err)
+        catch (S2ClientError &s2_err)
         {
-            client->SetError(s2err);
-        }
-        if (S2Errno(client))
-        {
+            chunkQueue->m_error_before_read = true;
+            client->SetError(s2_err, cb);
             return nullptr;
         }
         const Credentials masterCreds = chunkQueue->m_credentials;
@@ -98,9 +98,11 @@ StreamingQueue::CreateChunkQueue(
             client->m_conn->Prepare(selectQuery, false);
             chunkQueue->m_row_schema = client->m_conn->GetRowSchema();
         }
-        catch (S2ClientError &s2err)
+        catch (S2ClientError &s2_err)
         {
-            client->SetError(s2err);
+            chunkQueue->m_error_before_read = true;
+            client->SetError(s2_err, cb);
+            return nullptr;
         }
         chunkQueue->m_readers.push_back(
             ResultTableReader::CreateReaderNonParallel(
@@ -149,12 +151,15 @@ StreamingQueue::~StreamingQueue()
     StopReaders();
     for (uint64_t consumer_id = 0; consumer_id < m_consumer_queues.size(); ++consumer_id)
     {
-        // delete all chunks that are saved in the queue
         S2ClientError err(0, "");
-        while (Chunk *c = Get(consumer_id, err))
+        if (!m_error_before_read)
         {
-            utils::ChunkFree(c);
-            delete c;
+            // delete all chunks that are saved in the queue
+            while (Chunk *c = Get(consumer_id, err))
+            {
+                utils::ChunkFree(c);
+                delete c;
+            }
         }
         delete m_consumer_queues[consumer_id];
         m_consumer_queues[consumer_id] = nullptr;

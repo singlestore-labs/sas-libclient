@@ -102,6 +102,7 @@ class ChunkQueue
     ChunkQueue() = default;
 
     RowSchema *m_row_schema = nullptr;
+    bool m_error_before_read = false;
     S2ClientError m_error;
     std::mutex m_error_mutex;
 

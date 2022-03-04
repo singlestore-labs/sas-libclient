@@ -15,7 +15,8 @@ extern "C"
         const char *const *const partitionOrderByCols,
         const int orderByColsNumber)
     {
-        client->SetError(S2ClientError(0, ""));
+        // clear the previous error if any
+        client->SetError(S2ClientError(0, ""), nullptr);
         try
         {
             std::string newQuery = sql::MakeCreateResultTableQuery(
@@ -30,11 +31,11 @@ extern "C"
         }
         catch (S2ClientError &s2_err)
         {
-            client->SetError(s2_err);
+            client->SetError(s2_err, nullptr);
         }
         catch (std::bad_alloc &)
         {
-            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"));
+            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"), nullptr);
         }
     }
 
@@ -43,7 +44,8 @@ extern "C"
         S2Client *client,
         const char *resultTableName)
     {
-        client->SetError(S2ClientError(0, ""));
+        // clear the previous error if any
+        client->SetError(S2ClientError(0, ""), nullptr);
         try
         {
             std::string dropQuery = sql::MakeDropQuery(resultTableName);
@@ -51,11 +53,11 @@ extern "C"
         }
         catch (S2ClientError &s2_err)
         {
-            client->SetError(s2_err);
+            client->SetError(s2_err, nullptr);
         }
         catch (std::bad_alloc &)
         {
-            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"));
+            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"), nullptr);
         }
     }
 
@@ -70,7 +72,8 @@ extern "C"
         bool isMultiPass,
         S2ErrorCallback *cb)
     {
-        client->SetError(S2ClientError(0, ""));
+        // clear the previous error if any
+        client->SetError(S2ClientError(0, ""), nullptr);
         try
         {
             if (isMultiPass)
@@ -98,12 +101,12 @@ extern "C"
         }
         catch (S2ClientError &s2_err)
         {
-            client->SetError(s2_err);
+            client->SetError(s2_err, cb);
             return nullptr;
         }
         catch (std::bad_alloc &)
         {
-            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"));
+            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"), cb);
             return nullptr;
         }
     }
@@ -116,7 +119,8 @@ extern "C"
         int queueCapacity,
         S2ErrorCallback *cb)
     {
-        client->SetError(S2ClientError(0, ""));
+        // clear the previous error if any
+        client->SetError(S2ClientError(0, ""), nullptr);
         try
         {
             return StreamingQueue::CreateChunkQueue(
@@ -132,12 +136,12 @@ extern "C"
         }
         catch (S2ClientError &s2_err)
         {
-            client->SetError(s2_err);
+            client->SetError(s2_err, cb);
             return nullptr;
         }
         catch (std::bad_alloc &)
         {
-            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"));
+            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"), cb);
             return nullptr;
         }
     }
@@ -207,7 +211,7 @@ extern "C"
 
         if (err.m_errorCode)
         {
-            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage.c_str()), S2C_SEVERITY_ERROR);
+            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str(), S2C_SEVERITY_ERROR);
         }
         if (!res)
         {

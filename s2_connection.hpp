@@ -72,8 +72,7 @@ class S2Connection
 
     // CleanupStatement is called to reset m_stmt to NULL
     // and free the memory used to fetch results, if needed
-    void
-    CleanupStatement(bool needFreeResult);
+    void CleanupStatement(bool needFreeResult);
 
     // ExecuteDDL runs a ddl query through text protocol
     int64_t ExecuteDDL(const std::string query);
