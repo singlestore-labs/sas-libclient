@@ -286,9 +286,10 @@ namespace utils
         RowSchema* rowSchema /*out*/)
     {
         std::size_t name_last_backtick;
-        auto show_columns_idx = explainStr.find("show_columns");
+        // TODO: PLAT-6120: make this function more robust
+        auto show_columns_idx = explainStr.find(" show_columns:[");
         auto start_idx = explainStr.find('[', show_columns_idx);
-        auto end_idx = explainStr.find(']', show_columns_idx);
+        auto end_idx = explainStr.find("NULL] ", show_columns_idx);
 
         std::size_t field_start_idx, field_end_idx;
         field_end_idx = start_idx;

@@ -527,4 +527,11 @@ void PrintRowSchema(RowSchema *s)
     printf("\n");
 }
 
+void AssertRowSchema(RowSchema *s)
+{
+    assert(s && "GetRowSchema failed");
+    assert(s->numColumns && "Invalid numColumns in RowSchema");
+    assert(s->ColumnInfo && "Invalid ColumnInfo in RowSchema");
+}
+
 #endif  // TEST_HELPERS_H

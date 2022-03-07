@@ -53,7 +53,7 @@ void *reader_thread(void *input)
     int numReceived = 0;
 
     RowSchema *s = GetRowSchema(args->queue);
-    assert(s && "GetRowSchema failed");
+    AssertRowSchema(s);
     IF_INFO(PrintRowSchema(s));
 
     while (GetNextChunk(args->queue, args->id, &partitionId, chunk, &EH.callback))
@@ -284,15 +284,12 @@ void non_parallel_test(S2Client *client)
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     int numReceived = 0;
 
+    RowSchema *s = GetRowSchema(q);
+    AssertRowSchema(s);
+    IF_INFO(PrintRowSchema(s));
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
         assert(err == 0 && "GetNextChunk failed in non parallel mode");
-        if (!numReceived)
-        {
-            RowSchema *s = GetRowSchema(q);
-            IF_INFO(PrintRowSchema(s));
-        }
-        assert(!err);
         numReceived++;
 
         int current_offset = 0;
@@ -335,6 +332,7 @@ main(
         threadsPerWorker = atoi(argv[3]);
         queueCapacity = atoi(argv[4]);
     }
+    int err = 0;
 
     EH.callback.setError = dummyHandleError;
 
@@ -382,8 +380,12 @@ main(
 
     parallel_test(client, queryPartition, partOrderCols, 1, partOrderCols, 2, true, true);
 
-    int err = 0;
+    ExecuteDDLQuery(client, "CREATE TABLE IF NOT EXISTS show_columns_test(`col_0_]` INT, `col_1_]` TEXT, `col[` DATE)", &err);
+    parallel_test(client, "SELECT * FROM show_columns_test", NULL, 0, NULL, 0, false, false);
+
     ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
+    ExecuteDDLQuery(client, "DROP TABLE show_columns_test", &err);
+
     cleanup_small_test_table(client);
     // free the client
     S2ClientFree(client);
