@@ -19,6 +19,7 @@ int queueCapacity = 32;
 bool printInfo = 0;
 
 const char *queryMain = "SELECT * FROM small_test";
+const char *queryWarn = "SELECT * FROM small_test WHERE i1 = 'i' OR 1";
 const char *queryPartition = "SELECT * FROM partition_test";
 const char *resultTable = "tmp";
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
@@ -396,7 +397,7 @@ main(
     mult_table(client, "small_test", "partition_test", 10);
 
     // [TEST] no partitioning
-    parallel_test(client, queryMain, NULL, 0, NULL, 0, false, false);
+    parallel_test(client, queryWarn, NULL, 0, NULL, 0, false, false);
 
     // [TEST] only partitioning, no order
     parallel_test(client, queryMain, partCols, 1, NULL, 0, true, false);

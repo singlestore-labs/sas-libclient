@@ -366,6 +366,8 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
 {
     MYSQL_RES* res;
     MYSQL_ROW row;
+    unsigned long* lengths;
+
     RowSchema* schema = new RowSchema;
     std::string query = sql::MakeExplainCreateResultTableQuery(selectQuery);
     if (mysql_query(m_conn, query.c_str()))
@@ -377,13 +379,25 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     {
         throw S2ClientError(
             S2C_ERROR_UNKNOWN_FAILURE,
-            "Failed to get the result of query: " + query);
+            "Failed to get the result of query:\n" + query);
     }
-    row = mysql_fetch_row(res);
-    unsigned long* lengths = mysql_fetch_lengths(res);
+    while (row = mysql_fetch_row(res))
+    {
+        if (!strncmp(row[0], "ResultTable", strlen("ResultTable")))
+        {
+            lengths = mysql_fetch_lengths(res);
+            break;
+        }
+    }
+    if (!row)
+    {
+        throw S2ClientError(
+            S2C_ERROR_UNKNOWN_FAILURE,
+            "Invalid EXPLAIN result from query: " + query);
+    }
 
     std::string explainResult = std::string(row[0], lengths[0]);
-    utils::ExplainToRowSchema(std::string(row[0], lengths[0]), schema);
+    utils::ExplainToRowSchema(explainResult, schema);
     if (!schema->numColumns)
     {
         throw S2ClientError(
