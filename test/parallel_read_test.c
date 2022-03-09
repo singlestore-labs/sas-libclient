@@ -268,13 +268,28 @@ void non_parallel_test()
     int err1 = 0;
     ExecuteDDLQuery(
         client,
-        "CREATE TABLE `DOCA257802354748E4CA9D02625ECEFF4C5` (\
-        a DOUBLE , \
-        b DOUBLE , \
-        c DOUBLE , \
+        "CREATE TABLE `t_special_symbols` (\
+        `a?` DOUBLE , \
+        `b.` DOUBLE , \
+        `c$` DOUBLE , \
         SHARD KEY() , \
         KEY USING CLUSTERED COLUMNSTORE())",
         &err1);
+
+    const char *query_symbols = "SELECT `a?`, `b.`, `c$` FROM t_special_symbols";
+    ChunkQueue *q_long = QueryGetQueue(
+        client,
+        (char*)query_symbols,
+        200,
+        queueCapacity,
+        &EH.callback);
+
+    // if(S2Errno(client))
+    //     PRINT_ERROR("QueryGetQueue failed: %d %s\n", S2Errno(client), S2Error(client));
+    // assert(q_long && "QueryGetQueue failed");
+    // TODO: uncomment 3 lines above: either disallow ? or wait for the fix
+
+    ChunkQueueFree(q_long);
 
     const char *query_bad = "SELECT table_name, something_wrong FROM information_schema.tables";
 
@@ -416,6 +431,7 @@ main(
 
     ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
     ExecuteDDLQuery(client, "DROP TABLE show_columns_test", &err);
+    ExecuteDDLQuery(client, "DROP TABLE t_special_symbols", &err);
 
     cleanup_small_test_table(client);
     S2ClientFree(client);
