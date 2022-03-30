@@ -1,18 +1,21 @@
 #!/bin/bash
 set -euo pipefail
 export PATH_TO_LIBCLIENT=$(pwd)
+export CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-RelWithDebInfo}"
+export BUILD_DIR=build/$CMAKE_BUILD_TYPE
+export ARTIFACTS_DIR=build/share
+mkdir -p build
+mkdir -p build/test
+mkdir -p build/$CMAKE_BUILD_TYPE
 
 display_usage() { 
-	echo -e "Usage: $0 [lib|share|test_name...]. \n\tUse 'lib' to build sources, 'share' to copy headers and libs2client.so to /build/share directory
+	echo -e "Usage: $0 [lib|share|test_name...]. \n\tUse 'lib' to build sources, 'share' to copy headers and libs2client.so to $ARTIFACTS_DIR directory
     'test_name' ro run 'test_name'_test.[c|cpp] file"
 	}
 
 build_lib() {
-    cd $PATH_TO_LIBCLIENT
-    mkdir -p build
-    mkdir -p build/test
-    cd "${PATH_TO_LIBCLIENT}"/build
-    cmake -DCMAKE_BUILD_TYPE=Debug ..
+    cd "${PATH_TO_LIBCLIENT}"/$BUILD_DIR
+    cmake -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE ../..
     cmake --build .
     cd $PATH_TO_LIBCLIENT
 }
@@ -26,19 +29,17 @@ fi
 
 place_shared() {
     cd $PATH_TO_LIBCLIENT
-    mkdir -p build/share
-    cp s2_client_extern.h chunk_extern.h hdat_write_extern.h build/libs2client.so libmariadb/libmariadb.so.3 build/share/
-    echo 'gcc -I "${PATH_TO_HEADERS}"/ -L "${PATH_TO_LIBS2CLIENT_SO}" test/parallel_read_test.c -o parallel_read_test -ls2client -lpthread
-./parallel_read_test' > build/share/run_test.sh
-    echo "Successfully copied files for sharing to /build/share"
+    mkdir -p $ARTIFACTS_DIR
+    cp s2_client_extern.h chunk_extern.h hdat_write_extern.h ${BUILD_DIR}/libs2client.so $ARTIFACTS_DIR
+    echo "Successfully copied files for sharing to $ARTIFACTS_DIR"
 }
 
-export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}/build"
+export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}/${BUILD_DIR}"
 mkdir -p "${LD_LIBRARY_PATH}"
 
 # compile and run the test binaries
 test_c() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${PATH_TO_LIBCLIENT}/build" -L "${PATH_TO_LIBCLIENT}/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -W -g
+    gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -W -g
     echo 'Running' "$1"...
     export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/libmariadb:$LD_LIBRARY_PATH
     ./build/"$1".o $2
