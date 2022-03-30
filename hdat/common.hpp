@@ -58,7 +58,8 @@ const int64_t CASshiftSec = (int64_t)difftime(zeroTimePointUnix, zeroTimePointCA
 inline int64_t toTimeCAS(const char* input)
 {
     const MYSQL_TIME* dt = (MYSQL_TIME*)input;
-    return dt->second_part + secToMicroSec * (dt->second + dt->minute * 60 + dt->hour * 3600);
+    int64_t timeVal = dt->second_part + secToMicroSec * (dt->second + dt->minute * 60 + dt->hour * 3600);
+    return dt->neg ? -timeVal : timeVal;
 }
 
 inline std::string fromTimeCAS(const int64_t cas_time)
