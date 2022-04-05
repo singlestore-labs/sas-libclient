@@ -382,7 +382,7 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
             "Failed to get the result of query: " + query);
     }
     std::stringstream explainResultFull;
-    while (row = mysql_fetch_row(res))
+    while ((row = mysql_fetch_row(res)))
     {
         lengths = mysql_fetch_lengths(res);
         explainResultFull << std::string(row[0], lengths[0]) << "\n\t";

@@ -84,6 +84,13 @@ struct ParsedTestChunk
     int64_t time;
 };
 
+struct ParsedDateTime
+{
+    int64_t datetime;
+    int32_t date;
+    int64_t time;
+};
+
 typedef enum ReadingMode
 {
     FIRST_PASS,
@@ -308,6 +315,36 @@ int get_db_char_size()
     mysql_free_result(res);
     mysql_close(mysql);
     return char_size;
+}
+
+Chunk *allocChunk(int chunkSize)
+{
+    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
+    char *chunk_data = (char *)malloc(chunkSize * sizeof(char));
+    chunk->m_ptr = chunk_data;
+    chunk->m_size = chunkSize;
+    chunk->consumed_size = 0;
+    chunk->row_count = 0;
+    return chunk;
+}
+
+int
+parseDateTimeChunkRow(
+    Chunk *chunk,
+    int current_offset,
+    struct ParsedDateTime *out)
+{
+    // DateTime(6)
+    memcpy(&out->datetime, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    // Date
+    memcpy(&out->date, chunk->m_ptr + current_offset, 4);
+    current_offset += 8;
+    // Time(6)
+    memcpy(&out->time, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+
+    return current_offset;
 }
 
 // read data from the chunk constructed by reading the table

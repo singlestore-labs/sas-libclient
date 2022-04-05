@@ -141,17 +141,12 @@ void read_and_check(S2Client *client)
     }
     free(chunk);
     ChunkQueueFree(q);
-    printf("[SUCCESS] validity checked. Test passed!\n");
+    printf("[SUCCESS] validity checked. Write test passed!\n");
 }
 
 void write_test(S2Client *client)
 {
-    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
-    char *chunk_data = (char *)malloc(chunkSize * sizeof(char));
-    chunk->m_ptr = chunk_data;
-    chunk->m_size = chunkSize;
-    chunk->consumed_size = 0;
-    chunk->row_count = 0;
+    Chunk *chunk = allocChunk(chunkSize);
 
     RowSchema *schema = GetTableRowSchema(client, superchunkTable, &EH.callback);
 
@@ -217,9 +212,8 @@ void write_test(S2Client *client)
     LoadDataWrite(client, chunk, schema, superchunkTable, &EH.callback);
     WriterFree(w);
     RowSchemaFree(schema);
-
+    ChunkFree(chunk);
     free(chunk);
-    free(chunk_data);
     printf("[SUCCESS] data written!\n");
 }
 

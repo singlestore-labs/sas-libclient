@@ -279,15 +279,13 @@ void non_parallel_test()
     const char *query_symbols = "SELECT `a?`, `b.`, `c$` FROM t_special_symbols";
     ChunkQueue *q_long = QueryGetQueue(
         client,
-        (char*)query_symbols,
+        (char *)query_symbols,
         200,
         queueCapacity,
         &EH.callback);
 
-    // if(S2Errno(client))
-    //     PRINT_ERROR("QueryGetQueue failed: %d %s\n", S2Errno(client), S2Error(client));
-    // assert(q_long && "QueryGetQueue failed");
-    // TODO: uncomment 3 lines above: either disallow ? or wait for the fix
+    if (S2Errno(client)) PRINT_ERROR("QueryGetQueue failed: %d %s\n", S2Errno(client), S2Error(client));
+    assert(q_long && "QueryGetQueue failed");
 
     ChunkQueueFree(q_long);
 

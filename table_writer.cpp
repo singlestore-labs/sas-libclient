@@ -29,6 +29,7 @@ TableWriter::ChunkToTSV(
             {
                 *m_tsv_rows << "\t";
             }
+            is_null = false;  // Reset is_null indicator
             switch (reader->m_row_schema->ColumnInfo[col_num].type)
             {
                 case Int64:

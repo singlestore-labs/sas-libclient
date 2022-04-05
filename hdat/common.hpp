@@ -20,7 +20,7 @@ const int64_t dayToMicroSec = 86400000000;  // 24 * 60 * 60 * 1000000
 
 static const char dateFormat[] = "%Y-%m-%d";               // datetime-based formatting
 static const char dateTimeFormat[] = "%Y-%m-%d %H:%M:%S";  // datetime-based formatting
-static const char dateTimeMicroSec[] = ".%d";              // integer-based formatting
+static const char dateTimeMicroSec[] = ".%06d";            // integer-based formatting
 
 inline const time_t zeroTimeCAS()
 {
@@ -64,14 +64,16 @@ inline int64_t toTimeCAS(const char* input)
 
 inline std::string fromTimeCAS(const int64_t cas_time)
 {
-    int64_t total_seconds = cas_time / secToMicroSec;
-    int64_t microseconds = cas_time % secToMicroSec;
+    int64_t abs_time = labs(cas_time);  // Work w/positive value
+    int64_t total_seconds = abs_time / secToMicroSec;
+    int64_t microseconds = abs_time % secToMicroSec;
     int32_t seconds = total_seconds % 60;
     int32_t total_minutes = (int32_t)total_seconds / 60;
     int32_t minutes = total_minutes % 60;
     int32_t hours = total_minutes / 60;
+    const char* sign = (abs_time == cas_time) ? "" : "-";  // Don't forget original sign
     std::stringstream ss;
-    ss << hours << ":" << minutes << ":" << seconds << "." << std::setfill('0') << std::setw(6) << microseconds;
+    ss << sign << hours << ":" << minutes << ":" << seconds << "." << std::setfill('0') << std::setw(6) << microseconds;
     return ss.str();
 }
 
@@ -142,6 +144,12 @@ inline std::string fromDateTimeCAS(const int64_t dtInt)
 {
     int32_t microSec = dtInt % secToMicroSec;
     time_t UnixTimestamp = dtInt / secToMicroSec - CASshiftSec;
+    if (microSec < 0)
+    {
+        // we make microSec positive and adjust UnixTimestamp accordingly
+        microSec += secToMicroSec;
+        UnixTimestamp -= 1;
+    }
 
     struct tm* c_datetime = gmtime(&UnixTimestamp);
     char c_string_result[30];
