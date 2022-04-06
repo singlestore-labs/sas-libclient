@@ -288,7 +288,7 @@ main_test(
     PRINT_INFO("Processed TOTAL %d rows\n", TOTAL);
 
     // clean up parallel reading
-    ParallelReadFree(client, resultTable);
+    ParallelReadFree(client, resultTable, &EH.callback);
 }
 
 int
@@ -337,8 +337,7 @@ main(
     printf("[SUCCESS] random read test passed!\n");
     cleanup_small_test_table(client);
 
-    int err = 0;
-    ExecuteDDLQuery(client, "DROP TABLE multi_pass_test", &err);
+    ExecuteDDLQuery(client, "DROP TABLE multi_pass_test", &EH.callback);
 
     // free the client
     S2ClientFree(client);

@@ -69,7 +69,6 @@ void read_and_check(S2Client *client)
     assert(!S2Errno(client));
 
     int dummy_partition;
-    int err = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
 
     // This assumes all the rows are consumed by one chunk

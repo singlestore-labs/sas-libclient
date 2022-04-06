@@ -123,9 +123,9 @@ testRun(
 
         conn->NextChunk(writer, chunk, schema);
     }
-    catch (std::invalid_argument err)
+    catch (std::invalid_argument ex)
     {
-        std::cout << "Error: " << err.what() << "\n";
+        std::cout << "Error: " << ex.what() << "\n";
         return;
     }
 

@@ -76,7 +76,6 @@ void read_data(S2Client *client)
     }
 
     int dummy_id;
-    int err = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     int numReceived = 0;
 
@@ -85,7 +84,6 @@ void read_data(S2Client *client)
 
     while (GetNextChunk(q, 0, &dummy_id, chunk, &EH.callback))
     {
-        assert(err == 0 && "GetNextChunk failed in non parallel mode");
         if (!numReceived)
         {
             s = GetRowSchema(q);
@@ -141,18 +139,13 @@ main(
         -1,
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
-    int err = 0;
-    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS t_date_time", &err);
-    assert(!err && "Failed to DROP TABLE");
-
-    ExecuteDDLQuery(client, "CREATE TABLE t_date_time(dt datetime(6), d date, t time(6))", &err);
-    assert(!err && "Failed to CREATE TABLE");
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS t_date_time", &EH.callback);
+    ExecuteDDLQuery(client, "CREATE TABLE t_date_time(dt datetime(6), d date, t time(6))", &EH.callback);
 
     write_data(client);
     read_data(client);
 
-    ExecuteDDLQuery(client, "DROP TABLE t_date_time", &err);
-    assert(!err && "Failed to DROP TABLE");
+    ExecuteDDLQuery(client, "DROP TABLE t_date_time", &EH.callback);
 
     // free the client
     S2ClientFree(client);

@@ -135,6 +135,7 @@ typedef struct ErrorHandler
     S2ErrorCallback callback;
     int errorCode;
     char *errorString;
+    bool errorExpected;
 } ErrorHandler;
 
 ErrorHandler EH;
@@ -148,14 +149,18 @@ dummyHandleError(
 {
     ErrorHandler *h = (ErrorHandler *)cb;
     h->errorCode = error;
-    printf("[DUMMMY ERROR CALLBACK] Got error: %d %s\n", error, errorString);
+    if (h->errorExpected)
+        printf("[EXPECTED][DUMMMY CALLBACK] Got error: %d %s\n", error, errorString);
+    else
+    {
+        printf("[ERROR][DUMMMY CALLBACK] Got error: %d %s\n", error, errorString);
+        assert(0);
+    }
 }
 
 void setup_small_test_table(S2Client *client)
 {
-    int err = 0;
-    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS small_test", &err);
-    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS small_test", &EH.callback);
 
     ExecuteDDLQuery(
         client,
@@ -167,24 +172,14 @@ void setup_small_test_table(S2Client *client)
         t1 TEXT,\
         t2 TEXT\
         )",
-        &err);
+        &EH.callback);
 
-    if (err) PRINT_ERROR("Error creating table: %s\n", S2Error(client));
     for (int i = 0; i < nSmallTestRows; ++i)
     {
         char query[queryLen] = "INSERT INTO small_test VALUES ";
         strcat(query, smallTestData[i]);
-        ExecuteDDLQuery(client, query, &err);
-        if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
-        assert(!err);
+        ExecuteDDLQuery(client, query, &EH.callback);
     }
-}
-
-void cleanup_small_test_table(S2Client *client)
-{
-    int err = 0;
-    ExecuteDDLQuery(client, "DROP TABLE small_test", &err);
-    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
 }
 
 void
@@ -192,9 +187,7 @@ setup_superchunk_table(
     S2Client *client,
     int nTableRows)
 {
-    int err = 0;
-    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS superchunk_table", &err);
-    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS superchunk_table", &EH.callback);
 
     ExecuteDDLQuery(
         client,
@@ -213,24 +206,24 @@ setup_superchunk_table(
         idate DATE,\
         itime TIME(6)\
         )",
-        &err);
+        &EH.callback);
 
-    if (err) printf("Error creating table: %s\n", S2Error(client));
     for (int i = 0; i < nTableRows; ++i)
     {
         char query[queryLen] = "INSERT INTO superchunk_table VALUES ";
         strcat(query, testData);
-        ExecuteDDLQuery(client, query, &err);
-        if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
-        assert(!err);
+        ExecuteDDLQuery(client, query, &EH.callback);
     }
+}
+
+void cleanup_small_test_table(S2Client *client)
+{
+    ExecuteDDLQuery(client, "DROP TABLE small_test", &EH.callback);
 }
 
 void cleanup_superchunk_table(S2Client *client)
 {
-    int err = 0;
-    ExecuteDDLQuery(client, "DROP TABLE superchunk_table", &err);
-    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+    ExecuteDDLQuery(client, "DROP TABLE superchunk_table", &EH.callback);
 }
 
 void
@@ -240,14 +233,12 @@ mult_table(
     const char *outTable,
     int scaleFactor)
 {
-    int err;
     int len = strlen("DROP TABLE IF EXISTS ") + strlen(outTable);
     char *query = (char *)malloc(len + 1);
     query[0] = '\0';
     strcpy(query, "DROP TABLE IF EXISTS ");
     strcat(query, outTable);
-    ExecuteDDLQuery(client, query, &err);
-    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+    ExecuteDDLQuery(client, query, &EH.callback);
 
     free(query);
 
@@ -258,8 +249,7 @@ mult_table(
     strcat(query, outTable);
     strcat(query, " AS SELECT * FROM ");
     strcat(query, inTable);
-    ExecuteDDLQuery(client, query, &err);
-    if (err) PRINT_ERROR("Error creating table: %s\n", S2Error(client));
+    ExecuteDDLQuery(client, query, &EH.callback);
 
     free(query);
 
@@ -273,8 +263,7 @@ mult_table(
 
     for (int i = 0; i < scaleFactor; ++i)
     {
-        ExecuteDDLQuery(client, query, &err);
-        if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
+        ExecuteDDLQuery(client, query, &EH.callback);
     }
     free(query);
 }
