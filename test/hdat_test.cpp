@@ -66,7 +66,6 @@ testRun(
     bool need_to_read)
 {
     conn->Prepare("SELECT * FROM 6_col_test", true);
-    int err;
     auto new_schema = conn->GetRowSchema();
     Chunk* chunk = nullptr;
 
@@ -84,9 +83,9 @@ testRun(
 
         conn->NextChunk(writer, chunk, new_schema);
     }
-    catch (std::invalid_argument err)
+    catch (std::invalid_argument ex)
     {
-        std::cout << "Error: " << err.what() << "\n";
+        std::cout << "Error: " << ex.what() << "\n";
         return;
     }
 

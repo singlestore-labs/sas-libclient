@@ -42,7 +42,8 @@ extern "C"
     void
     ParallelReadFree(
         S2Client *client,
-        const char *resultTableName)
+        const char *resultTableName,
+        S2ErrorCallback *cb)
     {
         // clear the previous error if any
         client->SetError(S2ClientError(0, ""), nullptr);
@@ -53,11 +54,11 @@ extern "C"
         }
         catch (S2ClientError &s2_err)
         {
-            client->SetError(s2_err, nullptr);
+            client->SetError(s2_err, cb);
         }
         catch (std::bad_alloc &)
         {
-            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"), nullptr);
+            client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"), cb);
         }
     }
 

@@ -78,7 +78,7 @@ extern "C"
     ExecuteDDLQuery(
         S2Client* client,
         const char* query,
-        int* err);
+        S2ErrorCallback* cb);
 
     int GetPartitionsNumber(S2Client* client);
 

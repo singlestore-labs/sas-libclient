@@ -143,40 +143,18 @@ void *worker(void *input)
 
 void ddl_test(S2Client *client)
 {
-    int err = 0;
-    ExecuteDDLQuery(client, "CREATE TABLE ddl_test(col_0 INT)", &err);
-    if (err)
-    {
-        PRINT_ERROR("Error creating table: %s\n", S2Error(client));
-        return;
-    }
+    ExecuteDDLQuery(client, "CREATE TABLE ddl_test(col_0 INT)", &EH.callback);
 
-    int affected = ExecuteDDLQuery(client, "INSERT INTO ddl_test VALUES (1), (2), (3)", &err);
-    if (err)
-    {
-        PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
-        return;
-    }
+    int affected = ExecuteDDLQuery(client, "INSERT INTO ddl_test VALUES (1), (2), (3)", &EH.callback);
     assert(affected == 3);
 
-    affected = ExecuteDDLQuery(client, "DELETE FROM ddl_test WHERE col_0 < 2", &err);
-    if (err)
-    {
-        PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
-        return;
-    }
+    affected = ExecuteDDLQuery(client, "DELETE FROM ddl_test WHERE col_0 < 2", &EH.callback);
     assert(affected == 1);
 
-    affected = ExecuteDDLQuery(client, "UPDATE ddl_test SET col_0 = col_0 * 2", &err);
-    if (err)
-    {
-        PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
-        return;
-    }
+    affected = ExecuteDDLQuery(client, "UPDATE ddl_test SET col_0 = col_0 * 2", &EH.callback);
     assert(affected == 2);
 
-    ExecuteDDLQuery(client, "DROP TABLE ddl_test", &err);
-    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
+    ExecuteDDLQuery(client, "DROP TABLE ddl_test", &EH.callback);
 }
 
 void error_test(S2Client *client)
@@ -193,9 +171,10 @@ void error_test(S2Client *client)
         0);
 
     PRINT_INFO("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
-
     assert(S2Errno(client));
-    ParallelReadFree(client, resultTable);
+    EH.errorExpected = true;
+    ParallelReadFree(client, resultTable, &EH.callback);
+    EH.errorExpected = false;
 }
 
 void
@@ -249,7 +228,7 @@ parallel_test(
     PRINT_INFO("Processed TOTAL %d rows\n", TOTAL);
 
     // clean up parallel reading
-    ParallelReadFree(client, resultTable);
+    ParallelReadFree(client, resultTable, &EH.callback);
 }
 
 void non_parallel_test()
@@ -268,13 +247,13 @@ void non_parallel_test()
     int err1 = 0;
     ExecuteDDLQuery(
         client,
-        "CREATE TABLE `t_special_symbols` (\
+        "CREATE TABLE IF NOT EXISTS `t_special_symbols` (\
         `a?` DOUBLE , \
         `b.` DOUBLE , \
         `c$` DOUBLE , \
         SHARD KEY() , \
         KEY USING CLUSTERED COLUMNSTORE())",
-        &err1);
+        &EH.callback);
 
     const char *query_symbols = "SELECT `a?`, `b.`, `c$` FROM t_special_symbols";
     ChunkQueue *q_long = QueryGetQueue(
@@ -291,15 +270,16 @@ void non_parallel_test()
 
     const char *query_bad = "SELECT table_name, something_wrong FROM information_schema.tables";
 
+    EH.errorExpected = true;
     ChunkQueue *q_bad = QueryGetQueue(
         client,
         query_bad,
         200,
         queueCapacity,
         &EH.callback);
-
     assert(S2Errno(client));
-    PRINT_INFO("[EXPECTED] S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+
+    EH.errorExpected = false;
 
     ChunkQueueFree(q_bad);
 
@@ -316,7 +296,6 @@ void non_parallel_test()
     assert(q != NULL && "ChunkQueue is NULL");
 
     int dummy_partition;
-    int err = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     int numReceived = 0;
 
@@ -325,7 +304,6 @@ void non_parallel_test()
     IF_INFO(PrintRowSchema(s));
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
-        assert(err == 0 && "GetNextChunk failed in non parallel mode");
         numReceived++;
 
         int current_offset = 0;
@@ -368,7 +346,6 @@ main(
         threadsPerWorker = atoi(argv[3]);
         queueCapacity = atoi(argv[4]);
     }
-    int err = 0;
 
     EH.callback.setError = dummyHandleError;
 
@@ -424,12 +401,12 @@ main(
     ExecuteDDLQuery(
         client,
         "CREATE TABLE IF NOT EXISTS show_columns_test(`col_0_]` INT, `col_1_]` TEXT, `col[` DATE)",
-        &err);
+        &EH.callback);
     parallel_test(client, "SELECT * FROM show_columns_test", NULL, 0, NULL, 0, false, false);
 
-    ExecuteDDLQuery(client, "DROP TABLE partition_test", &err);
-    ExecuteDDLQuery(client, "DROP TABLE show_columns_test", &err);
-    ExecuteDDLQuery(client, "DROP TABLE t_special_symbols", &err);
+    ExecuteDDLQuery(client, "DROP TABLE partition_test", &EH.callback);
+    ExecuteDDLQuery(client, "DROP TABLE show_columns_test", &EH.callback);
+    ExecuteDDLQuery(client, "DROP TABLE t_special_symbols", &EH.callback);
 
     cleanup_small_test_table(client);
     S2ClientFree(client);

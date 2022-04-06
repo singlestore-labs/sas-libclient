@@ -49,12 +49,7 @@ const struct ParsedTestChunk DATA_TYPES_TEST_DATA =
 
 void null_test(S2Client *client)
 {
-    int err = 0;
-
-    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS null_test", &err);
-    if (err) PRINT_ERROR("Error dropping table: %s\n", S2Error(client));
-    assert(!err);
-
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS null_test", &EH.callback);
     ExecuteDDLQuery(
         client,
         "CREATE TABLE null_test (\
@@ -72,17 +67,13 @@ void null_test(S2Client *client)
         idate DATE,\
         itime TIME(6)\
         )",
-        &err);
-    if (err) printf("Error creating table: %s\n", S2Error(client));
-    assert(!err);
+        &EH.callback);
 
     ExecuteDDLQuery(
         client,
         "INSERT INTO null_test VALUES (\
         NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
-        &err);
-    if (err) PRINT_ERROR("Error inserting data: %s\n", S2Error(client));
-    assert(!err);
+        &EH.callback);
 
     const char *query = "SELECT * FROM null_test";
 
@@ -102,8 +93,6 @@ void null_test(S2Client *client)
 
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
-        assert(!err && "GetNextChunk failed in null_test in non parallel mode");
-
         int current_offset = 0;
         struct ParsedTestChunk chunkData;
         for (uint64_t i = 0; i < chunk->row_count; ++i)
@@ -130,9 +119,8 @@ void null_test(S2Client *client)
     // free the queue
     ChunkQueueFree(q);
 
-    ExecuteDDLQuery(client, "DROP TABLE null_test", &err);
-    if (err) printf("Error dropping table: %s\n", S2Error(client));
-    assert(!err);
+    ExecuteDDLQuery(client, "DROP TABLE null_test", &EH.callback);
+
     printf("[SUCCESS] NULL test passed\n");
 }
 
@@ -148,7 +136,6 @@ void read_test(S2Client *client)
     }
 
     int dummy_partition;
-    int err = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     int numReceived = 0;
 
@@ -157,7 +144,6 @@ void read_test(S2Client *client)
 
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
-        assert(err == 0 && "GetNextChunk failed in non parallel mode");
         if (!numReceived)
         {
             s = GetRowSchema(q);
@@ -224,6 +210,7 @@ main(
         printInfo = atoi(argv[1]);
     }
     EH.callback.setError = dummyHandleError;
+    EH.errorExpected = false;
 
     // init the client
     S2Client *client = S2ClientInit(

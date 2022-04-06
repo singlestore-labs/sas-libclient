@@ -84,18 +84,18 @@ extern "C"
     ExecuteDDLQuery(
         S2Client* client,
         const char* query,
-        int* err)
+        S2ErrorCallback* cb)
     {
+        // clear the previous error if any
+        client->SetError(S2ClientError(0, ""), nullptr);
         int64_t affected_rows = 0;
         try
         {
             affected_rows = client->m_conn->ExecuteDDL(query);
-            *err = 0;
         }
         catch (S2ClientError& s2_err)
         {
-            client->SetError(s2_err, nullptr);
-            *err = s2_err.m_errorCode;
+            client->SetError(s2_err, cb);
             affected_rows = -1;
         }
         return affected_rows;

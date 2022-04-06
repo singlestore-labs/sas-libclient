@@ -119,7 +119,8 @@ void ChunkFree(Chunk* chunk);
 void
 ParallelReadFree(
     S2Client* client,
-    const char* resultTableName);
+    const char* resultTableName,
+    S2ErrorCallback* cb);
 
 // general query execution functions
 
@@ -129,7 +130,7 @@ int64_t
 ExecuteDDLQuery(
     S2Client* client,
     const char* query,
-    int* err);
+    S2ErrorCallback* cb);
 
 // QueryGetQueue is used to execute queries that are not supported by parallel read.
 // The results are fetched in the same manner as parallel read results
