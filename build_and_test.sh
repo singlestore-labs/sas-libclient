@@ -47,8 +47,9 @@ test_c() {
 }
 
 test_cpp() {
-    g++ -I "${PATH_TO_LIBCLIENT}"  -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${LD_LIBRARY_PATH}" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -g
+    g++ -I "${PATH_TO_LIBCLIENT}"  -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -g
     echo 'Running' "$1" test...
+    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/libmariadb:$LD_LIBRARY_PATH
     ./build/"$1".o $2
 }
 

@@ -113,6 +113,7 @@ typedef struct ReceivedChunk
     int chunk_id;
     int partition_id;
     uint64_t row_count;
+    uint64_t upto_row_count;
 } ReceivedChunk;
 
 typedef struct ReaderThreadArgs
@@ -462,6 +463,71 @@ RecordChunk(
     }
 
     return chunk->row_count;
+}
+
+// Calculate chunk's starting row within a partition
+void
+CalculatePartitionRows(
+    ReaderThreadArgs *args,
+    int threadsPerWorker)
+{
+    int chunk_count = 0;
+    int highest_partition = 0;
+
+    for (int i = 0; i < threadsPerWorker; i++)
+    {
+        chunk_count += args[i].n_chunks_read;
+        for (int j = 0; j < args[i].n_chunks_read; j++)
+        {
+            if (highest_partition < args[i].chunks_read[j].partition_id)
+                highest_partition = args[i].chunks_read[j].partition_id;
+        }
+    }
+    highest_partition++;
+
+    int            *partition = malloc(sizeof(int) * highest_partition);
+    ReceivedChunk **chunks = malloc(sizeof(ReceivedChunk *) * chunk_count);
+    memset(partition, 0, sizeof(int) * highest_partition);
+
+    for (int i = 0; i < threadsPerWorker; i++)
+    {
+        for (int j = 0; j < args[i].n_chunks_read; j++)
+            (partition[args[i].chunks_read[j].partition_id])++;
+    }
+
+    int running = 0;
+    for (int i = 0; i < highest_partition; i++)
+    {
+        int part_chunks = partition[i];
+        partition[i] = running;
+        running += part_chunks;
+    }
+
+    for (int i = 0; i < threadsPerWorker; i++)
+    {
+        for (int j = 0; j < args[i].n_chunks_read; j++)
+	{
+	    int slot = partition[args[i].chunks_read[j].partition_id]
+		       + args[i].chunks_read[j].chunk_id;
+	    chunks[slot] = &args[i].chunks_read[j];
+	}
+    }
+
+    uint64_t rows;
+    int last_partition = -1;
+    for (int i = 1; i < chunk_count; i++)
+    {
+        if (last_partition != chunks[i]->partition_id)
+	{
+            rows = 0;
+	    last_partition = chunks[i]->partition_id;
+	}
+	chunks[i]->upto_row_count = rows;
+	rows += chunks[i]->row_count;
+    }
+
+    free(partition);
+    free(chunks);
 }
 
 void

@@ -103,8 +103,7 @@ void *reader_thread(void *input)
                     GetChunkRow(
                         args->queue,
                         args->chunks_read[i].partition_id,
-                        args->chunks_read[i].chunk_id,
-                        row_num,
+                        args->chunks_read[i].upto_row_count + row_num,
                         args->id,
                         chunk,
                         &EH.callback);
@@ -217,6 +216,7 @@ void *worker(void *input)
 
     if (w_args->needRandomRead)
     {
+        CalculatePartitionRows(readerArgs, threadsPerWorker);
         for (int i = 0; i < threadsPerWorker; i++)
         {
             readerArgs[i].queue = q_multi;

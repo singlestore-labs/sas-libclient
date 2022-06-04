@@ -23,6 +23,8 @@ class ChunkQueue
         bool is_read_finished = true;
         for (auto &reader : m_readers)
         {
+            if (!reader)
+                continue;
             if (reader->IsActive())
             {
                 is_read_finished = false;
@@ -34,6 +36,8 @@ class ChunkQueue
         {
             for (auto &reader : m_readers)
             {
+                if (!reader)
+                    continue;
                 reader->NotifyConnUnfinishedStmt();
             }
         }
@@ -82,8 +86,7 @@ class ChunkQueue
     virtual Chunk *
     GetSingleRow(
         uint32_t partitionId,
-        uint32_t chunkId,
-        int64_t rowNum,
+        int64_t rowWithinPartition,
         int threadId,
         S2ClientError &error) = 0;
 

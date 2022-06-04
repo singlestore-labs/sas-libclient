@@ -201,14 +201,13 @@ extern "C"
     GetChunkRow(
         ChunkQueue *queue,
         uint32_t partitionId,
-        uint32_t chunkId,
-        int64_t rowNum,
+        int64_t rowWithinPartition,
         int threadId,
         Chunk *chunk /*out*/,
         S2ErrorCallback *cb)
     {
         S2ClientError err(0, "");
-        Chunk *res = queue->GetSingleRow(partitionId, chunkId, rowNum, threadId, err);
+        Chunk *res = queue->GetSingleRow(partitionId, rowWithinPartition, threadId, err);
 
         if (err.m_errorCode)
         {
