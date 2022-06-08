@@ -515,7 +515,7 @@ CalculatePartitionRows(
 
     uint64_t rows;
     int last_partition = -1;
-    for (int i = 1; i < chunk_count; i++)
+    for (int i = 0; i < chunk_count; i++)
     {
         if (last_partition != chunks[i]->partition_id)
 	{
