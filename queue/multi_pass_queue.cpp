@@ -33,8 +33,9 @@ MultiPassQueue::CreateChunkQueue(
         client->m_numPartitions);
 
     // initialize the object to store chunk sizes
-    std::shared_ptr<ChunksInfo> chunks_info(new ChunksInfo(partitions));
-    chunkQueue->m_chunks_info = chunks_info;
+    // Starting in 1.3.0, chunks_info is no longer required.  Therefore, it is left null.
+    // std::shared_ptr<ChunksInfo> chunks_info(new ChunksInfo(partitions));
+    chunkQueue->m_chunks_info = nullptr; // chunks_info;
     chunkQueue->m_partition_consumer = std::vector<int>(client->m_numPartitions, -1);
 
     // create ThreadSafeBatchQueue for each consumer
@@ -158,8 +159,7 @@ MultiPassQueue::GetById(
 Chunk *
 MultiPassQueue::GetSingleRow(
     uint32_t partitionId,
-    uint32_t chunkId,
-    int64_t rowNum,
+    int64_t rowWithinPartition,
     int threadId,
     S2ClientError &err)
 {
@@ -178,13 +178,12 @@ MultiPassQueue::GetSingleRow(
 
     try
     {
-        int partitionRowId = m_chunks_info->PartitionRowId(partitionId, chunkId, rowNum);
         return m_consumers[threadId].conn->GetSingleRow(
             m_consumers[threadId].writer.get(),
             m_row_schema,
             m_result_table,
             partitionId,
-            partitionRowId);
+            rowWithinPartition);
     }
     catch (S2ClientError &s2_err)
     {

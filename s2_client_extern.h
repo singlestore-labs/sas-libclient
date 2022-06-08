@@ -94,15 +94,14 @@ GetChunkMulti(
 // GetChunkRow can be called after a queue for multi-pass has been created and
 // chunk with id `chunkId` has been read from partition `partitionId` by thread
 // number `threadId`.
-// `rowNum` is the number of the row in the chunk `chunkId`
+// `rowWithinPartition` is the number of the row in the 'partitionId`.
 // `threadId` must be between 0 and `nReaderThreads` - 1, where
 // `nReaderThreads` is the value that has been passed to ParallelReadGetQueue
 bool
 GetChunkRow(
     ChunkQueue* queue,
     uint32_t partitionId,
-    uint32_t chunkId,
-    int64_t rowNum,
+    int64_t rowWithinPartition,
     int threadId,
     Chunk* chunk /*out*/,
     S2ErrorCallback* cb);

@@ -59,8 +59,7 @@ class MultiPassQueue : public ChunkQueue
     Chunk *
     GetSingleRow(
         uint32_t partitionId,
-        uint32_t chunkId,
-        int64_t rowNum,
+        int64_t rowWithinPartition,
         int threadId,
         S2ClientError &error);
 };

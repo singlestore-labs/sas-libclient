@@ -143,6 +143,8 @@ void ResultTableReader::Read()
             }
             // we need to store chunks info only for multi-pass queue, for streaming queue
             // m_chunks_info is null
+            // NOTE: Starting in 1.3.0, the consumer is required to track the row w/in the
+            // partition.  Therefore, m_chunks_info will always be null.
             if (m_chunks_info)
             {
                 m_chunks_info->Put(chunk);
