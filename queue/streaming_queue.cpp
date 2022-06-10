@@ -56,7 +56,6 @@ StreamingQueue::CreateChunkQueue(
         }
         catch (S2ClientError &s2_err)
         {
-            chunkQueue->m_error_before_read = true;
             client->SetError(s2_err, cb);
             return nullptr;
         }
@@ -67,7 +66,6 @@ StreamingQueue::CreateChunkQueue(
         }
         catch (S2ClientError &s2_err)
         {
-            chunkQueue->m_error_before_read = true;
             client->SetError(s2_err, cb);
             return nullptr;
         }
@@ -78,8 +76,7 @@ StreamingQueue::CreateChunkQueue(
         {
             utils::FillCredentials(aggregators, partition, &creds);
             // ResultTableReader will create its own connection to run queries
-            chunkQueue->m_readers.push_back(
-                ResultTableReader::CreateReader(
+            auto reader = ResultTableReader::CreateReader(
                     creds,
                     masterCreds,
                     chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
@@ -88,7 +85,10 @@ StreamingQueue::CreateChunkQueue(
                     chunkQueue->m_row_schema,
                     partition,
                     chunkSize,
-                    cb));
+                    cb);
+            if (!reader)
+                return nullptr;
+            chunkQueue->m_readers.push_back(std::move(reader));
         }
     }
     else
@@ -100,25 +100,23 @@ StreamingQueue::CreateChunkQueue(
         }
         catch (S2ClientError &s2_err)
         {
-            chunkQueue->m_error_before_read = true;
             client->SetError(s2_err, cb);
             return nullptr;
         }
-        chunkQueue->m_readers.push_back(
-            ResultTableReader::CreateReaderNonParallel(
+        auto reader = ResultTableReader::CreateReaderNonParallel(
                 client->m_conn,
                 chunkQueue->m_consumer_queues[0],
                 selectQuery,
                 chunkQueue->m_row_schema,
-                chunkSize));
+                chunkSize);
+        if (!reader)
+            return nullptr;
+        chunkQueue->m_readers.push_back(std::move(reader));
     }
+    chunkQueue->m_error_before_read = false;
     // start Readers
     for (auto &reader : chunkQueue->m_readers)
     {
-        if (!reader)
-        {
-            return nullptr;
-        }
         reader->StartReading();
     }
     return chunkQueue;

@@ -150,6 +150,7 @@ void write_test(S2Client *client)
     RowSchema *schema = GetTableRowSchema(client, superchunkTable, &EH.callback);
 
     IF_INFO(PrintRowSchema(schema));
+    int db_char_size = get_db_char_size();
 
     SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
     for (uint64_t i = 0; i < nRowsToWrite; ++i)
@@ -178,7 +179,7 @@ void write_test(S2Client *client)
         WriteVariable(w, "lon\ttxt", 7);
         WriteVariable(w, "\x40\x60", 2);
 
-        WriteFixed(w, "юникод", 12, 16 * get_db_char_size(), false);
+        WriteFixed(w, "юникод", 12, 16 * db_char_size, false);
         WriteFixed(w, "fixed", 5, 9, true);
 
         WriteInt64(w, TEST_DATA.date_time);

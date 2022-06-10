@@ -58,7 +58,6 @@ MultiPassQueue::CreateChunkQueue(
     }
     catch (S2ClientError &s2_err)
     {
-        chunkQueue->m_error_before_read = true;
         client->SetError(s2_err, cb);
 
         return nullptr;
@@ -70,7 +69,6 @@ MultiPassQueue::CreateChunkQueue(
     }
     catch (S2ClientError &s2_err)
     {
-        chunkQueue->m_error_before_read = true;
         client->SetError(s2_err, cb);
 
         return nullptr;
@@ -83,10 +81,8 @@ MultiPassQueue::CreateChunkQueue(
     for (int partition : partitions)
     {
         utils::FillCredentials(aggregators, partition, &creds);
-
         // ResultTableReader will create its own connection to read from partition
-        chunkQueue->m_readers.push_back(
-            ResultTableReader::CreateReader(
+        auto reader = ResultTableReader::CreateReader(
                 creds,
                 masterCreds,
                 chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
@@ -95,15 +91,15 @@ MultiPassQueue::CreateChunkQueue(
                 chunkQueue->m_row_schema,
                 partition,
                 chunkSize,
-                cb));
+                cb);
+        if (!reader)
+            return nullptr;
+        chunkQueue->m_readers.push_back(std::move(reader));
     }
+    chunkQueue->m_error_before_read = false;
     // start Readers
     for (auto &reader : chunkQueue->m_readers)
     {
-        if (!reader)
-        {
-            return nullptr;
-        }
         reader->StartReading();
     }
     if (chunkQueue->m_readers.empty())
