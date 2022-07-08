@@ -59,6 +59,7 @@ extern const double doubleNull;
 #define S2C_ERROR_READER_FAILED 5      // some of the readers failed
 #define S2C_ERROR_BAD_CONNECTION 6     // wrong connection options have been used
 #define S2C_IO_ERROR 7                 // error during processing bytes on LOAD DATA
+#define S2C_ERROR_BAD_CHUNK 8          // malformed chunk
 
 #define S2C_SEVERITY_ERROR 0    // an error which makes fuction's result invalid occurred
 #define S2C_SEVERITY_WARNING 1  // an error occurred, but it was circumvented

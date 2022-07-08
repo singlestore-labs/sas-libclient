@@ -6,7 +6,7 @@
 #include "hdat/common.hpp"
 
 // ChunkToTSV writes
-void
+bool
 TableWriter::ChunkToTSV(
     std::unique_ptr<SuperChunkReader> &reader,
     int64_t row_count)
@@ -33,7 +33,10 @@ TableWriter::ChunkToTSV(
             switch (reader->m_row_schema->ColumnInfo[col_num].type)
             {
                 case Int64:
-                    reader->ReadInt64(&int_64_val, &is_null);
+                    if (!(reader->ReadInt64(&int_64_val, &is_null)))
+                    {
+                        return false;
+                    }
                     if (!is_null)
                     {
                         *m_tsv_rows << int_64_val;
@@ -44,7 +47,10 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 case Int32:
-                    reader->ReadInt32(&int_32_val, &is_null);
+                    if (!(reader->ReadInt32(&int_32_val, &is_null)))
+                    {
+                        return false;
+                    }
                     if (!is_null)
                     {
                         *m_tsv_rows << int_32_val;
@@ -55,7 +61,10 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 case Double:
-                    reader->ReadFloat(&float_val, &is_null);
+                    if (!(reader->ReadFloat(&float_val, &is_null)))
+                    {
+                        return false;
+                    }
                     // -5.12345678907654321e-300 has length 25,
                     // exponent does not take more than 3 digits, so 30 bytes is enough
                     if (!is_null)
@@ -70,7 +79,10 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 case Variable:
-                    reader->ReadVariable(&buf, &len, &is_null);
+                    if (!(reader->ReadVariable(&buf, &len, &is_null)))
+                    {
+                        return false;
+                    }
                     if (!is_null)
                     {
                         *m_tsv_rows << std::quoted(std::string(buf, len), '"', '\\');
@@ -81,7 +93,10 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 case Fixed:
-                    reader->ReadFixed(&buf, reader->m_row_schema->ColumnInfo[col_num].size, &is_null);
+                    if (!(reader->ReadFixed(&buf, reader->m_row_schema->ColumnInfo[col_num].size, &is_null)))
+                    {
+                        return false;
+                    }
                     if (!is_null)
                     {
                         *m_tsv_rows << std::quoted(
@@ -95,7 +110,10 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 case DateTime:
-                    reader->ReadInt64(&int_64_val, &is_null);
+                    if (!(reader->ReadInt64(&int_64_val, &is_null)))
+                    {
+                        return false;
+                    }
                     if (!is_null)
                     {
                         *m_tsv_rows << fromDateTimeCAS(int_64_val);
@@ -106,7 +124,10 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 case Time:
-                    reader->ReadInt64(&int_64_val, &is_null);
+                    if (!(reader->ReadInt64(&int_64_val, &is_null)))
+                    {
+                        return false;
+                    }
                     if (!is_null)
                     {
                         *m_tsv_rows << fromTimeCAS(int_64_val);
@@ -117,7 +138,10 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 case Date:
-                    reader->ReadInt32(&int_32_val, &is_null);
+                    if (!(reader->ReadInt32(&int_32_val, &is_null)))
+                    {
+                        return false;
+                    }
                     if (!is_null)
                     {
                         *m_tsv_rows << fromDateCAS(int_32_val);
@@ -128,10 +152,11 @@ TableWriter::ChunkToTSV(
                     }
                     break;
                 default:
-                    throw S2ClientError(S2C_ERROR_UNS_DATA_TYPE, "data type not supported yet");
+                    return false;
             }
         }
     }
+    return true;
 }
 
 // in ss_local_infile_init we cpoy the pointer *caller_data which is passed to

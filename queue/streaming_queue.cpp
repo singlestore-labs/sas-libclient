@@ -77,17 +77,16 @@ StreamingQueue::CreateChunkQueue(
             utils::FillCredentials(aggregators, partition, &creds);
             // ResultTableReader will create its own connection to run queries
             auto reader = ResultTableReader::CreateReader(
-                    creds,
-                    masterCreds,
-                    chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
-                    nullptr,
-                    resultTableName,
-                    chunkQueue->m_row_schema,
-                    partition,
-                    chunkSize,
-                    cb);
-            if (!reader)
-                return nullptr;
+                creds,
+                masterCreds,
+                chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
+                nullptr,
+                resultTableName,
+                chunkQueue->m_row_schema,
+                partition,
+                chunkSize,
+                cb);
+            if (!reader) return nullptr;
             chunkQueue->m_readers.push_back(std::move(reader));
         }
     }
@@ -104,13 +103,12 @@ StreamingQueue::CreateChunkQueue(
             return nullptr;
         }
         auto reader = ResultTableReader::CreateReaderNonParallel(
-                client->m_conn,
-                chunkQueue->m_consumer_queues[0],
-                selectQuery,
-                chunkQueue->m_row_schema,
-                chunkSize);
-        if (!reader)
-            return nullptr;
+            client->m_conn,
+            chunkQueue->m_consumer_queues[0],
+            selectQuery,
+            chunkQueue->m_row_schema,
+            chunkSize);
+        if (!reader) return nullptr;
         chunkQueue->m_readers.push_back(std::move(reader));
     }
     chunkQueue->m_error_before_read = false;

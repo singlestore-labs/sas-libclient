@@ -485,14 +485,13 @@ CalculatePartitionRows(
     }
     highest_partition++;
 
-    int            *partition = malloc(sizeof(int) * highest_partition);
+    int *partition = malloc(sizeof(int) * highest_partition);
     ReceivedChunk **chunks = malloc(sizeof(ReceivedChunk *) * chunk_count);
     memset(partition, 0, sizeof(int) * highest_partition);
 
     for (int i = 0; i < threadsPerWorker; i++)
     {
-        for (int j = 0; j < args[i].n_chunks_read; j++)
-            (partition[args[i].chunks_read[j].partition_id])++;
+        for (int j = 0; j < args[i].n_chunks_read; j++) (partition[args[i].chunks_read[j].partition_id])++;
     }
 
     int running = 0;
@@ -506,11 +505,10 @@ CalculatePartitionRows(
     for (int i = 0; i < threadsPerWorker; i++)
     {
         for (int j = 0; j < args[i].n_chunks_read; j++)
-	{
-	    int slot = partition[args[i].chunks_read[j].partition_id]
-		       + args[i].chunks_read[j].chunk_id;
-	    chunks[slot] = &args[i].chunks_read[j];
-	}
+        {
+            int slot = partition[args[i].chunks_read[j].partition_id] + args[i].chunks_read[j].chunk_id;
+            chunks[slot] = &args[i].chunks_read[j];
+        }
     }
 
     uint64_t rows;
@@ -518,12 +516,12 @@ CalculatePartitionRows(
     for (int i = 0; i < chunk_count; i++)
     {
         if (last_partition != chunks[i]->partition_id)
-	{
+        {
             rows = 0;
-	    last_partition = chunks[i]->partition_id;
-	}
-	chunks[i]->upto_row_count = rows;
-	rows += chunks[i]->row_count;
+            last_partition = chunks[i]->partition_id;
+        }
+        chunks[i]->upto_row_count = rows;
+        rows += chunks[i]->row_count;
     }
 
     free(partition);

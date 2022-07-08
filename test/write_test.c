@@ -217,6 +217,19 @@ void write_test(S2Client *client)
     printf("[SUCCESS] data written!\n");
 }
 
+void boundary_test(S2Client *client)
+{
+    int size = 8 + 8 + 8 + 3;
+    Chunk *chunk = allocChunk(size);
+    ExecuteDDLQuery(client, "CREATE TABLE IF NOT EXISTS boundary_table (id BIGINT, var BLOB)", &EH.callback);
+    RowSchema *schema = GetTableRowSchema(client, "boundary_table", &EH.callback);
+    SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
+    WriteInt64(w, 12345678);
+    WriteVariable(w, "\x44\x66\x88", 3);
+    WriteRowEnd(w);
+    LoadDataWrite(client, chunk, schema, "boundary_table", &EH.callback);
+}
+
 int
 main(
     int argc,
@@ -245,6 +258,7 @@ main(
     write_test(client);
     read_and_check(client);
     cleanup_superchunk_table(client);
+    boundary_test(client);
 
     // free the client
     S2ClientFree(client);
