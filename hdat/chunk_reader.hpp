@@ -35,9 +35,12 @@ class SuperChunkReader
     }
 
     // read operations
-    inline bool CanRead(uint64_t len)
+    inline bool
+    CanRead(
+        uint64_t offset,
+        uint64_t len)
     {
-        return m_current_chunk->Offset() + len < m_current_chunk->Size();
+        return offset + len <= m_current_chunk->Size();
     }
 
     bool

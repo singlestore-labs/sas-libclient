@@ -35,7 +35,7 @@ MultiPassQueue::CreateChunkQueue(
     // initialize the object to store chunk sizes
     // Starting in 1.3.0, chunks_info is no longer required.  Therefore, it is left null.
     // std::shared_ptr<ChunksInfo> chunks_info(new ChunksInfo(partitions));
-    chunkQueue->m_chunks_info = nullptr; // chunks_info;
+    chunkQueue->m_chunks_info = nullptr;  // chunks_info;
     chunkQueue->m_partition_consumer = std::vector<int>(client->m_numPartitions, -1);
 
     // create ThreadSafeBatchQueue for each consumer
@@ -83,17 +83,16 @@ MultiPassQueue::CreateChunkQueue(
         utils::FillCredentials(aggregators, partition, &creds);
         // ResultTableReader will create its own connection to read from partition
         auto reader = ResultTableReader::CreateReader(
-                creds,
-                masterCreds,
-                chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
-                chunkQueue->m_chunks_info,
-                resultTableName,
-                chunkQueue->m_row_schema,
-                partition,
-                chunkSize,
-                cb);
-        if (!reader)
-            return nullptr;
+            creds,
+            masterCreds,
+            chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
+            chunkQueue->m_chunks_info,
+            resultTableName,
+            chunkQueue->m_row_schema,
+            partition,
+            chunkSize,
+            cb);
+        if (!reader) return nullptr;
         chunkQueue->m_readers.push_back(std::move(reader));
     }
     chunkQueue->m_error_before_read = false;

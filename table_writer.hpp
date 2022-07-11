@@ -19,7 +19,7 @@ class TableWriter
         m_tsv_rows = rows;
     };
 
-    void
+    bool
     ChunkToTSV(
         std::unique_ptr<SuperChunkReader> &reader,
         int64_t row_count);

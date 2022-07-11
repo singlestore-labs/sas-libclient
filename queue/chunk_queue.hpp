@@ -23,8 +23,7 @@ class ChunkQueue
         bool is_read_finished = true;
         for (auto &reader : m_readers)
         {
-            if (!reader)
-                continue;
+            if (!reader) continue;
             if (reader->IsActive())
             {
                 is_read_finished = false;
@@ -36,8 +35,7 @@ class ChunkQueue
         {
             for (auto &reader : m_readers)
             {
-                if (!reader)
-                    continue;
+                if (!reader) continue;
                 reader->NotifyConnUnfinishedStmt();
             }
         }

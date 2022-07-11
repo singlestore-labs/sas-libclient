@@ -238,7 +238,7 @@ bool S2Connection::Advance()
                 need_column_re_fetch[i] = false;
                 break;
             }
-            // fixed size string
+            // string
             case MYSQL_TYPE_STRING:
             case MYSQL_TYPE_VAR_STRING:
             case MYSQL_TYPE_LONG_BLOB:
@@ -495,7 +495,10 @@ S2Connection::WriteChunk(
     std::stringstream tsv_output;
     TableWriter tw(&tsv_output);
 
-    tw.ChunkToTSV(reader, chunk->row_count);
+    if (!(tw.ChunkToTSV(reader, chunk->row_count)))
+    {
+        throw S2ClientError(S2C_ERROR_BAD_CHUNK, reader->GetError());
+    };
 
     mysql_set_local_infile_handler(
         m_conn,

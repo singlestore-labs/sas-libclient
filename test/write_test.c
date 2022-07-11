@@ -217,6 +217,64 @@ void write_test(S2Client *client)
     printf("[SUCCESS] data written!\n");
 }
 
+void boundary_test(S2Client *client)
+{
+    int size = 8 + 8 + 8 + 3;
+    Chunk *chunk = allocChunk(size);
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS boundary_table", &EH.callback);
+    ExecuteDDLQuery(client, "CREATE TABLE IF NOT EXISTS boundary_table (id BIGINT, var BLOB)", &EH.callback);
+    RowSchema *schema = GetTableRowSchema(client, "boundary_table", &EH.callback);
+    SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
+    WriteInt64(w, 12345678);
+    WriteVariable(w, "\x44\x66\x88", 3);
+    WriteRowEnd(w);
+    LoadDataWrite(client, chunk, schema, "boundary_table", &EH.callback);
+    WriterFree(w);
+    ChunkFree(chunk);
+    free(chunk);
+
+    const char *query = "SELECT * FROM boundary_table";
+
+    ChunkQueue *q = QueryGetQueue(
+        client,
+        query,
+        chunkSize,
+        queueCapacity,
+        &EH.callback);
+
+    assert(q != NULL && "ChunkQueue is NULL");
+    if (S2Errno(client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+    assert(!S2Errno(client));
+
+    int dummy_partition;
+    chunk = (Chunk *)malloc(sizeof(Chunk));
+    SuperChunkReader *r = CreateReader(chunk, schema, &EH.callback);
+
+    // This assumes all the rows are consumed by one chunk
+    while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
+    {
+        int64_t int_val;
+        bool is_null;
+        ReadInt64(r, &int_val, &is_null);
+        assert(!is_null);
+        assert(int_val==12345678);
+        char* binary_val;
+        int64_t len;
+        ReadVariable(r, &binary_val, &len, &is_null);
+        assert(!is_null);
+        assert(len == 3);
+        assert(binary_val[0] == '\x44');
+        assert(binary_val[1] == '\x66');
+        assert(binary_val[2] == '\x88');
+    }
+    ReaderFree(r);
+    RowSchemaFree(schema);
+    ChunkFree(chunk);
+    free(chunk);
+    printf("[SUCCESS] Bouundary size chunk test passed!\n");
+
+}
+
 int
 main(
     int argc,
@@ -245,6 +303,7 @@ main(
     write_test(client);
     read_and_check(client);
     cleanup_superchunk_table(client);
+    boundary_test(client);
 
     // free the client
     S2ClientFree(client);
