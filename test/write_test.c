@@ -258,7 +258,7 @@ void boundary_test(S2Client *client)
         ReadInt64(r, &int_val, &is_null);
         assert(!is_null);
         assert(int_val==12345678);
-        char* binary_val;
+        const char *binary_val;
         int64_t len;
         ReadVariable(r, &binary_val, &len, &is_null);
         assert(!is_null);
@@ -271,8 +271,69 @@ void boundary_test(S2Client *client)
     RowSchemaFree(schema);
     ChunkFree(chunk);
     free(chunk);
-    printf("[SUCCESS] Bouundary size chunk test passed!\n");
+    printf("[SUCCESS] Boundary size chunk test passed!\n");
+}
 
+void max_allowed_packet_test(S2Client *client)
+{
+    int blobLength = 12000;
+    int size = 8 + 8 + 8 + blobLength;
+    Chunk *chunk = allocChunk(size);
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS max_allowed_packet_table", &EH.callback);
+    ExecuteDDLQuery(client, "CREATE TABLE IF NOT EXISTS max_allowed_packet_table (id BIGINT, var BLOB)", &EH.callback);
+    RowSchema *schema = GetTableRowSchema(client, "max_allowed_packet_table", &EH.callback);
+    SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
+    WriteInt64(w, 12345678);
+    char buff[blobLength];
+    memset(buff, 'a', blobLength / 2);
+    memset(buff + blobLength / 2, 'b', blobLength / 2);
+    WriteVariable(w, buff, blobLength);
+
+    WriteRowEnd(w);
+    LoadDataWrite(client, chunk, schema, "max_allowed_packet_table", &EH.callback);
+    WriterFree(w);
+    ChunkFree(chunk);
+    free(chunk);
+
+    ExecuteDDLQuery(client, "SET GLOBAL MAX_ALLOWED_PACKET = 1024", &EH.callback);
+
+    S2Client *read_client = S2ClientInit(
+        db_creds.host,
+        db_creds.ma_port,
+        db_creds.db,
+        db_creds.user,
+        db_creds.password,
+        db_creds.ssl_ca,
+        1,
+        -1,
+        &EH.callback);
+    assert(read_client != NULL && "S2Client is NULL");
+
+    const char *query = "SELECT * FROM max_allowed_packet_table";
+
+    ChunkQueue *q = QueryGetQueue(
+        read_client,
+        query,
+        chunkSize,
+        queueCapacity,
+        &EH.callback);
+
+    assert(q != NULL && "ChunkQueue is NULL");
+    if (S2Errno(read_client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+    assert(!S2Errno(read_client));
+
+    int dummy_partition;
+    chunk = (Chunk *)malloc(sizeof(Chunk));
+    SuperChunkReader *r = CreateReader(chunk, schema, &EH.callback);
+
+    EH.errorExpected = true;
+    GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback);
+    EH.errorExpected = false;
+
+    ReaderFree(r);
+    RowSchemaFree(schema);
+    ExecuteDDLQuery(client, "SET GLOBAL MAX_ALLOWED_PACKET = 104857600", &EH.callback);
+    printf("[SUCCESS] Max allowed packet test passed!\n");
 }
 
 int
@@ -304,6 +365,7 @@ main(
     read_and_check(client);
     cleanup_superchunk_table(client);
     boundary_test(client);
+    max_allowed_packet_test(client);
 
     // free the client
     S2ClientFree(client);
