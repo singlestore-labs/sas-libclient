@@ -291,7 +291,14 @@ bool S2Connection::Advance()
     else if (status != MYSQL_DATA_TRUNCATED && status != 0)
     {
         FreeResult();
-        throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
+        if (mysql_stmt_errno(m_stmt))
+        {
+            throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
+        }
+        else
+        {
+            throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+        }
     }
 
     // fetch actual fields
