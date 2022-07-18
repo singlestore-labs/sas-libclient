@@ -130,7 +130,7 @@ extern "C"
                        query,
                        queueCapacity,
                        chunkSize,
-                       1,  // TODO: check if we need thread affinity here
+                       1,
                        false /* doesParallelRead */,
                        cb)
                 .release();
