@@ -20,9 +20,7 @@ ResultTableReader::CreateReader(
     // create a new connection
     try
     {
-        // reader->m_conn = S2Connection::Connect(creds);
-        // TODO: PLAT-6005 uncomment line above and delete line below when Child Aggs are ready for connection
-        reader->m_conn = S2Connection::Connect(masterCreds);
+        reader->m_conn = S2Connection::Connect(creds);
     }
     catch (S2ClientError &s2_err)
     {
