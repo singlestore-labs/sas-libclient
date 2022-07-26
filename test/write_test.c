@@ -30,10 +30,6 @@ const struct ParsedTestChunk TEST_DATA =
          4},
         {"t\nt",
          3},
-        {"lon\ttxt",
-         7},
-        {"\x40\x60",
-         2},
         "юникод",
         "fixed",
         1935835200000000,
@@ -87,8 +83,6 @@ void read_and_check(S2Client *client)
                 assert(isnan(chunkData.double_val));
 
                 assert(!chunkData.variable_text.len);
-                assert(!chunkData.variable_char.len);
-                assert(!chunkData.variable_binary.len);
 
                 assert(is_const_buffer(chunkData.fixed_char, 16 * get_db_char_size(), '\0'));
                 assert(is_const_buffer(chunkData.fixed_binary, 9, '\0'));
@@ -117,15 +111,8 @@ void read_and_check(S2Client *client)
             }
 
             assert(chunkData.variable_text.len > TEST_DATA.variable_text.len);  // Here we added cube of i
-            assert(chunkData.variable_char.len == TEST_DATA.variable_char.len);
-            assert(chunkData.variable_binary.len == TEST_DATA.variable_binary.len);
 
             assert(!strncmp(chunkData.variable_text.data, TEST_DATA.variable_text.data, TEST_DATA.variable_text.len));
-            assert(!strncmp(chunkData.variable_char.data, TEST_DATA.variable_char.data, TEST_DATA.variable_char.len));
-            assert(!strncmp(
-                chunkData.variable_binary.data,
-                TEST_DATA.variable_binary.data,
-                TEST_DATA.variable_binary.len));
 
             assert(!strncmp(chunkData.fixed_char, TEST_DATA.fixed_char, strlen(TEST_DATA.fixed_char)));
             assert(!strcmp(chunkData.fixed_binary, TEST_DATA.fixed_binary));
@@ -176,8 +163,6 @@ void write_test(S2Client *client)
 
         // these values are copied from TEST_DATA
         WriteVariable(w, "t\nt", 3);
-        WriteVariable(w, "lon\ttxt", 7);
-        WriteVariable(w, "\x40\x60", 2);
 
         WriteFixed(w, "юникод", 12, 16 * db_char_size, false);
         WriteFixed(w, "fixed", 5, 9, true);
@@ -196,10 +181,8 @@ void write_test(S2Client *client)
 
         WriteVariable(w, "", 0);
         WriteVariable(w, "", 0);
-        WriteVariable(w, "", 0);
-        WriteVariable(w, "", 0);
 
-        WriteFixed(w, "", 0, 16 * get_db_char_size(), false);
+        WriteFixed(w, "", 0, 16 * db_char_size, false);
         WriteFixed(w, "", 0, 9, true);
 
         WriteInt64(w, int64Null);
