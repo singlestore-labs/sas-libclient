@@ -17,7 +17,6 @@ set(LIBCLIENT_SOURCES
     s2_connection.cpp
     s2_client.cpp
     queue/chunk_queue.hpp
-    queue/chunks_info.hpp
     queue/multi_pass_queue.cpp
     queue/streaming_queue.cpp
     queue/thread_safe_queue.hpp

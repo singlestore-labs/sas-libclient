@@ -64,8 +64,8 @@ class S2Connection
 
     // Prepare prepares a query using mysql binary protocol
     // If execute is set to true, then executes it
-    // and fetches the first row
-    void
+    // and fetches the first row. Returns true if the row has been fetched successfully
+    bool
     Prepare(
         const char* query,
         bool execute);
@@ -89,6 +89,22 @@ class S2Connection
     // created using selectQuery
     RowSchema* ExplainRowSchema(const char* selectQuery);
 
+    // GetParallelReadType checks what ParallelReadType
+    // we need to use to read the results of selectQuery
+    ParallelReadType
+    GetParallelReadType(
+        const char *selectQuery,
+        const char *sourceTable,
+        const char *keyColumnName,
+        bool materialized,
+        const char *const *const partitionByCols,
+        int partitionByColsNumber,
+        const char *const *const partitionOrderByCols,
+        const int partitionOrderByColsNumber,
+        ParallelReadType readType);
+
+    TableKeys GetTableKeys(const char *sourceTable);
+
     // HasNextRow returns true if the result set has a data
     bool HasNextRow();
 
@@ -103,9 +119,12 @@ class S2Connection
     GetSingleRow(
         SuperChunkWriter* writer,
         RowSchema* schema,
-        const std::string resultTable,
+        const std::string &resultTable,
+        const std::string &selectQuery,
+        const std::string &keyColumnName,
         const uint32_t partitionId,
-        const int64_t partitionRowId);
+        const int64_t partitionRowId,
+        ParallelReadType readType);
 
     // GetPartitionsNumber returns the number of partitions in the table
     int GetPartitionsNumber();

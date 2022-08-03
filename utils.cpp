@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -285,7 +286,8 @@ namespace utils
     - bacticks ` indicate the beginning and the end of column name, with no backticks in the name itself
     - column type is indicated after column name and a single space character
     - character set is indicated after the column type
-      - for CHAR(length) data type, if charset part contains substring "utf8mb4", char size is 4. Otherwise itis 3
+    - for CHAR/VARCHAR(length) data type, if charset part contains substring "utf8mb4", char size is 4.
+    Otherwise it is 3
     */
     void
     ExplainToRowSchema(
@@ -387,81 +389,107 @@ namespace sql
     }
 
     std::string
-    PartitionBy(
-        const char* const* const partitionByCols,
-        const int partitionByColsNumber,
-        const char* const* const partitionOrderByCols,
-        const int orderByColsNumber)
+    JoinColumnNames(
+        const char* const* const cols,
+        const int colsNum)
     {
-        if (partitionByColsNumber <= 0)
+        if (colsNum <= 0) return "";
+        std::string result;
+        result += QuotedName(cols[0]);
+        for (int i = 1; i < colsNum; ++i)
         {
-            return "";
-        }
-        std::string result = " PARTITION BY (";
-        result += QuotedName(partitionByCols[0]);
-
-        for (int i = 1; i < partitionByColsNumber; ++i)
-        {
-            result += ", ";
-            result += QuotedName(partitionByCols[i]);
-        }
-        result += ")";
-
-        if (orderByColsNumber)
-        {
-            result += " WITH (PARTITION_ORDER_BY = (";
-            result += QuotedName(partitionOrderByCols[0]);
-            for (int i = 1; i < orderByColsNumber; ++i)
-            {
-                result += ", ";
-                result += QuotedName(partitionOrderByCols[i]);
-            }
-            result += "))";
+            result += ",";
+            result += QuotedName(cols[i]);
         }
         return result;
     }
 
     std::string
-    MakeCreateResultTableQuery(
-        const char* resultTableName,
-        const char* selectQuery,
-        bool materialized,
+    PartitionBy(
         const char* const* const partitionByCols,
         const int partitionByColsNumber,
         const char* const* const partitionOrderByCols,
-        const int orderByColsNumber)
+        const int partitionOrderByColsNumber,
+        TableType tableType)
     {
-        std::string resultQuery;
+        if (partitionByColsNumber <=0 && partitionOrderByColsNumber <= 0)
+        {
+            return "";
+        }
+        std::string result = " ";
+        if (partitionByColsNumber > 0)
+        {
+            result += (tableType == TableType::RegularTable) ? "SHARD KEY(" : "PARTITION BY (";
+            result += JoinColumnNames(partitionByCols, partitionByColsNumber);
+            result += ")";
+        }
 
-        if (materialized)
+        if (partitionOrderByColsNumber > 0)
         {
-            resultQuery += "CREATE MATERIALIZED RESULT TABLE ";
+            if (tableType == TableType::RegularTable)
+            {
+                result += ", SORT KEY(";
+                result += JoinColumnNames(partitionOrderByCols, partitionOrderByColsNumber);
+                result += ",rowId) ";
+            }
+            else
+            {
+                result += " WITH (PARTITION_ORDER_BY = (";
+                result += JoinColumnNames(partitionOrderByCols, partitionOrderByColsNumber);
+                result += "))";
+            }
         }
-        else
+        if (tableType == TableType::RegularTable)
         {
-            resultQuery += "CREATE RESULT TABLE ";
+            return "(" + result + ")";
         }
-#ifdef REGULAR_TABLE_MODE
-        resultQuery = "CREATE TABLE ";
-#endif
+        return result;
+    }
+
+    std::string
+    MakeCreateTableQuery(
+        const char* resultTableName,
+        const char* selectQuery,
+        TableType tableType,
+        const char* const* const partitionByCols,
+        const int partitionByColsNumber,
+        const char* const* const partitionOrderByCols,
+        const int partitionOrderByColsNumber)
+    {
+        std::string resultQuery = "CREATE ";
+
+        switch (tableType)
+        {
+            case TableType::AggResultTableMaterialized:
+                resultQuery += "MATERIALIZED RESULT TABLE ";
+                break;
+            case TableType::AggResultTable:
+                resultQuery += "RESULT TABLE ";
+                break;
+            case TableType::RegularTable:
+                resultQuery += "TABLE ";
+                break;
+            default:
+                assert(false);
+                return "";
+        }
 
         resultQuery += QuotedName(resultTableName);
-        resultQuery += PartitionBy(partitionByCols, partitionByColsNumber, partitionOrderByCols, orderByColsNumber);
+        resultQuery +=
+            PartitionBy(partitionByCols, partitionByColsNumber, partitionOrderByCols, partitionOrderByColsNumber, tableType);
         resultQuery += " AS ";
         resultQuery += selectQuery;
         return resultQuery;
     }
 
-    std::string MakeDropQuery(const char* resultTableName)
+    std::string MakeDropResultQuery(const char* resultTableName)
     {
-        std::string resultQuery = "DROP RESULT TABLE ";
+        return "DROP RESULT TABLE " + QuotedName(resultTableName);
+    }
 
-#ifdef REGULAR_TABLE_MODE
-        resultQuery = "DROP TABLE ";
-#endif
-
-        resultQuery += QuotedName(resultTableName);
-        return resultQuery;
+    std::string MakeDropTableQuery(const char* resultTableName)
+    {
+        return "DROP TABLE IF EXISTS " + QuotedName(resultTableName);
     }
 
     std::string
@@ -469,28 +497,111 @@ namespace sql
         const char* resultTableName,
         uint32_t partition)
     {
+        std::string resultQuery = "SELECT * FROM ::";
+
+        resultQuery += QuotedName(resultTableName);
+        resultQuery += " WHERE partition_id() = " + std::to_string(partition);
+        return resultQuery;
+    }
+
+    std::string
+    MakeReadColumnStoreTableQuery(
+        const char* resultTableName,
+        const char* keyColumnName,
+        uint32_t partition,
+        const char *const *const partitionOrderByCols,
+        const int partitionOrderByColsNumber,
+        bool needOrder)
+    {
         std::string resultQuery = "SELECT * FROM ";
 
-#ifndef REGULAR_TABLE_MODE
-        resultQuery += "::";
-#endif
         resultQuery += QuotedName(resultTableName);
+        resultQuery += " WHERE partition_id() = " + std::to_string(partition);
+        if (needOrder || partitionOrderByColsNumber > 0)
+        {
+            resultQuery += " ORDER BY ";
+            if (partitionOrderByColsNumber > 0)
+            {
+                resultQuery += "" + JoinColumnNames(partitionOrderByCols, partitionOrderByColsNumber);
+                resultQuery += "," + std::string(keyColumnName);
+            }
+            else
+            {
+                resultQuery += keyColumnName;
+            }
+        }
+        return resultQuery;
+    }
 
-        resultQuery += " WHERE partition_id() = ";
-        resultQuery += std::to_string(partition);
+    std::string
+    MakeReadOriginalTableQuery(
+        const char* query,
+        const char* keyColumnName,
+        uint32_t partition,
+        const char *const *const partitionOrderByCols,
+        const int partitionOrderByColsNumber,
+        bool needOrder)
+    {
+        std::string resultQuery = "SELECT * FROM (" + std::string(query) + ")";
+        resultQuery += " WHERE partition_id() = " + std::to_string(partition);
+        if (needOrder || partitionOrderByColsNumber > 0)
+        {
+            resultQuery += " ORDER BY ";
+            if (partitionOrderByColsNumber > 0)
+            {
+                resultQuery += JoinColumnNames(partitionOrderByCols, partitionOrderByColsNumber);
+                bool needAddKey = true;
+                for (int i = 0; i < partitionOrderByColsNumber; ++i)
+                {
+                    if (!strcmp(keyColumnName, partitionOrderByCols[i]))
+                    {
+                        needAddKey = false;
+                        break;
+                    }
+                }
+                if (needAddKey)
+                {
+                    resultQuery += "," + std::string(keyColumnName);
+                }
+            }
+            else
+            {
+                resultQuery += keyColumnName;
+            }
+        }
         return resultQuery;
     }
 
     std::string
     MakePointInTimeQuery(
-        const char* table,
+        const std::string &table,
+        const std::string &selectQuery,
+        const std::string &keyColumnName,
         int partition_id,
-        int64_t row_id)
+        int64_t row_id,
+        bool is_result_table)
     {
-        std::string resultQuery = "SELECT * FROM ::" + QuotedName(table);
-        resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
-        resultQuery += " AND partition_row_id() = " + std::to_string(row_id);
-        return resultQuery;
+        if (selectQuery != "")
+        {
+            std::string resultQuery = "SELECT * FROM (" + selectQuery + ")";
+            resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
+            resultQuery += " AND " + keyColumnName + "=" + std::to_string(row_id);
+            return resultQuery;
+        }
+        if (is_result_table)
+        {
+            std::string resultQuery = "SELECT * FROM ::" + QuotedName(table);
+            resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
+            resultQuery += " AND partition_row_id() = " + std::to_string(row_id);
+            return resultQuery;
+        }
+        else
+        {
+            std::string resultQuery = "SELECT * FROM " + QuotedName(table);
+            resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
+            resultQuery += " AND " + keyColumnName + "=" + std::to_string(row_id);
+            return resultQuery;
+        }
     }
 
     std::string MakeLoadDataQuery(const std::string& tableName)

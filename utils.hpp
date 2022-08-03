@@ -4,6 +4,7 @@
 #include <atomic>
 #include <ios>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -31,6 +32,19 @@ typedef struct AggregatorNode
     std::string externalHost;
     int externalPort;
 } AggregatorNode;
+
+enum TableType
+{
+    AggResultTable,
+    AggResultTableMaterialized,
+    RegularTable,
+};
+
+typedef struct TableKeys
+{
+    std::set<std::string> shard_key;
+    std::vector<std::string> sort_key;
+} TableKeys;
 
 namespace utils
 {
@@ -86,16 +100,18 @@ namespace utils
 namespace sql
 {
     std::string
-    MakeCreateResultTableQuery(
+    MakeCreateTableQuery(
         const char* resultTableName,
         const char* selectQuery,
-        bool materialized,
+        TableType tableType,
         const char* const* const partitionByCols,
         const int partitionByColsNumber,
         const char* const* const partitionOrderByCols,
-        const int orderByColsNumber);
+        const int partitionOrderByColsNumber);
 
-    std::string MakeDropQuery(const char* resultTableName);
+    std::string MakeDropResultQuery(const char* resultTableName);
+
+    std::string MakeDropTableQuery(const char* tableName);
 
     std::string
     MakeReadResultTableQuery(
@@ -103,10 +119,31 @@ namespace sql
         uint32_t partition);
 
     std::string
+    MakeReadColumnStoreTableQuery(
+        const char* resultTableName,
+        const char* keyColumnName,
+        uint32_t partition,
+        const char *const *const partitionOrderByCols,
+        const int partitionOrderByColsNumber,
+        bool needOrder);
+
+    std::string
+    MakeReadOriginalTableQuery(
+        const char* query,
+        const char* keyColumnName,
+        uint32_t partition,
+        const char *const *const partitionOrderByCols,
+        const int partitionOrderByColsNumber,
+        bool needOrder);
+
+    std::string
     MakePointInTimeQuery(
-        const char* table,
+        const std::string &table,
+        const std::string &query,
+        const std::string &keyColumnName,
         int partition_id,
-        int64_t row_id);
+        int64_t row_id,
+        bool is_result_table);
 
     std::string MakeLoadDataQuery(
         const std::string& tableName);

@@ -108,6 +108,10 @@ class ChunkQueue
     std::mutex m_error_mutex;
 
     std::string m_result_table;
+    std::string m_query;
+    std::string m_key_column;
+
+    ParallelReadType m_read_type;
     std::vector<std::unique_ptr<ResultTableReader>> m_readers;
 
     Credentials m_credentials;

@@ -119,7 +119,7 @@ inline void SuperChunkWriter::WriteFixedNull(const int len)
 
 inline void SuperChunkWriter::WriteVariableNull()
 {
-    WriteVariable(&variableNull, 0);
+    WriteVariable(NULL, 0);
 }
 
 template<typename T>

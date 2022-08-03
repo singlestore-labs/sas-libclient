@@ -10,6 +10,10 @@ MultiPassQueue::CreateChunkQueue(
     S2Client *client,
     const char *resultTableName,
     const char *selectQuery,
+    const char *keyColumnName, 
+    ParallelReadType readType,
+    const char *const *const partitionOrderByCols,
+    const int partitionOrderByColsNumber,
     uint32_t capacity,
     uint64_t chunkSize,
     int nConsumers,
@@ -26,16 +30,15 @@ MultiPassQueue::CreateChunkQueue(
     chunkQueue->m_credentials.ssl_ca = client->m_conn->m_ssl_ca;
 
     chunkQueue->m_result_table = resultTableName;
+    chunkQueue->m_query = selectQuery;
+    chunkQueue->m_key_column = keyColumnName;
+    chunkQueue->m_read_type = readType;
 
     std::vector<int> partitions = utils::WorkerPartitions(
         client->m_numWorkers,
         client->m_workerId,
         client->m_numPartitions);
 
-    // initialize the object to store chunk sizes
-    // Starting in 1.3.0, chunks_info is no longer required.  Therefore, it is left null.
-    // std::shared_ptr<ChunksInfo> chunks_info(new ChunksInfo(partitions));
-    chunkQueue->m_chunks_info = nullptr;  // chunks_info;
     chunkQueue->m_partition_consumer = std::vector<int>(client->m_numPartitions, -1);
 
     // create ThreadSafeBatchQueue for each consumer
@@ -78,16 +81,30 @@ MultiPassQueue::CreateChunkQueue(
 
     // create Readers
     chunkQueue->m_readers.reserve(partitions.size());
+    std::string readQuery;
     for (int partition : partitions)
     {
+        switch (readType)
+        {
+            case ReadTypeResultTable:
+                readQuery = sql::MakeReadResultTableQuery(resultTableName, partition);
+                break;
+            case ReadTypeColumnStoreTable:
+                readQuery = sql::MakeReadColumnStoreTableQuery(resultTableName, keyColumnName, partition, partitionOrderByCols, partitionOrderByColsNumber, true /* needOrder */);
+                break;
+            case ReadTypeOriginalTable:
+                readQuery = sql::MakeReadOriginalTableQuery(selectQuery, keyColumnName, partition, partitionOrderByCols, partitionOrderByColsNumber, true /* needOrder */);
+                break;
+            default:
+                return nullptr;
+        }
         utils::FillCredentials(aggregators, partition, &creds);
         // ResultTableReader will create its own connection to read from partition
         auto reader = ResultTableReader::CreateReader(
             creds,
             masterCreds,
             chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
-            chunkQueue->m_chunks_info,
-            resultTableName,
+            readQuery,
             chunkQueue->m_row_schema,
             partition,
             chunkSize,
@@ -117,7 +134,7 @@ MultiPassQueue::CreateChunkQueue(
     return chunkQueue;
 };
 
-// GetById retrieves the Chunk number chunkId read from partiotionId
+// GetById retrieves the Chunk number chunkId read from partitionId
 Chunk *
 MultiPassQueue::GetById(
     int partitionId,
@@ -173,12 +190,16 @@ MultiPassQueue::GetSingleRow(
 
     try
     {
-        return m_consumers[threadId].conn->GetSingleRow(
+        Chunk *res = m_consumers[threadId].conn->GetSingleRow(
             m_consumers[threadId].writer.get(),
             m_row_schema,
             m_result_table,
+            m_query,
+            m_key_column,
             partitionId,
-            rowWithinPartition);
+            rowWithinPartition,
+            m_read_type);
+        return res;
     }
     catch (S2ClientError &s2_err)
     {

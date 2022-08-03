@@ -24,7 +24,7 @@ bool printInfo = 0;
 int nTableRows = 1000;
 
 const char *resultTable = "tmp";
-const char *queryMain = "SELECT * FROM superchunk_table";
+const char *queryMain = "SELECT * FROM all_data_types_table";
 
 const struct ParsedTestChunk DATA_TYPES_TEST_DATA =
     {
@@ -90,6 +90,7 @@ void null_test(S2Client *client)
 
     int dummy_partition = 0;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
+    int db_char_size = get_db_char_size();
 
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
@@ -97,7 +98,7 @@ void null_test(S2Client *client)
         struct ParsedTestChunk chunkData;
         for (uint64_t i = 0; i < chunk->row_count; ++i)
         {
-            current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
+            current_offset = parseAllDataTypesChunkRow(chunk, current_offset, &chunkData, db_char_size);
             assert(chunkData.int_64 == int64Null);
             assert(chunkData.int_32 == int32Null);
             assert(isnan(chunkData.double_val));
@@ -138,6 +139,7 @@ void read_test(S2Client *client)
     int dummy_partition;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
     int numReceived = 0;
+    int db_char_size = get_db_char_size();
 
     SuperChunkReader *r = CreateReader(chunk, NULL, &EH.callback);
     RowSchema *s;
@@ -156,7 +158,7 @@ void read_test(S2Client *client)
         int current_offset = 0;
         for (uint64_t i = 0; i < chunk->row_count; ++i)
         {
-            current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
+            current_offset = parseAllDataTypesChunkRow(chunk, current_offset, &chunkData, db_char_size);
             assert(chunkData.int_64 == DATA_TYPES_TEST_DATA.int_64);
             assert(chunkData.int_32 == DATA_TYPES_TEST_DATA.int_32);
             assert(chunkData.double_val == DATA_TYPES_TEST_DATA.double_val);
@@ -227,7 +229,7 @@ main(
 
     null_test(client);
 
-    setup_superchunk_table(client, 10);
+    setup_all_data_types_table(client, 10);
 
     // init the client
     S2Client *client1 = S2ClientInit(
@@ -243,7 +245,7 @@ main(
     assert(client1 != NULL && "S2Client is NULL");
 
     read_test(client);
-    cleanup_superchunk_table(client);
+    cleanup_all_data_types_table(client);
     // free the client
     S2ClientFree(client);
     return 0;

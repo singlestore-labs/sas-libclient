@@ -55,7 +55,7 @@ is_const_buffer(
 
 void read_and_check(S2Client *client)
 {
-    const char *query = "SELECT * FROM superchunk_table";
+    const char *query = "SELECT * FROM all_data_types_table WHERE rowId > 0";
 
     ChunkQueue *q = QueryGetQueue(
         client,
@@ -70,35 +70,17 @@ void read_and_check(S2Client *client)
 
     int dummy_partition;
     Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
+    int db_char_size = get_db_char_size();
 
     // This assumes all the rows are consumed by one chunk
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
         struct ParsedTestChunk chunkData;
         int current_offset = 0;
-        assert(chunk->row_count == nRowsToWrite + 1);
-        for (uint64_t i = 0; i < chunk->row_count; ++i)
+        assert(chunk->row_count == nRowsToWrite - 1); // 2 rows are excluded by the query 
+        for (uint64_t i = 1; i <= chunk->row_count; ++i)
         {
-            current_offset = parseTestChunkRow(chunk, current_offset, &chunkData);
-            if (i >= nRowsToWrite)
-            {
-                assert(chunkData.int_64 == int64Null);
-                assert(chunkData.int_32 == int32Null);
-                assert(isnan(chunkData.double_val));
-
-                assert(!chunkData.variable_text.len);
-                assert(!chunkData.variable_char.len);
-                assert(!chunkData.variable_binary.len);
-
-                assert(is_const_buffer(chunkData.fixed_char, 16 * get_db_char_size(), '\0'));
-                assert(is_const_buffer(chunkData.fixed_binary, 9, '\0'));
-
-                assert(chunkData.date_time == int64Null);
-                assert(chunkData.date_time_6 == int64Null);
-                assert(chunkData.date == int32Null);
-                assert(chunkData.time == int64Null);
-                break;
-            }
+            current_offset = parseAllDataTypesChunkRow(chunk, current_offset, &chunkData, db_char_size);
 
             assert(chunkData.int_64 == (int64_t)(i * i));
             assert(chunkData.int_32 == (int32_t)i);
@@ -147,7 +129,7 @@ void write_test(S2Client *client)
 {
     Chunk *chunk = allocChunk(chunkSize);
 
-    RowSchema *schema = GetTableRowSchema(client, superchunkTable, &EH.callback);
+    RowSchema *schema = GetTableRowSchema(client, allDataTypesTable, &EH.callback);
 
     IF_INFO(PrintRowSchema(schema));
     int db_char_size = get_db_char_size();
@@ -190,7 +172,7 @@ void write_test(S2Client *client)
         WriteRowEnd(w);
     }
     {
-        WriteInt64(w, int64Null);
+        WriteInt64(w, 0);
         WriteInt32(w, int32Null);
         WriteDouble(w, doubleNull);
 
@@ -209,7 +191,7 @@ void write_test(S2Client *client)
         WriteRowEnd(w);
     }
 
-    LoadDataWrite(client, chunk, schema, superchunkTable, &EH.callback);
+    LoadDataWrite(client, chunk, schema, allDataTypesTable, &EH.callback);
     WriterFree(w);
     RowSchemaFree(schema);
     ChunkFree(chunk);
@@ -257,7 +239,7 @@ void boundary_test(S2Client *client)
         bool is_null;
         ReadInt64(r, &int_val, &is_null);
         assert(!is_null);
-        assert(int_val==12345678);
+        assert(int_val == 12345678);
         const char *binary_val;
         int64_t len;
         ReadVariable(r, &binary_val, &len, &is_null);
@@ -267,6 +249,7 @@ void boundary_test(S2Client *client)
         assert(binary_val[1] == '\x66');
         assert(binary_val[2] == '\x88');
     }
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS boundary_table", &EH.callback);
     ReaderFree(r);
     RowSchemaFree(schema);
     ChunkFree(chunk);
@@ -330,6 +313,7 @@ void max_allowed_packet_test(S2Client *client)
     GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback);
     EH.errorExpected = false;
 
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS max_allowed_packet_table", &EH.callback);
     ReaderFree(r);
     RowSchemaFree(schema);
     ExecuteDDLQuery(client, "SET GLOBAL MAX_ALLOWED_PACKET = 104857600", &EH.callback);
@@ -360,10 +344,10 @@ main(
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
-    setup_superchunk_table(client, 0);
+    setup_all_data_types_table(client, 0);
     write_test(client);
     read_and_check(client);
-    cleanup_superchunk_table(client);
+    cleanup_all_data_types_table(client);
     boundary_test(client);
     max_allowed_packet_test(client);
 

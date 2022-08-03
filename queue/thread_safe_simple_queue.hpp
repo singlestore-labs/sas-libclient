@@ -77,8 +77,7 @@ class ThreadSafeSimpleQueue : public ThreadSafeQueue<T>
         int valueId)
     {
         assert(false && "Get by id is not supported by ThreadSafeSimpleQueue");
-        T res;
-        return res;
+        return NULL;
     };
 
     // DeleteProducer decreases the number of producers by one
