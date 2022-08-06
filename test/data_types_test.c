@@ -35,8 +35,12 @@ const struct ParsedTestChunk DATA_TYPES_TEST_DATA =
          14},
         {"LOOONGVAL",
          9},
+        {"varcharVAL",
+         10},
+        {"varbinaryVAL",
+         12},
         "русVAL",
-        "fbVAL ",
+        "fbVAL",
         1935835200000000,
         31666394987654,
         22405,
@@ -54,8 +58,10 @@ void null_test(S2Client *client)
         ddouble DOUBLE,\
         vtext TEXT,\
         vlongtext LONGTEXT,\
-        vvarchar_10 VARCHAR(16),\
-        vvarbinary_20 VARBINARY(9),\
+        vvarchar_10 VARCHAR(10),\
+        vvarbinary_20 VARBINARY(20),\
+        fchar_16 CHAR(16),\
+        fbbinary_8 BINARY(9),\
         idatetime DATETIME,\
         idatetime_6 DATETIME(6),\
         idate DATE,\
@@ -66,7 +72,7 @@ void null_test(S2Client *client)
     ExecuteDDLQuery(
         client,
         "INSERT INTO null_test VALUES (\
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
+        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)",
         &EH.callback);
 
     const char *query = "SELECT * FROM null_test";
@@ -97,6 +103,8 @@ void null_test(S2Client *client)
             assert(isnan(chunkData.double_val));
 
             assert(chunkData.variable_text.len == 0);
+            assert(chunkData.variable_char.len == 0);
+            assert(chunkData.variable_binary.len == 0);
             assert(strlen(chunkData.fixed_char) == 0);
             assert(strlen(chunkData.fixed_binary) == 0);
 
@@ -154,11 +162,21 @@ void read_test(S2Client *client)
             assert(chunkData.double_val == DATA_TYPES_TEST_DATA.double_val);
 
             assert(chunkData.variable_text.len == DATA_TYPES_TEST_DATA.variable_text.len);
+            assert(chunkData.variable_char.len == DATA_TYPES_TEST_DATA.variable_char.len);
+            assert(chunkData.variable_binary.len == DATA_TYPES_TEST_DATA.variable_binary.len);
 
             assert(!strncmp(
                 chunkData.variable_text.data,
                 DATA_TYPES_TEST_DATA.variable_text.data,
                 DATA_TYPES_TEST_DATA.variable_text.len));
+            assert(!strncmp(
+                chunkData.variable_char.data,
+                DATA_TYPES_TEST_DATA.variable_char.data,
+                DATA_TYPES_TEST_DATA.variable_char.len));
+            assert(!strncmp(
+                chunkData.variable_binary.data,
+                DATA_TYPES_TEST_DATA.variable_binary.data,
+                DATA_TYPES_TEST_DATA.variable_binary.len));
 
             assert(!strncmp(
                 chunkData.fixed_char,

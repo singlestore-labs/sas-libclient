@@ -9,8 +9,8 @@ enum ColumnType
     Int64,     // BIGINT
     Int32,     // INT
     Double,    // DOUBLE
-    Variable,  // LONGTEXT, TEXT, BLOB, LONGBLOB
-    Fixed,     // VARCHAR, VARBINARY, CHAR, BINARY
+    Variable,  // VARCHAR, VARBINARY, TEXT
+    Fixed,     // CHAR, BINARY
     Time,      // TIME, converted to int64 number of microsenconds since midnight
     Date,      // DATE, converted to int32 number of days since 1 Jan 1960
     DateTime,  // DATETIME, DATETIME(6) converted to int64 number of microseconds since midnight 1 Jan 1960
@@ -22,7 +22,6 @@ typedef struct Column
     enum ColumnType type;
     int64_t size;
     char* name;
-    bool is_binary;
 } Column;
 
 typedef struct RowSchema

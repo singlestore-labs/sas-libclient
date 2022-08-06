@@ -113,7 +113,6 @@ namespace utils
         for (int i = 0; i < num_fields; ++i)
         {
             column_info[i].name = strdup(fields[i].name);
-            column_info[i].is_binary = fields[i].flags & BINARY_FLAG;
             switch (fields[i].type)
             {
                 // integer types
@@ -138,13 +137,13 @@ namespace utils
                 }
                 // fixed size string
                 case MYSQL_TYPE_STRING:
-                case MYSQL_TYPE_VAR_STRING:
                 {
                     column_info[i].type = Fixed;
                     column_info[i].size = fields[i].length;
                     break;
                 }
                 // variable length string
+                case MYSQL_TYPE_VAR_STRING:
                 case MYSQL_TYPE_LONG_BLOB:
                 case MYSQL_TYPE_MEDIUM_BLOB:
                 case MYSQL_TYPE_BLOB:
@@ -245,9 +244,7 @@ namespace utils
                     fieldDefs[i].type_end - fieldDefs[i].type_start - 8));
                 continue;
             }
-            if (!col_type.compare(0, 4, "char", 0, 4) ||
-                !col_type.compare(0, 7, "varchar", 0, 7) ||
-                !col_type.compare(0, 9, "varbinary", 0, 9))
+            if (!col_type.compare(0, 4, "char", 0, 4))
             {
                 schema->ColumnInfo[i].type = Fixed;
 
@@ -262,7 +259,9 @@ namespace utils
                 schema->ColumnInfo[i].size = size_in_char * char_size;
                 continue;
             }
-            if (!col_type.compare(0, 8, "longtext", 0, 8) ||
+            if (!col_type.compare(0, 7, "varchar", 0, 7) ||
+                !col_type.compare(0, 9, "varbinary", 0, 9) ||
+                !col_type.compare(0, 8, "longtext", 0, 8) ||
                 !col_type.compare(0, 8, "longblob", 0, 8) ||
                 !col_type.compare(0, 10, "mediumblob", 0, 10) ||
                 !col_type.compare(0, 4, "blob", 0, 4) ||
@@ -286,7 +285,7 @@ namespace utils
     - bacticks ` indicate the beginning and the end of column name, with no backticks in the name itself
     - column type is indicated after column name and a single space character
     - character set is indicated after the column type
-      - for CHAR/VARCHAR(length) data type, if charset part contains substring "utf8mb4", char size is 4. Otherwise it is 3
+      - for CHAR(length) data type, if charset part contains substring "utf8mb4", char size is 4. Otherwise itis 3
     */
     void
     ExplainToRowSchema(

@@ -276,7 +276,9 @@ SuperChunkWriter::WriteRow(
                 }
                 else
                 {
-                    WriteFixed(column_value, data_length, column_type.size, column_type.is_binary);
+                    // when we read data from db, fixed length binary data
+                    // does not need padding, so we set pad_with_zero to false
+                    WriteFixed(column_value, data_length, column_type.size, false);
                 }
                 break;
             }

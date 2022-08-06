@@ -38,7 +38,7 @@
 const char *superchunkTable = "superchunk_table";
 const char *testData =
     "(-1460002, 12507, 1.23456789012345,\
-    'textVAL_рус', 'LOOONGVAL', 'русVAL', 'fbVAL ',\
+    'textVAL_рус', 'LOOONGVAL', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL',\
     '2021-05-05 12:00:00', '1961-01-01 12:13:14.987654', '2021-05-05', '11:11:11.001234')";
 
 char smallTestData[nSmallTestRows][60] =
@@ -74,6 +74,8 @@ struct ParsedTestChunk
     double double_val;
     VariableLen variable_text;
     VariableLen variable_long_text;
+    VariableLen variable_char;
+    VariableLen variable_binary;
     char fixed_char[64];
     char fixed_binary[9];
     int64_t date_time;
@@ -196,8 +198,10 @@ setup_superchunk_table(
         ddouble DOUBLE,\
         vtext TEXT,\
         vlongtext LONGTEXT,\
-        vvarchar_10 VARCHAR(16),\
-        vvarbinary_20 VARBINARY(9),\
+        vvarchar_10 VARCHAR(10),\
+        vvarbinary_20 VARBINARY(20),\
+        fchar_16 CHAR(16),\
+        fbbinary_9 BINARY(9),\
         idatetime DATETIME,\
         idatetime_6 DATETIME(6),\
         idate DATE,\
@@ -367,10 +371,24 @@ parseTestChunkRow(
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(out->variable_long_text.data, chunk->m_ptr + offset, len);
-    // Fixed, VARCHAR(16)
+    // Variable, VARCHAR
+    memcpy(&offset, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(&len, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(out->variable_char.data, chunk->m_ptr + offset, len);
+    out->variable_char.len = len;
+    // Variable, VARBINARY
+    memcpy(&offset, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(&len, chunk->m_ptr + current_offset, 8);
+    current_offset += 8;
+    memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
+    out->variable_binary.len = len;
+    // Fixed, CHAR(16)
     memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * get_db_char_size());
     current_offset += 16 * get_db_char_size();
-    // Fixed, VARBINARY(9)
+    // Fixed, BINARY(9)
     memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 16);
     current_offset += 16;
     // DateTime
