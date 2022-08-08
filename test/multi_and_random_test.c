@@ -152,6 +152,7 @@ void *worker(void *input)
         client,
         resultTable,
         testQuery,
+        multiPassTable,
         keyCol,
         w_args->read_type,
         NULL,
@@ -206,6 +207,7 @@ void *worker(void *input)
         client,
         resultTable,
         testQuery,
+        multiPassTable,
         keyCol,
         w_args->read_type,
         NULL,
@@ -278,8 +280,14 @@ main_test(
     // init the parallel read in multi-pass mode
     //ParallelReadType readType = ReadTypeUnknown;
     ParallelReadType readType = ReadTypeOriginalTable;
-    readType = ParallelReadInit(client, resultTable, testQuery, multiPassTable, keyCol, readType, true, NULL, 0, NULL, 0);
+
+    const char *partCols[2] = {"i1", "d1"};
+    const char *partOrderCols[2] = {"i1", "rowId"};
+
+    readType = ParallelReadInit(client, resultTable, testQuery, multiPassTable, keyCol, readType, true, partCols, 2, partOrderCols, 2);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
+
+    printf("Using read type: %d\n", readType);
 
     // start "CAS worker" threads
     pthread_t workers[numWorkers];
@@ -351,7 +359,7 @@ main(
     main_test(client, true);
     printf("[SUCCESS] random read test passed!\n");
 
-    ExecuteDDLQuery(client, "DROP TABLE multi_pass_test", &EH.callback);
+    // ExecuteDDLQuery(client, "DROP TABLE multi_pass_test", &EH.callback);
 
     // free the client
     S2ClientFree(client);

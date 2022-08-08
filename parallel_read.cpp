@@ -56,6 +56,7 @@ extern "C"
             newQuery = sql::MakeCreateTableQuery(
                 resultTableName,
                 selectQuery,
+                keyColumnName,
                 tableType,
                 partitionByCols,
                 partitionByColsNumber,
@@ -115,6 +116,7 @@ extern "C"
         S2Client *client,
         const char *resultTableName,
         const char *selectQuery,
+        const char *sourceTable,
         const char *keyColumnName,
         ParallelReadType readType,
         const char *const *const partitionOrderByCols,
@@ -135,6 +137,7 @@ extern "C"
                            client,
                            resultTableName,
                            selectQuery,
+                           sourceTable,
                            keyColumnName,
                            readType,
                            partitionOrderByCols,
@@ -149,6 +152,7 @@ extern "C"
                        client,
                        resultTableName,
                        selectQuery,
+                       sourceTable,
                        keyColumnName,
                        readType,
                        partitionOrderByCols,
@@ -186,8 +190,9 @@ extern "C"
         {
             return StreamingQueue::CreateChunkQueue(
                        client,
-                       nullptr,
+                       NULL,
                        query,
+                       NULL,
                        NULL,
                        ReadTypeResultTable,  /* this is not used when doesParallelRead is false */
                        NULL,

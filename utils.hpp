@@ -103,6 +103,7 @@ namespace sql
     MakeCreateTableQuery(
         const char* resultTableName,
         const char* selectQuery,
+        const char* keyColumnName,
         TableType tableType,
         const char* const* const partitionByCols,
         const int partitionByColsNumber,
@@ -120,21 +121,19 @@ namespace sql
 
     std::string
     MakeReadColumnStoreTableQuery(
-        const char* resultTableName,
+        const char* tableName,
         const char* keyColumnName,
-        uint32_t partition,
         const char *const *const partitionOrderByCols,
         const int partitionOrderByColsNumber,
-        bool needOrder);
+        uint32_t partition);
 
     std::string
     MakeReadOriginalTableQuery(
         const char* query,
-        const char* keyColumnName,
-        uint32_t partition,
+        const std::vector<std::string>* columnstoreFullSortKey,
         const char *const *const partitionOrderByCols,
         const int partitionOrderByColsNumber,
-        bool needOrder);
+        uint32_t partition);
 
     std::string
     MakePointInTimeQuery(

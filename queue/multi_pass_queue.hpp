@@ -43,6 +43,7 @@ class MultiPassQueue : public ChunkQueue
         S2Client *client,
         const char *resultTableName,
         const char *selectQuery,
+        const char *sourceTable,
         const char *keyColumnName,
         ParallelReadType readType,
         const char *const *const partitionOrderByCols,

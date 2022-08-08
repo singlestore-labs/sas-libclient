@@ -10,6 +10,7 @@ MultiPassQueue::CreateChunkQueue(
     S2Client *client,
     const char *resultTableName,
     const char *selectQuery,
+    const char *sourceTable,
     const char *keyColumnName, 
     ParallelReadType readType,
     const char *const *const partitionOrderByCols,
@@ -82,6 +83,11 @@ MultiPassQueue::CreateChunkQueue(
     // create Readers
     chunkQueue->m_readers.reserve(partitions.size());
     std::string readQuery;
+    TableKeys columnstoreKeys;
+    if (readType == ReadTypeOriginalTable)
+    {
+        columnstoreKeys = client->m_conn->GetTableKeys(sourceTable);
+    }
     for (int partition : partitions)
     {
         switch (readType)
@@ -90,10 +96,10 @@ MultiPassQueue::CreateChunkQueue(
                 readQuery = sql::MakeReadResultTableQuery(resultTableName, partition);
                 break;
             case ReadTypeColumnStoreTable:
-                readQuery = sql::MakeReadColumnStoreTableQuery(resultTableName, keyColumnName, partition, partitionOrderByCols, partitionOrderByColsNumber, true /* needOrder */);
+                readQuery = sql::MakeReadColumnStoreTableQuery(resultTableName, keyColumnName, partitionOrderByCols, partitionOrderByColsNumber, partition);
                 break;
             case ReadTypeOriginalTable:
-                readQuery = sql::MakeReadOriginalTableQuery(selectQuery, keyColumnName, partition, partitionOrderByCols, partitionOrderByColsNumber, true /* needOrder */);
+                readQuery = sql::MakeReadOriginalTableQuery(selectQuery, &(columnstoreKeys.sort_key), partitionOrderByCols, partitionOrderByColsNumber, partition);
                 break;
             default:
                 return nullptr;

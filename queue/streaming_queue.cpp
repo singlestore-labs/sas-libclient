@@ -8,6 +8,7 @@ StreamingQueue::CreateChunkQueue(
     S2Client *client,
     const char *resultTableName,
     const char *selectQuery,
+    const char *sourceTable,
     const char *keyColumnName, 
     ParallelReadType readType,
     const char *const *const partitionOrderByCols,
@@ -89,10 +90,10 @@ StreamingQueue::CreateChunkQueue(
                     readQuery = sql::MakeReadResultTableQuery(resultTableName, partition);
                     break;
                 case ReadTypeColumnStoreTable:
-                    readQuery = sql::MakeReadColumnStoreTableQuery(resultTableName, keyColumnName, partition, partitionOrderByCols, partitionOrderByColsNumber, false /* needOrder */);
-                    break;
+                    client->SetError(S2ClientError(S2C_ERROR_INV_ARG, "Cannot use ReadTypeColumnStoreTable in Single Pass"), cb);
+                    return nullptr;
                 case ReadTypeOriginalTable:
-                    readQuery = sql::MakeReadOriginalTableQuery(selectQuery, keyColumnName, partition, partitionOrderByCols, partitionOrderByColsNumber, false /* needOrder */);
+                    readQuery = sql::MakeReadOriginalTableQuery(selectQuery, NULL, partitionOrderByCols, partitionOrderByColsNumber, partition);
                     break;
                 default:
                     return nullptr;

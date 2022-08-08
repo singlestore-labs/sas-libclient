@@ -205,8 +205,8 @@ void setup_multi_pass_table(S2Client *client)
         d2 DOUBLE,\
         t1 TEXT,\
         t2 TEXT,\
-        SHARD KEY(i1, d1),\
-        SORT KEY (rowId)\
+        SHARD KEY(i1),\
+        SORT KEY (i1, rowId)\
         )",
         &EH.callback);
 

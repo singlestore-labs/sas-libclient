@@ -96,6 +96,7 @@ void *worker(void *input)
         client,
         resultTable,
         args->query,
+        partitionTable,
         keyCol,
         args->read_type,
         args->partition_order_by_cols,
@@ -225,6 +226,7 @@ parallel_test(
         partitionOrderByCols,
         partitionOrderByColsNumber);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
+    printf("Using Read Type %d\n", readType);
 
     // start "CAS worker" threads
     pthread_t workers[numWorkers];

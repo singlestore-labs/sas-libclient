@@ -439,13 +439,29 @@ S2Connection::GetParallelReadType(
         tableKeys = GetTableKeys(sourceTable);
         std::string currentColumn;
         // shard key matching
-        for (int i = 0; i < partitionByColsNumber; ++i)
+        if (partitionByColsNumber > 0)
         {
-            currentColumn = std::string(partitionByCols[i]);
-            if (!tableKeys.shard_key.count(currentColumn))
+            // shard_key must be non-empty
+            if (tableKeys.shard_key.empty())
             {
                 isColumnstoreScanOk = false;
-                break;
+            }
+            else
+            {
+                std::set<std::string> partitionByColSet;
+                for (int i = 0; i < partitionByColsNumber; ++i)
+                {
+                    partitionByColSet.insert(std::string(partitionByCols[i]));
+                }
+                // columnstore shard key is a subset of partition by columns
+                for (std::string col : tableKeys.shard_key)
+                {
+                    if (!partitionByColSet.count(col))
+                    {
+                        isColumnstoreScanOk = false;
+                        break;
+                    }
+                }
             }
         }
         // sort key matching
@@ -466,7 +482,8 @@ S2Connection::GetParallelReadType(
             }
         }
     }
-    // TODO: future maybe check if we can use ReadTypeOriginalTable if ReadTypeUnknown is passed
+    // TODO: PLAT-6302 add sanity checks for ReadTypeOriginalTable
+    // Maybe also check if we can use ReadTypeOriginalTable if ReadTypeUnknown is passed
     if (readType == ReadTypeUnknown || !isColumnstoreScanOk)
     {
         if (materialized)
@@ -508,11 +525,11 @@ S2Connection::GetTableKeys(const char *sourceTable)
         lengths = mysql_fetch_lengths(res);
         if (!strncmp(row[2], "CLUSTERED COLUMNSTORE", lengths[2]))
         {
-            keysToReturn.shard_key.insert(std::string(row[1], lengths[1]));
+            keysToReturn.sort_key.push_back(std::string(row[1], lengths[1]));
         }
         else
         {
-            keysToReturn.sort_key.push_back(std::string(row[1], lengths[1]));
+            keysToReturn.shard_key.insert(std::string(row[1], lengths[1]));
         }
     }
     mysql_free_result(res);
