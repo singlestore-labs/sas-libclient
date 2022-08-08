@@ -422,13 +422,13 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
 
 ParallelReadType
 S2Connection::GetParallelReadType(
-    const char *selectQuery,
-    const char *sourceTable,
-    const char *keyColumnName,
+    const char* selectQuery,
+    const char* sourceTable,
+    const char* keyColumnName,
     bool materialized,
-    const char *const *const partitionByCols,
+    const char* const* const partitionByCols,
     int partitionByColsNumber,
-    const char *const *const partitionOrderByCols,
+    const char* const* const partitionOrderByCols,
     const int partitionOrderByColsNumber,
     ParallelReadType readType)
 {
@@ -495,8 +495,7 @@ S2Connection::GetParallelReadType(
     return ReadTypeOriginalTable;
 }
 
-TableKeys
-S2Connection::GetTableKeys(const char *sourceTable)
+TableKeys S2Connection::GetTableKeys(const char* sourceTable)
 {
     TableKeys keysToReturn;
     MYSQL_RES* res;
@@ -537,7 +536,6 @@ S2Connection::GetTableKeys(const char *sourceTable)
     return keysToReturn;
 }
 
-
 bool S2Connection::HasNextRow()
 {
     return m_last_fetched_row;
@@ -572,21 +570,31 @@ Chunk*
 S2Connection::GetSingleRow(
     SuperChunkWriter* writer,
     RowSchema* schema,
-    const std::string &resultTable,
-    const std::string &selectQuery,
-    const std::string &keyColumnName,
+    const std::string& resultTable,
+    const std::string& selectQuery,
+    const std::string& keyColumnName,
     const uint32_t partitionId,
     const int64_t partitionRowId,
     ParallelReadType readType)
 {
-    std::string queryParam = readType == ParallelReadType::ReadTypeOriginalTable ? selectQuery : ""; 
+    std::string queryParam = readType == ParallelReadType::ReadTypeOriginalTable ? selectQuery : "";
 
-    std::string query = sql::MakePointInTimeQuery(resultTable, queryParam, keyColumnName, partitionId, partitionRowId, readType == ParallelReadType::ReadTypeResultTable);
+    std::string query = sql::MakePointInTimeQuery(
+        resultTable,
+        queryParam,
+        keyColumnName,
+        partitionId,
+        partitionRowId,
+        readType == ParallelReadType::ReadTypeResultTable);
     bool result = Prepare(query.c_str(), true);
 
-    if (!result || !m_last_fetched_lengths || !m_last_fetched_row)
+    if (!result ||
+        !m_last_fetched_lengths ||
+        !m_last_fetched_row)
     {
-        throw S2ClientError(S2C_ERROR_INV_ARG, "Failed to get the row with id " + std::to_string(partitionRowId) + " from table " + resultTable);
+        throw S2ClientError(
+            S2C_ERROR_INV_ARG,
+            "Failed to get the row with id " + std::to_string(partitionRowId) + " from table " + resultTable);
     }
 
     uint64_t chunk_size = rowSize(schema, m_last_fetched_lengths);

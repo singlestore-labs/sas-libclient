@@ -105,7 +105,8 @@ void *reader_thread(void *input)
             {
                 for (uint64_t row_num = 0; row_num < args->chunks_read[i].row_count; ++row_num)
                 {
-                    rowId = args->read_type == ReadTypeResultTable ? args->chunks_read[i].upto_row_count + row_num : args->chunks_read[i].row_ids_read[row_num];
+                    rowId = args->read_type == ReadTypeResultTable ? args->chunks_read[i].upto_row_count + row_num
+                                                                   : args->chunks_read[i].row_ids_read[row_num];
                     bool result = GetChunkRow(
                         args->queue,
                         args->chunks_read[i].partition_id,
@@ -176,7 +177,7 @@ void *worker(void *input)
         readerArgs[i].worker_id = w_args->id;
         readerArgs[i].id = i;
         readerArgs[i].queue = q;
-        readerArgs[i].mode = FIRST_PASS;  
+        readerArgs[i].mode = FIRST_PASS;
         readerArgs[i].read_type = w_args->read_type;
         readerArgs[i].check_partition_order = false;
         readerArgs[i].n_chunks_read = 0;
@@ -278,13 +279,14 @@ main_test(
     }
 
     // init the parallel read in multi-pass mode
-    //ParallelReadType readType = ReadTypeUnknown;
+    // ParallelReadType readType = ReadTypeUnknown;
     ParallelReadType readType = ReadTypeOriginalTable;
 
     const char *partCols[2] = {"i1", "d1"};
     const char *partOrderCols[2] = {"i1", "rowId"};
 
-    readType = ParallelReadInit(client, resultTable, testQuery, multiPassTable, keyCol, readType, true, partCols, 2, partOrderCols, 2);
+    readType = ParallelReadInit(
+        client, resultTable, testQuery, multiPassTable, keyCol, readType, true, partCols, 2, partOrderCols, 2);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
 
     printf("Using read type: %d\n", readType);

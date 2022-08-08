@@ -11,7 +11,7 @@ MultiPassQueue::CreateChunkQueue(
     const char *resultTableName,
     const char *selectQuery,
     const char *sourceTable,
-    const char *keyColumnName, 
+    const char *keyColumnName,
     ParallelReadType readType,
     const char *const *const partitionOrderByCols,
     const int partitionOrderByColsNumber,
@@ -96,10 +96,16 @@ MultiPassQueue::CreateChunkQueue(
                 readQuery = sql::MakeReadResultTableQuery(resultTableName, partition);
                 break;
             case ReadTypeColumnStoreTable:
-                readQuery = sql::MakeReadColumnStoreTableQuery(resultTableName, keyColumnName, partitionOrderByCols, partitionOrderByColsNumber, partition);
+                readQuery = sql::MakeReadColumnStoreTableQuery(
+                    resultTableName, keyColumnName, partitionOrderByCols, partitionOrderByColsNumber, partition);
                 break;
             case ReadTypeOriginalTable:
-                readQuery = sql::MakeReadOriginalTableQuery(selectQuery, &(columnstoreKeys.sort_key), partitionOrderByCols, partitionOrderByColsNumber, partition);
+                readQuery = sql::MakeReadOriginalTableQuery(
+                    selectQuery,
+                    &(columnstoreKeys.sort_key),
+                    partitionOrderByCols,
+                    partitionOrderByColsNumber,
+                    partition);
                 break;
             default:
                 return nullptr;

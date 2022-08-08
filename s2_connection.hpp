@@ -93,17 +93,17 @@ class S2Connection
     // we need to use to read the results of selectQuery
     ParallelReadType
     GetParallelReadType(
-        const char *selectQuery,
-        const char *sourceTable,
-        const char *keyColumnName,
+        const char* selectQuery,
+        const char* sourceTable,
+        const char* keyColumnName,
         bool materialized,
-        const char *const *const partitionByCols,
+        const char* const* const partitionByCols,
         int partitionByColsNumber,
-        const char *const *const partitionOrderByCols,
+        const char* const* const partitionOrderByCols,
         const int partitionOrderByColsNumber,
         ParallelReadType readType);
 
-    TableKeys GetTableKeys(const char *sourceTable);
+    TableKeys GetTableKeys(const char* sourceTable);
 
     // HasNextRow returns true if the result set has a data
     bool HasNextRow();
@@ -119,9 +119,9 @@ class S2Connection
     GetSingleRow(
         SuperChunkWriter* writer,
         RowSchema* schema,
-        const std::string &resultTable,
-        const std::string &selectQuery,
-        const std::string &keyColumnName,
+        const std::string& resultTable,
+        const std::string& selectQuery,
+        const std::string& keyColumnName,
         const uint32_t partitionId,
         const int64_t partitionRowId,
         ParallelReadType readType);

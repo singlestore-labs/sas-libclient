@@ -27,7 +27,7 @@ class StreamingQueue : public ChunkQueue
         const char *resultTableName,
         const char *selectQuery,
         const char *sourceTable,
-        const char *keyColumnName, 
+        const char *keyColumnName,
         ParallelReadType readType,
         const char *const *const partitionOrderByCols,
         const int partitionOrderByColsNumber,

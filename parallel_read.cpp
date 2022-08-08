@@ -22,7 +22,6 @@ extern "C"
         client->SetError(S2ClientError(0, ""), nullptr);
         try
         {
-            
             readType = client->m_conn->GetParallelReadType(
                 selectQuery,
                 sourceTable,

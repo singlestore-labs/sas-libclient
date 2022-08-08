@@ -404,8 +404,7 @@ namespace sql
         return result;
     }
 
-    std::string
-    JoinColumnNames(const std::vector<std::string> *cols)
+    std::string JoinColumnNames(const std::vector<std::string>* cols)
     {
         std::string result;
         result += QuotedName((*cols)[0]);
@@ -417,10 +416,11 @@ namespace sql
         return result;
     }
 
-    std::string BuildSortKey(
+    std::string
+    BuildSortKey(
         const char* const* const partitionOrderByCols,
         const int partitionOrderByColsNumber,
-        const char *keyColumnName)
+        const char* keyColumnName)
     {
         std::string result = JoinColumnNames(partitionOrderByCols, partitionOrderByColsNumber);
         bool needAddKey = true;
@@ -446,7 +446,7 @@ namespace sql
         const int partitionByColsNumber,
         const char* const* const partitionOrderByCols,
         const int partitionOrderByColsNumber,
-        const char *keyColumnName,
+        const char* keyColumnName,
         TableType tableType)
     {
         std::string result;
@@ -463,7 +463,8 @@ namespace sql
             }
             if (partitionOrderByColsNumber > 0)
             {
-                result += " WITH (PARTITION_ORDER_BY = (" + JoinColumnNames(partitionOrderByCols, partitionOrderByColsNumber) + "))";
+                result += " WITH (PARTITION_ORDER_BY = (" +
+                          JoinColumnNames(partitionOrderByCols, partitionOrderByColsNumber) + "))";
             }
             return result;
         }
@@ -510,7 +511,13 @@ namespace sql
         }
 
         resultQuery += QuotedName(resultTableName);
-        resultQuery += PartitionBy(partitionByCols, partitionByColsNumber, partitionOrderByCols, partitionOrderByColsNumber, keyColumnName, tableType);
+        resultQuery += PartitionBy(
+            partitionByCols,
+            partitionByColsNumber,
+            partitionOrderByCols,
+            partitionOrderByColsNumber,
+            keyColumnName,
+            tableType);
         resultQuery += " AS ";
         resultQuery += selectQuery;
         return resultQuery;
@@ -542,7 +549,7 @@ namespace sql
     MakeReadColumnStoreTableQuery(
         const char* tableName,
         const char* keyColumnName,
-        const char *const *const partitionOrderByCols,
+        const char* const* const partitionOrderByCols,
         const int partitionOrderByColsNumber,
         uint32_t partition)
     {
@@ -557,13 +564,14 @@ namespace sql
     MakeReadOriginalTableQuery(
         const char* query,
         const std::vector<std::string>* columnstoreFullSortKey,
-        const char *const *const partitionOrderByCols,
+        const char* const* const partitionOrderByCols,
         const int partitionOrderByColsNumber,
         uint32_t partition)
     {
         std::string resultQuery = "SELECT * FROM (" + std::string(query) + ")";
         resultQuery += " WHERE partition_id() = " + std::to_string(partition);
-        // we pass columnstoreFullSortKey from multi pass queue
+        // we pass columnstoreFullSortKey from multi pass queue,
+        // streaming queue sets the pointer to NULL
         if (columnstoreFullSortKey && columnstoreFullSortKey->size() > 0)
         {
             resultQuery += " ORDER BY " + JoinColumnNames(columnstoreFullSortKey);
@@ -580,13 +588,14 @@ namespace sql
 
     std::string
     MakePointInTimeQuery(
-        const std::string &table,
-        const std::string &selectQuery,
-        const std::string &keyColumnName,
+        const std::string& table,
+        const std::string& selectQuery,
+        const std::string& keyColumnName,
         int partition_id,
         int64_t row_id,
         bool is_result_table)
     {
+        // we set selectQuery to non-empty string when ReadTypeOriginalTable is used
         if (selectQuery != "")
         {
             std::string resultQuery = "SELECT * FROM (" + selectQuery + ")";

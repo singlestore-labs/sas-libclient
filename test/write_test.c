@@ -77,7 +77,7 @@ void read_and_check(S2Client *client)
     {
         struct ParsedTestChunk chunkData;
         int current_offset = 0;
-        assert(chunk->row_count == nRowsToWrite - 1); // 2 rows are excluded by the query 
+        assert(chunk->row_count == nRowsToWrite - 1);  // 2 rows are excluded by the query
         for (uint64_t i = 1; i <= chunk->row_count; ++i)
         {
             current_offset = parseAllDataTypesChunkRow(chunk, current_offset, &chunkData, db_char_size);

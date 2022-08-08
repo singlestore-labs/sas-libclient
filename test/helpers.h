@@ -414,7 +414,7 @@ parseAllDataTypesChunkRow(
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(out->variable_long_text.data, chunk->m_ptr + offset, len);
-   // Variable, VARCHAR
+    // Variable, VARCHAR
     memcpy(&offset, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(&len, chunk->m_ptr + current_offset, 8);
@@ -461,17 +461,16 @@ RecordChunk(
         (args->chunks_read)[args->n_chunks_read].chunk_id = chunk->id;
         (args->chunks_read)[args->n_chunks_read].partition_id = chunk->partition_id;
         (args->chunks_read)[args->n_chunks_read].row_count = chunk->row_count;
-
-        (args->chunks_read)[args->n_chunks_read].row_ids_read = (uint64_t*)malloc(chunk->row_count * sizeof(uint64_t));
+        (args->chunks_read)[args->n_chunks_read].row_ids_read = (uint64_t *)malloc(chunk->row_count * sizeof(uint64_t));
         (args->n_chunks_read)++;
     }
     int64_t val;
     for (uint64_t row_num = 0; row_num < chunk->row_count; ++row_num)
-        {
-            // copy the value corresponding to `rowId` column to val
-            memcpy(&val, chunk->m_ptr + row_num * smallTestFixedSize + 8, 8);
-            (args->chunks_read)[args->n_chunks_read - 1].row_ids_read[row_num] = val;
-        }
+    {
+        // copy the value corresponding to `rowId` column to val
+        memcpy(&val, chunk->m_ptr + row_num * smallTestFixedSize + 8, 8);
+        (args->chunks_read)[args->n_chunks_read - 1].row_ids_read[row_num] = val;
+    }
 
     if (print)
     {
@@ -534,8 +533,8 @@ CalculatePartitionRows(
     }
     highest_partition++;
 
-    int *partition = (int*)malloc(sizeof(int) * highest_partition);
-    ReceivedChunk **chunks = (ReceivedChunk**)malloc(sizeof(ReceivedChunk *) * chunk_count);
+    int *partition = (int *)malloc(sizeof(int) * highest_partition);
+    ReceivedChunk **chunks = (ReceivedChunk **)malloc(sizeof(ReceivedChunk *) * chunk_count);
     memset(partition, 0, sizeof(int) * highest_partition);
 
     for (int i = 0; i < threadsPerWorker; i++)
