@@ -40,6 +40,14 @@ typedef struct Chunk
     uint32_t partition_id;  // S2 partition, serves as a part of key in multi-pass
 } Chunk;
 
+typedef enum ParallelReadType
+{
+    ReadTypeResultTable,       // [Materialized] Aggregator result table
+    ReadTypeOriginalTable,     // Ordered columnstore table scan for simple queries
+    ReadTypeColumnStoreTable,  // Regular table is created instead of a result table
+    ReadTypeUnknown,           // libs2client decides which approach to choose based on SelectQuery
+} ParallelReadType;
+
 struct S2ErrorCallback;
 
 typedef struct S2ErrorCallback
@@ -49,7 +57,6 @@ typedef struct S2ErrorCallback
 
 static const int64_t int64Null = 0x8000000000000000;
 static const int32_t int32Null = 0x80000000;
-static const char* variableNull = "";
 extern const double doubleNull;
 
 #define S2C_ERROR_INV_ARG 1            // invalid argument

@@ -31,11 +31,12 @@
     }
 
 #define chunkBufferSize 1000
-#define queryLen 1000
+#define rowBufferSize 10000
+#define queryLen 20000
 #define maxVariableLen 120
 #define nSmallTestRows 14
 
-const char *superchunkTable = "superchunk_table";
+const char *allDataTypesTable = "all_data_types_table";
 const char *testData =
     "(-1460002, 12507, 1.23456789012345,\
     'textVAL_рус', 'LOOONGVAL', 'varcharVAL', 'varbinaryVAL', 'русVAL', 'fbVAL',\
@@ -43,20 +44,20 @@ const char *testData =
 
 char smallTestData[nSmallTestRows][60] =
     {
-        "(1, -22, 3.4, 5.6, 'abc', 'de')",
-        "(2, -33, 4.5, 6.7, 'a', 'b')",
-        "(3, -44, 5.6, 7.8, '3x', 'c')",
-        "(4, -55, 6.7, 8.9, '4x', 'cc')",
-        "(5, -66, -7.8, 0.01, 'xxxxx', 'ccc')",
-        "(1, -77, -8.9, 0.001, 'xxxxx', 'cccc')",
-        "(2, -88, 5.1, 0.001, 'xxxxx', 'ccccc')",
-        "(2, -99, 5.11, 0.0001, 'xxxxx', 'cccccc')",
-        "(2, 101, 5.111, 9.8, 'xxxxx', 'cccccccc')",
-        "(2, 202, 5.1111, 10.8, 'xxxxx', 'cccccccc')",
-        "(5, 303, 5.11111, 11.8, 'xxxxx', 'ccccccccc')",
-        "(1, 404, 5.111111, 12.8, 'xxxxx', 'cccccccccc')",
-        "(4, 505, 5.1111111, 12.8, 'xxxxx', 'ccccccccc')",
-        "(NULL, NULL, NULL, NULL, NULL, NULL)"
+        "(1, 3.4, 5.6, 'abc', 'de')",
+        "(2, 4.5, 6.7, 'a', 'b')",
+        "(3, 5.6, 7.8, '3x', 'c')",
+        "(4, 6.7, 8.9, '4x', 'cc')",
+        "(5, -7.8, 0.01, 'xxxxx', 'ccc')",
+        "(1, -8.9, 0.001, 'xxxxx', 'cccc')",
+        "(2, 5.1, 0.001, 'xxxxx', 'ccccc')",
+        "(2, 5.11, 0.0001, 'xxxxx', 'cccccc')",
+        "(2, 5.111, 9.8, 'xxxxx', 'cccccccc')",
+        "(2, 5.1111, 10.8, 'xxxxx', 'cccccccc')",
+        "(5, 5.11111, 11.8, 'xxxxx', 'ccccccccc')",
+        "(1, 5.111111, 12.8, 'xxxxx', 'cccccccccc')",
+        "(4, 5.1111111, 12.8, 'xxxxx', 'ccccccccc')",
+        "(NULL, NULL, NULL, NULL, NULL)"
 };
 
 const int smallTestFixedSize = 8 + 8 + 8 + 8 + 16 + 16;
@@ -102,10 +103,13 @@ typedef struct WorkerArgs
 {
     int id;
     int db_port;
-    bool needRandomRead;
-    bool checkAffinity;
-    bool checkOrder;
+    bool need_random_read;
+    bool check_affinity;
+    bool check_order;
     const char *query;
+    ParallelReadType read_type;
+    const char *const *partition_order_by_cols;
+    int order_by_cols_number;
 } WorkerArgs;
 
 typedef struct ReceivedChunk
@@ -114,6 +118,8 @@ typedef struct ReceivedChunk
     int partition_id;
     uint64_t row_count;
     uint64_t upto_row_count;
+    uint64_t *row_ids_read;
+
 } ReceivedChunk;
 
 typedef struct ReaderThreadArgs
@@ -129,6 +135,7 @@ typedef struct ReaderThreadArgs
 
     int partition_key_i1_counter[nSmallTestRows];
     bool check_partition_order;
+    ParallelReadType read_type;
 } ReaderThreadArgs;
 
 typedef struct ErrorHandler
@@ -167,33 +174,67 @@ void setup_small_test_table(S2Client *client)
         client,
         "CREATE TABLE small_test (\
         i1 BIGINT,\
-        i2 BIGINT,\
+        rowId BIGINT AUTO_INCREMENT,\
         d1 DOUBLE,\
         d2 DOUBLE,\
         t1 TEXT,\
-        t2 TEXT\
+        t2 TEXT,\
+        SHARD KEY(i1, d1),\
+        SORT KEY (rowId)\
         )",
         &EH.callback);
 
     for (int i = 0; i < nSmallTestRows; ++i)
     {
-        char query[queryLen] = "INSERT INTO small_test VALUES ";
+        char query[queryLen] = "INSERT INTO small_test (i1, d1, d2, t1, t2) VALUES ";
         strcat(query, smallTestData[i]);
         ExecuteDDLQuery(client, query, &EH.callback);
     }
 }
 
-void
-setup_superchunk_table(
-    S2Client *client,
-    int nTableRows)
+void setup_multi_pass_table(S2Client *client)
 {
-    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS superchunk_table", &EH.callback);
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS multi_pass_test", &EH.callback);
 
     ExecuteDDLQuery(
         client,
-        "CREATE TABLE superchunk_table (\
-        ibigint BIGINT(20),\
+        "CREATE TABLE multi_pass_test (\
+        i1 BIGINT,\
+        rowId BIGINT AUTO_INCREMENT,\
+        d1 DOUBLE,\
+        d2 DOUBLE,\
+        t1 TEXT,\
+        t2 TEXT,\
+        SHARD KEY(i1),\
+        SORT KEY (i1, rowId)\
+        )",
+        &EH.callback);
+
+    char query[queryLen] = "INSERT INTO multi_pass_test (i1, d1, d2, t1, t2) VALUES ";
+    strcat(query, smallTestData[0]);
+
+    for (int i = 1; i < nSmallTestRows; ++i)
+    {
+        strcat(query, ",");
+        strcat(query, smallTestData[i]);
+    }
+    for (int j = 0; j < 64; ++j)
+    {
+        ExecuteDDLQuery(client, query, &EH.callback);
+    }
+}
+
+void
+setup_all_data_types_table(
+    S2Client *client,
+    int nTableRows)
+{
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS all_data_types_table", &EH.callback);
+
+    ExecuteDDLQuery(
+        client,
+        "CREATE TABLE all_data_types_table (\
+        rowId BIGINT AUTO_INCREMENT,\
         iint INT,\
         ddouble DOUBLE,\
         vtext TEXT,\
@@ -205,13 +246,14 @@ setup_superchunk_table(
         idatetime DATETIME,\
         idatetime_6 DATETIME(6),\
         idate DATE,\
-        itime TIME(6)\
+        itime TIME(6),\
+        SORT KEY (rowId)\
         )",
         &EH.callback);
 
     for (int i = 0; i < nTableRows; ++i)
     {
-        char query[queryLen] = "INSERT INTO superchunk_table VALUES ";
+        char query[queryLen] = "INSERT INTO all_data_types_table VALUES ";
         strcat(query, testData);
         ExecuteDDLQuery(client, query, &EH.callback);
     }
@@ -222,9 +264,9 @@ void cleanup_small_test_table(S2Client *client)
     ExecuteDDLQuery(client, "DROP TABLE small_test", &EH.callback);
 }
 
-void cleanup_superchunk_table(S2Client *client)
+void cleanup_all_data_types_table(S2Client *client)
 {
-    ExecuteDDLQuery(client, "DROP TABLE superchunk_table", &EH.callback);
+    ExecuteDDLQuery(client, "DROP TABLE all_data_types_table", &EH.callback);
 }
 
 void
@@ -338,12 +380,13 @@ parseDateTimeChunkRow(
 }
 
 // read data from the chunk constructed by reading the table
-// created in setup_superchunk_table
+// created in setup_all_data_types_table
 int
-parseTestChunkRow(
+parseAllDataTypesChunkRow(
     Chunk *chunk,
     int current_offset,
-    struct ParsedTestChunk *out)
+    struct ParsedTestChunk *out,
+    int db_char_size)
 {
     int64_t int_64_val, offset, len;
     int32_t int_32_val;
@@ -418,8 +461,15 @@ RecordChunk(
         (args->chunks_read)[args->n_chunks_read].chunk_id = chunk->id;
         (args->chunks_read)[args->n_chunks_read].partition_id = chunk->partition_id;
         (args->chunks_read)[args->n_chunks_read].row_count = chunk->row_count;
-
+        (args->chunks_read)[args->n_chunks_read].row_ids_read = (uint64_t *)malloc(chunk->row_count * sizeof(uint64_t));
         (args->n_chunks_read)++;
+    }
+    int64_t val;
+    for (uint64_t row_num = 0; row_num < chunk->row_count; ++row_num)
+    {
+        // copy the value corresponding to `rowId` column to val
+        memcpy(&val, chunk->m_ptr + row_num * smallTestFixedSize + 8, 8);
+        (args->chunks_read)[args->n_chunks_read - 1].row_ids_read[row_num] = val;
     }
 
     if (print)
@@ -435,7 +485,6 @@ RecordChunk(
     }
     if (args->check_partition_order)
     {
-        int64_t val;
         for (uint64_t row_num = 0; row_num < chunk->row_count; ++row_num)
         {
             // copy the value corresponding to `i1` column to val
@@ -461,7 +510,6 @@ RecordChunk(
             double_prev = double_val;
         }
     }
-
     return chunk->row_count;
 }
 
@@ -485,8 +533,8 @@ CalculatePartitionRows(
     }
     highest_partition++;
 
-    int *partition = malloc(sizeof(int) * highest_partition);
-    ReceivedChunk **chunks = malloc(sizeof(ReceivedChunk *) * chunk_count);
+    int *partition = (int *)malloc(sizeof(int) * highest_partition);
+    ReceivedChunk **chunks = (ReceivedChunk **)malloc(sizeof(ReceivedChunk *) * chunk_count);
     memset(partition, 0, sizeof(int) * highest_partition);
 
     for (int i = 0; i < threadsPerWorker; i++)

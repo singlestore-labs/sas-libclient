@@ -19,9 +19,14 @@ int queueCapacity = 32;
 bool printInfo = 0;
 
 const char *queryMain = "SELECT * FROM small_test";
-const char *queryWarn = "SELECT * FROM small_test WHERE i1 = 'i' OR 1";
+const char *queryWarn = "SELECT * FROM small_test WHERE rowId = 'i' OR 1";
 const char *queryPartition = "SELECT * FROM partition_test";
+const char *smallTable = "small_test";
+const char *partitionTable = "partition_test";
+
 const char *resultTable = "tmp";
+const char *keyCol = "rowId";
+
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
 
 // check that each partition key is present in none or only one of threads
@@ -91,6 +96,11 @@ void *worker(void *input)
         client,
         resultTable,
         args->query,
+        partitionTable,
+        keyCol,
+        args->read_type,
+        args->partition_order_by_cols,
+        args->order_by_cols_number,
         chunkSize,
         queueCapacity,
         threadsPerWorker,
@@ -114,7 +124,7 @@ void *worker(void *input)
         readerArgs[i].n_chunks_read = 0;
         readerArgs[i].chunks_read = (ReceivedChunk *)malloc(chunkBufferSize * sizeof(ReceivedChunk));
         memset(readerArgs[i].partition_key_i1_counter, 0, sizeof readerArgs[i].partition_key_i1_counter);
-        readerArgs[i].check_partition_order = args->checkOrder;
+        readerArgs[i].check_partition_order = args->check_order;
 
         pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
     }
@@ -123,7 +133,7 @@ void *worker(void *input)
     {
         pthread_join(readers[i], NULL);
     }
-    if (args->checkAffinity)
+    if (args->check_affinity)
     {
         check_affinity(readerArgs);
     }
@@ -160,20 +170,25 @@ void ddl_test(S2Client *client)
 void error_test(S2Client *client)
 {
     // invalid query
-    ParallelReadInit(
+    ParallelReadType readType = ReadTypeUnknown;
+    readType = ParallelReadInit(
         client,
         resultTable,
         "SELECT * FROM small_test WHERE non_defined_func(i1) = 1",
+        NULL,
+        keyCol,
+        readType,
         false,
         NULL,
         0,
         NULL,
         0);
+    if (readType == ReadTypeOriginalTable) return;
 
     PRINT_INFO("[EXPECTED] Invalid query error: %d %s\n", S2Errno(client), S2Error(client));
     assert(S2Errno(client));
     EH.errorExpected = true;
-    ParallelReadFree(client, resultTable, &EH.callback);
+    ParallelReadFree(client, resultTable, readType, &EH.callback);
     EH.errorExpected = false;
 }
 
@@ -181,10 +196,11 @@ void
 parallel_test(
     S2Client *client,
     const char *query,
+    const char *table,
     const char *const *const partitionByCols,
     const int partitionByColsLen,
     const char *const *const partitionOrderByCols,
-    const int orderByColsNumber,
+    const int partitionOrderByColsNumber,
     bool checkAffinity,
     bool checkOrder)
 {
@@ -195,16 +211,22 @@ parallel_test(
         agg_ports[i] = db_creds.ma_port;
     }
     // init the parallel read
-    ParallelReadInit(
+    // ParallelReadType readType = ReadTypeUnknown;
+    ParallelReadType readType = ReadTypeOriginalTable;
+    readType = ParallelReadInit(
         client,
         resultTable,
         query,
+        table,
+        keyCol,
+        readType,
         false,
         partitionByCols,
         partitionByColsLen,
         partitionOrderByCols,
-        orderByColsNumber);
+        partitionOrderByColsNumber);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
+    printf("Using Read Type %d\n", readType);
 
     // start "CAS worker" threads
     pthread_t workers[numWorkers];
@@ -213,9 +235,12 @@ parallel_test(
     {
         w_args[i].id = i;
         w_args[i].db_port = agg_ports[i];
-        w_args[i].checkAffinity = checkAffinity;
-        w_args[i].checkOrder = checkOrder;
+        w_args[i].check_affinity = checkAffinity;
+        w_args[i].check_order = checkOrder;
         w_args[i].query = query;
+        w_args[i].read_type = readType;
+        w_args[i].partition_order_by_cols = partitionOrderByCols;
+        w_args[i].order_by_cols_number = partitionOrderByColsNumber;
 
         pthread_create(&workers[i], NULL, worker, &w_args[i]);
     }
@@ -228,7 +253,7 @@ parallel_test(
     PRINT_INFO("Processed TOTAL %d rows\n", TOTAL);
 
     // clean up parallel reading
-    ParallelReadFree(client, resultTable, &EH.callback);
+    ParallelReadFree(client, resultTable, readType, &EH.callback);
 }
 
 void non_parallel_test()
@@ -283,7 +308,7 @@ void non_parallel_test()
 
     ChunkQueueFree(q_bad);
 
-    const char *query = "SELECT table_name FROM information_schema.tables";
+    const char *query = "SELECT table_name :> TEXT FROM information_schema.tables";
 
     ChunkQueue *q = QueryGetQueue(
         client,
@@ -382,27 +407,27 @@ main(
     error_test(client);
 
     // parallel read modes tests
-    const char *partCols[3] = {"i1", "i2"};
+    const char *partCols[3] = {"i1", "rowId"};
     const char *partOrderCols[2] = {"i1", "d1"};
     mult_table(client, "small_test", "partition_test", 10);
 
     // [TEST] no partitioning
-    parallel_test(client, queryWarn, NULL, 0, NULL, 0, false, false);
+    parallel_test(client, queryWarn, smallTable, NULL, 0, NULL, 0, false, false);
 
     // [TEST] only partitioning, no order
-    parallel_test(client, queryMain, partCols, 1, NULL, 0, true, false);
+    parallel_test(client, queryMain, smallTable, partCols, 1, NULL, 0, true, false);
 
     // [TEST] partitioning and order
-    parallel_test(client, queryMain, partCols, 2, partCols, 2, false, false);
+    parallel_test(client, queryMain, smallTable, partCols, 2, partOrderCols, 2, false, false);
 
     // [TEST] partitioning and order with affinity check
-    parallel_test(client, queryPartition, partOrderCols, 1, partOrderCols, 2, true, true);
+    parallel_test(client, queryPartition, partitionTable, partCols, 1, partOrderCols, 2, true, true);
 
     ExecuteDDLQuery(
         client,
         "CREATE TABLE IF NOT EXISTS show_columns_test(`col_0_]` INT, `col_1_]` TEXT, `col[` DATE)",
         &EH.callback);
-    parallel_test(client, "SELECT * FROM show_columns_test", NULL, 0, NULL, 0, false, false);
+    parallel_test(client, "SELECT * FROM show_columns_test", "show_columns_test", NULL, 0, NULL, 0, false, false);
 
     ExecuteDDLQuery(client, "DROP TABLE partition_test", &EH.callback);
     ExecuteDDLQuery(client, "DROP TABLE show_columns_test", &EH.callback);

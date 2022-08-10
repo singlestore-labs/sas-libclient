@@ -7,8 +7,7 @@ ResultTableReader::CreateReader(
     const Credentials &creds,
     const Credentials &masterCreds,
     ThreadSafeQueue<Chunk *> *q,
-    std::shared_ptr<ChunksInfo> chunks_info,
-    const char *resultTableName,
+    std::string readQuery,
     RowSchema *schema,
     uint32_t partition,
     uint64_t size,
@@ -40,10 +39,9 @@ ResultTableReader::CreateReader(
         }
     }
     // prepare a query that will be executed
-    reader->m_query = sql::MakeReadResultTableQuery(resultTableName, partition);
+    reader->m_query = readQuery;
     reader->m_row_schema = schema;
     reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
-    reader->m_chunks_info = chunks_info;
     return reader;
 }
 
@@ -138,14 +136,6 @@ void ResultTableReader::Read()
                 free(ptr);
                 delete chunk;
                 break;
-            }
-            // we need to store chunks info only for multi-pass queue, for streaming queue
-            // m_chunks_info is null
-            // NOTE: Starting in 1.3.0, the consumer is required to track the row w/in the
-            // partition.  Therefore, m_chunks_info will always be null.
-            if (m_chunks_info)
-            {
-                m_chunks_info->Put(chunk);
             }
             m_queue->Push(chunk);
             ++chunkId;

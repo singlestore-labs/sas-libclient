@@ -131,7 +131,7 @@ int64_t S2Connection::ExecuteDDL(std::string query)
     return mysql_affected_rows(m_conn);
 }
 
-void
+bool
 S2Connection::Prepare(
     const char* query,
     bool execute)
@@ -155,8 +155,10 @@ S2Connection::Prepare(
         if (mysql_stmt_field_count(m_stmt))
         {
             Advance();
+            return true;
         }
     }
+    return false;
 }
 
 void S2Connection::CleanupStatement(bool needFreeResult)
@@ -386,7 +388,7 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     {
         throw S2ClientError(
             S2C_ERROR_UNKNOWN_FAILURE,
-            "Failed to get the result of query: " + query);
+            "ExplainRowSchema failed to get the result of query: " + query);
     }
     std::stringstream explainResultFull;
     while ((row = mysql_fetch_row(res)))
@@ -416,6 +418,122 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
 
     mysql_free_result(res);
     return schema;
+}
+
+ParallelReadType
+S2Connection::GetParallelReadType(
+    const char* selectQuery,
+    const char* sourceTable,
+    const char* keyColumnName,
+    bool materialized,
+    const char* const* const partitionByCols,
+    int partitionByColsNumber,
+    const char* const* const partitionOrderByCols,
+    const int partitionOrderByColsNumber,
+    ParallelReadType readType)
+{
+    TableKeys tableKeys;
+    bool isColumnstoreScanOk = true;
+    if (readType == ReadTypeOriginalTable)
+    {
+        tableKeys = GetTableKeys(sourceTable);
+        std::string currentColumn;
+        // shard key matching
+        if (partitionByColsNumber > 0)
+        {
+            // shard_key must be non-empty
+            if (tableKeys.shard_key.empty())
+            {
+                isColumnstoreScanOk = false;
+            }
+            else
+            {
+                std::set<std::string> partitionByColSet;
+                for (int i = 0; i < partitionByColsNumber; ++i)
+                {
+                    partitionByColSet.insert(std::string(partitionByCols[i]));
+                }
+                // columnstore shard key is a subset of partition by columns
+                for (std::string col : tableKeys.shard_key)
+                {
+                    if (!partitionByColSet.count(col))
+                    {
+                        isColumnstoreScanOk = false;
+                        break;
+                    }
+                }
+            }
+        }
+        // sort key matching
+        if (partitionOrderByColsNumber > tableKeys.sort_key.size())
+        {
+            isColumnstoreScanOk = false;
+        }
+        else
+        {
+            for (int i = 0; i < partitionOrderByColsNumber; ++i)
+            {
+                currentColumn = std::string(partitionOrderByCols[i]);
+                if (tableKeys.sort_key[i] != currentColumn)
+                {
+                    isColumnstoreScanOk = false;
+                    break;
+                }
+            }
+        }
+    }
+    // TODO: PLAT-6302 add sanity checks for ReadTypeOriginalTable
+    // Maybe also check if we can use ReadTypeOriginalTable if ReadTypeUnknown is passed
+    if (readType == ReadTypeUnknown || !isColumnstoreScanOk)
+    {
+        if (materialized)
+        {
+            return ReadTypeColumnStoreTable;
+        }
+        return ReadTypeResultTable;
+    }
+    return ReadTypeOriginalTable;
+}
+
+TableKeys S2Connection::GetTableKeys(const char* sourceTable)
+{
+    TableKeys keysToReturn;
+    MYSQL_RES* res;
+    MYSQL_ROW row;
+    unsigned long* lengths;
+
+    std::string query = "SELECT SEQ_IN_INDEX, COLUMN_NAME, INDEX_TYPE FROM INFORMATION_SCHEMA.STATISTICS";
+    query += " WHERE TABLE_SCHEMA='" + std::string(m_db) + "'";
+    query += " AND TABLE_NAME='" + std::string(sourceTable) + "'";
+    query += " AND (INDEX_TYPE='CLUSTERED COLUMNSTORE' OR INDEX_TYPE='SHARD')";
+    query += " ORDER BY INDEX_TYPE, SEQ_IN_INDEX";
+
+    if (mysql_query(m_conn, query.c_str()))
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+    res = mysql_store_result(m_conn);
+    if (!res)
+    {
+        throw S2ClientError(
+            S2C_ERROR_UNKNOWN_FAILURE,
+            "GetTableKeys failed to get the result of the query: " + query);
+    }
+    while ((row = mysql_fetch_row(res)))
+    {
+        lengths = mysql_fetch_lengths(res);
+        if (!strncmp(row[2], "CLUSTERED COLUMNSTORE", lengths[2]))
+        {
+            keysToReturn.sort_key.push_back(std::string(row[1], lengths[1]));
+        }
+        else
+        {
+            keysToReturn.shard_key.insert(std::string(row[1], lengths[1]));
+        }
+    }
+    mysql_free_result(res);
+
+    return keysToReturn;
 }
 
 bool S2Connection::HasNextRow()
@@ -452,12 +570,32 @@ Chunk*
 S2Connection::GetSingleRow(
     SuperChunkWriter* writer,
     RowSchema* schema,
-    const std::string resultTable,
+    const std::string& resultTable,
+    const std::string& selectQuery,
+    const std::string& keyColumnName,
     const uint32_t partitionId,
-    const int64_t partitionRowId)
+    const int64_t partitionRowId,
+    ParallelReadType readType)
 {
-    std::string query = sql::MakePointInTimeQuery(resultTable.c_str(), partitionId, partitionRowId);
-    Prepare(query.c_str(), true);
+    std::string queryParam = readType == ParallelReadType::ReadTypeOriginalTable ? selectQuery : "";
+
+    std::string query = sql::MakePointInTimeQuery(
+        resultTable,
+        queryParam,
+        keyColumnName,
+        partitionId,
+        partitionRowId,
+        readType == ParallelReadType::ReadTypeResultTable);
+    bool result = Prepare(query.c_str(), true);
+
+    if (!result ||
+        !m_last_fetched_lengths ||
+        !m_last_fetched_row)
+    {
+        throw S2ClientError(
+            S2C_ERROR_INV_ARG,
+            "Failed to get the row with id " + std::to_string(partitionRowId) + " from table " + resultTable);
+    }
 
     uint64_t chunk_size = rowSize(schema, m_last_fetched_lengths);
 

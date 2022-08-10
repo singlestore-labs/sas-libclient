@@ -19,10 +19,13 @@ int batchSize = 5;
 bool printInfo = 0;
 
 const char *resultTable = "tmp";
+const char *keyCol = "rowId";
+
 static unsigned _Atomic TOTAL = ATOMIC_VAR_INIT(0);
 static unsigned _Atomic TOTAL_SINGLE_ROWS = ATOMIC_VAR_INIT(0);
 
 const char *testQuery = "SELECT * FROM multi_pass_test";
+const char *multiPassTable = "multi_pass_test";
 
 void *reader_thread(void *input)
 {
@@ -47,6 +50,7 @@ void *reader_thread(void *input)
         }
         PRINT_INFO("Finished first pass: worker %d thread %d read %d chunks\n", args->worker_id, args->id, numReceived);
         free(chunk);
+        return NULL;
     }
     if (args->mode == SECOND_PASS)
     {
@@ -96,14 +100,17 @@ void *reader_thread(void *input)
     {
         if (args->n_chunks_read)
         {
+            uint64_t rowId;
             for (int i = 0; i < args->n_chunks_read; ++i)
             {
                 for (uint64_t row_num = 0; row_num < args->chunks_read[i].row_count; ++row_num)
                 {
-                    GetChunkRow(
+                    rowId = args->read_type == ReadTypeResultTable ? args->chunks_read[i].upto_row_count + row_num
+                                                                   : args->chunks_read[i].row_ids_read[row_num];
+                    bool result = GetChunkRow(
                         args->queue,
                         args->chunks_read[i].partition_id,
-                        args->chunks_read[i].upto_row_count + row_num,
+                        rowId,
                         args->id,
                         chunk,
                         &EH.callback);
@@ -146,6 +153,11 @@ void *worker(void *input)
         client,
         resultTable,
         testQuery,
+        multiPassTable,
+        keyCol,
+        w_args->read_type,
+        NULL,
+        0,
         chunkSize,
         batchSize,
         threadsPerWorker,
@@ -166,8 +178,9 @@ void *worker(void *input)
         readerArgs[i].id = i;
         readerArgs[i].queue = q;
         readerArgs[i].mode = FIRST_PASS;
-        readerArgs[i].n_chunks_read = 0;
+        readerArgs[i].read_type = w_args->read_type;
         readerArgs[i].check_partition_order = false;
+        readerArgs[i].n_chunks_read = 0;
         readerArgs[i].chunks_read = (ReceivedChunk *)malloc(chunkBufferSize * sizeof(ReceivedChunk));
 
         pthread_create(&readers[i], NULL, reader_thread, &readerArgs[i]);
@@ -184,7 +197,7 @@ void *worker(void *input)
 
     if (S2Errno(client))
     {
-        printf("S2 Error in controller %s\n", S2Error(client));
+        printf("S2 Error in worker %s\n", S2Error(client));
         fflush(stdout);
     }
 
@@ -195,6 +208,11 @@ void *worker(void *input)
         client,
         resultTable,
         testQuery,
+        multiPassTable,
+        keyCol,
+        w_args->read_type,
+        NULL,
+        0,
         chunkSize,
         batchSize,
         threadsPerWorker,
@@ -214,7 +232,7 @@ void *worker(void *input)
         pthread_join(readers[i], NULL);
     }
 
-    if (w_args->needRandomRead)
+    if (w_args->need_random_read)
     {
         CalculatePartitionRows(readerArgs, threadsPerWorker);
         for (int i = 0; i < threadsPerWorker; i++)
@@ -261,8 +279,17 @@ main_test(
     }
 
     // init the parallel read in multi-pass mode
-    ParallelReadInit(client, resultTable, testQuery, true, NULL, 0, NULL, 0);
+    // ParallelReadType readType = ReadTypeUnknown;
+    ParallelReadType readType = ReadTypeOriginalTable;
+
+    const char *partCols[2] = {"i1", "d1"};
+    const char *partOrderCols[2] = {"i1", "rowId"};
+
+    readType = ParallelReadInit(
+        client, resultTable, testQuery, multiPassTable, keyCol, readType, true, partCols, 2, partOrderCols, 2);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
+
+    printf("Using read type: %d\n", readType);
 
     // start "CAS worker" threads
     pthread_t workers[numWorkers];
@@ -272,7 +299,8 @@ main_test(
     {
         args[i].id = i;
         args[i].db_port = agg_ports[i];
-        args[i].needRandomRead = needRandomRead;
+        args[i].need_random_read = needRandomRead;
+        args[i].read_type = readType;
         pthread_create(&workers[i], NULL, worker, &args[i]);
     }
 
@@ -288,7 +316,7 @@ main_test(
     PRINT_INFO("Processed TOTAL %d rows\n", TOTAL);
 
     // clean up parallel reading
-    ParallelReadFree(client, resultTable, &EH.callback);
+    ParallelReadFree(client, resultTable, readType, &EH.callback);
 }
 
 int
@@ -325,19 +353,15 @@ main(
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
-    setup_small_test_table(client);
-    mult_table(client, "small_test", "multi_pass_test", 12);
+    setup_multi_pass_table(client);
 
     main_test(client, false);
     printf("[SUCCESS] multi pass test passed!\n");
 
-    mult_table(client, "small_test", "multi_pass_test", 6);
-
     main_test(client, true);
     printf("[SUCCESS] random read test passed!\n");
-    cleanup_small_test_table(client);
 
-    ExecuteDDLQuery(client, "DROP TABLE multi_pass_test", &EH.callback);
+    // ExecuteDDLQuery(client, "DROP TABLE multi_pass_test", &EH.callback);
 
     // free the client
     S2ClientFree(client);

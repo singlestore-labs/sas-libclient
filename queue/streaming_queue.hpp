@@ -19,13 +19,18 @@ class StreamingQueue : public ChunkQueue
 
     // CreateChunkQueue creates a StreamingQueue object,
     // creates Readers and starts them.
-    // - capacity is the maximum number of chunks that can be stored in the queue
+    // - cpapacity is the maximum number of chunks that can be stored in the queue
     // - chunkSize is the size of one Chunk in bytes
     static std::unique_ptr<StreamingQueue>
     CreateChunkQueue(
         S2Client *client,
         const char *resultTableName,
         const char *selectQuery,
+        const char *sourceTable,
+        const char *keyColumnName,
+        ParallelReadType readType,
+        const char *const *const partitionOrderByCols,
+        const int partitionOrderByColsNumber,
         uint32_t capacity,
         uint64_t chunkSize,
         int nReaderThreads,

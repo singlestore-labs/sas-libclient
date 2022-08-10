@@ -27,23 +27,34 @@ void S2ClientFree(S2Client* client);
 
 // parallel read operations
 
-// ParallelReadInit is called once by controller to initiate the processing of `selectQuery`
-// `resultTableName` is used as an identifier in ParallelReadGetQueue
-// `materialized` is set to true for multi-pass reading
-// `partitionByCols` is a pointer to an array of C strings indicating column names that are used for
-// partitioning of the result table
-// `partitionByColsNumber` is the number of columns used for partitioning,
-// where 0 stands for no specific partitioning
-void
+/*
+ParallelReadInit is called once by controller to initiate the processing of `selectQuery`
+- `resultTableName` is used as an identifier in ParallelReadGetQueue
+- `sourceTable` is supplied if query reads rows from a single table
+- `readType` indicates which mode of reading should be used
+- `materialized` is set to true for multi-pass reading
+- `partitionByCols` is a pointer to an array of C strings indicating column names that are used for
+partitioning of the result table
+- `partitionByColsNumber` is the number of columns used for partitioning,
+where 0 stands for no specific partitioning
+- `partitionByCols` is a pointer to an array of C strings indicating column names that are used for
+ordering within partition
+- `partitionByColsNumber` is the number of columns used for ordering within partition,
+where 0 stands for no specific ordering
+*/
+ParallelReadType
 ParallelReadInit(
     S2Client* client,
     const char* resultTableName,
     const char* selectQuery,
+    const char* sourceTable,
+    const char* keyColumnName,
+    ParallelReadType readType,
     bool materialized,
     const char* const* const partitionByCols,
     int partitionByColsNumber,
     const char* const* const partitionOrderByCols,
-    const int orderByColsNumber);
+    const int partitionOrderByColsNumber);
 
 // ParallelReadGetQueue is called once per worker.
 // ChunkQueue is a helper object
@@ -64,6 +75,11 @@ ParallelReadGetQueue(
     S2Client* client,
     const char* resultTableName,
     const char* selectQuery,
+    const char* sourceTable,
+    const char* keyColumnName,
+    ParallelReadType readType,
+    const char* const* const partitionOrderByCols,
+    int partitionOrderByColsNumber,
     uint64_t chunkSize,
     int queueCapacity,
     int nReaderThreads,
@@ -119,6 +135,7 @@ void
 ParallelReadFree(
     S2Client* client,
     const char* resultTableName,
+    ParallelReadType readType,
     S2ErrorCallback* cb);
 
 // general query execution functions

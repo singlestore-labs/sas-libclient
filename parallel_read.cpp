@@ -4,30 +4,64 @@
 
 extern "C"
 {
-    void
+    ParallelReadType
     ParallelReadInit(
         S2Client *client,
         const char *resultTableName,
         const char *selectQuery,
+        const char *sourceTable,
+        const char *keyColumnName,
+        ParallelReadType readType,
         bool materialized,
         const char *const *const partitionByCols,
         int partitionByColsNumber,
         const char *const *const partitionOrderByCols,
-        const int orderByColsNumber)
+        const int partitionOrderByColsNumber)
     {
         // clear the previous error if any
         client->SetError(S2ClientError(0, ""), nullptr);
         try
         {
-            std::string newQuery = sql::MakeCreateResultTableQuery(
-                resultTableName,
+            readType = client->m_conn->GetParallelReadType(
                 selectQuery,
+                sourceTable,
+                keyColumnName,
                 materialized,
                 partitionByCols,
                 partitionByColsNumber,
                 partitionOrderByCols,
-                orderByColsNumber);
-            client->m_conn->ExecuteDDL(std::move(newQuery));
+                partitionOrderByColsNumber,
+                readType);
+            std::string newQuery;
+            TableType tableType;
+            if (readType == ReadTypeOriginalTable)
+            {
+                // if we read from original table, we don't need to create result or columnstore table
+                return ReadTypeOriginalTable;
+            }
+            if (readType == ReadTypeColumnStoreTable)
+            {
+                tableType = TableType::RegularTable;
+            }
+            else
+            {
+                tableType = materialized ? TableType::AggResultTableMaterialized : TableType::AggResultTable;
+            }
+            // TODO: future remove error below when Agg Materialized Result Table is allowed
+            if (tableType == TableType::AggResultTableMaterialized)
+            {
+                client->SetError(S2ClientError(S2C_ERROR_INV_ARG, "Cannot use Materialized Result Table"), nullptr);
+            }
+            newQuery = sql::MakeCreateTableQuery(
+                resultTableName,
+                selectQuery,
+                keyColumnName,
+                tableType,
+                partitionByCols,
+                partitionByColsNumber,
+                partitionOrderByCols,
+                partitionOrderByColsNumber);
+            client->m_conn->ExecuteDDL(newQuery);
         }
         catch (S2ClientError &s2_err)
         {
@@ -37,19 +71,33 @@ extern "C"
         {
             client->SetError(S2ClientError(S2C_ERROR_MEMORY_ALLOCATION, "Failed to allocate memory"), nullptr);
         }
+        return readType;
     }
 
     void
     ParallelReadFree(
         S2Client *client,
         const char *resultTableName,
+        ParallelReadType readType,
         S2ErrorCallback *cb)
     {
         // clear the previous error if any
         client->SetError(S2ClientError(0, ""), nullptr);
         try
         {
-            std::string dropQuery = sql::MakeDropQuery(resultTableName);
+            std::string dropQuery;
+            if (readType == ReadTypeResultTable)
+            {
+                dropQuery = sql::MakeDropResultQuery(resultTableName);
+            }
+            else if (readType == ReadTypeColumnStoreTable)
+            {
+                dropQuery = sql::MakeDropTableQuery(resultTableName);
+            }
+            else
+            {
+                return;
+            }
             client->m_conn->ExecuteDDL(dropQuery);
         }
         catch (S2ClientError &s2_err)
@@ -67,6 +115,11 @@ extern "C"
         S2Client *client,
         const char *resultTableName,
         const char *selectQuery,
+        const char *sourceTable,
+        const char *keyColumnName,
+        ParallelReadType readType,
+        const char *const *const partitionOrderByCols,
+        const int partitionOrderByColsNumber,
         uint64_t chunkSize,
         int queueCapacity,
         int nReaderThreads,
@@ -83,6 +136,11 @@ extern "C"
                            client,
                            resultTableName,
                            selectQuery,
+                           sourceTable,
+                           keyColumnName,
+                           readType,
+                           partitionOrderByCols,
+                           partitionOrderByColsNumber,
                            queueCapacity,
                            chunkSize,
                            nReaderThreads,
@@ -93,6 +151,11 @@ extern "C"
                        client,
                        resultTableName,
                        selectQuery,
+                       sourceTable,
+                       keyColumnName,
+                       readType,
+                       partitionOrderByCols,
+                       partitionOrderByColsNumber,
                        queueCapacity,
                        chunkSize,
                        nReaderThreads,
@@ -126,8 +189,13 @@ extern "C"
         {
             return StreamingQueue::CreateChunkQueue(
                        client,
-                       nullptr,
+                       NULL,
                        query,
+                       NULL,
+                       NULL,
+                       ReadTypeResultTable,  /* this is not used when doesParallelRead is false */
+                       NULL,
+                       0,
                        queueCapacity,
                        chunkSize,
                        1,

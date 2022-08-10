@@ -29,8 +29,6 @@ class MultiPassQueue : public ChunkQueue
     int m_consumer_threads_num;
     std::vector<ConnAndWriter> m_consumers;
 
-    std::shared_ptr<ChunksInfo> m_chunks_info;
-
   public:
     ~MultiPassQueue();
 
@@ -45,6 +43,11 @@ class MultiPassQueue : public ChunkQueue
         S2Client *client,
         const char *resultTableName,
         const char *selectQuery,
+        const char *sourceTable,
+        const char *keyColumnName,
+        ParallelReadType readType,
+        const char *const *const partitionOrderByCols,
+        const int partitionOrderByColsNumber,
         uint32_t capacity,
         uint64_t chunkSize,
         int nReaderThreads,

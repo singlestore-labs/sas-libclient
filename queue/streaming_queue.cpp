@@ -8,6 +8,11 @@ StreamingQueue::CreateChunkQueue(
     S2Client *client,
     const char *resultTableName,
     const char *selectQuery,
+    const char *sourceTable,
+    const char *keyColumnName,
+    ParallelReadType readType,
+    const char *const *const partitionOrderByCols,
+    const int partitionOrderByColsNumber,
     uint32_t capacity,
     uint64_t chunkSize,
     int nConsumers,
@@ -23,6 +28,10 @@ StreamingQueue::CreateChunkQueue(
     chunkQueue->m_credentials.user = client->m_conn->m_user;
     chunkQueue->m_credentials.password = client->m_conn->m_password;
     chunkQueue->m_credentials.ssl_ca = client->m_conn->m_ssl_ca;
+
+    if (resultTableName) chunkQueue->m_result_table = resultTableName;
+    chunkQueue->m_query = selectQuery;
+    chunkQueue->m_read_type = readType;
 
     // we use a single dummy partition 0 in case of non-parallel read
     std::vector<int> partitions{0};
@@ -72,16 +81,32 @@ StreamingQueue::CreateChunkQueue(
         const Credentials masterCreds = chunkQueue->m_credentials;
         Credentials creds = masterCreds;  // we need this to fill user, password, db
 
+        std::string readQuery;
         for (int partition : partitions)
         {
+            switch (readType)
+            {
+                case ReadTypeResultTable:
+                    readQuery = sql::MakeReadResultTableQuery(resultTableName, partition);
+                    break;
+                case ReadTypeColumnStoreTable:
+                    client->SetError(
+                        S2ClientError(S2C_ERROR_INV_ARG, "Cannot use ReadTypeColumnStoreTable in Single Pass"), cb);
+                    return nullptr;
+                case ReadTypeOriginalTable:
+                    readQuery = sql::MakeReadOriginalTableQuery(
+                        selectQuery, NULL, partitionOrderByCols, partitionOrderByColsNumber, partition);
+                    break;
+                default:
+                    return nullptr;
+            }
             utils::FillCredentials(aggregators, partition, &creds);
             // ResultTableReader will create its own connection to run queries
             auto reader = ResultTableReader::CreateReader(
                 creds,
                 masterCreds,
                 chunkQueue->m_consumer_queues[chunkQueue->m_partition_consumer[partition]],
-                nullptr,
-                resultTableName,
+                readQuery,
                 chunkQueue->m_row_schema,
                 partition,
                 chunkSize,
