@@ -407,6 +407,7 @@ namespace sql
     std::string JoinColumnNames(const std::vector<std::string>* cols)
     {
         std::string result;
+        assert (cols && cols->size() > 0);
         result += QuotedName((*cols)[0]);
         for (int i = 1; i < cols->size(); ++i)
         {
