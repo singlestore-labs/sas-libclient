@@ -683,7 +683,7 @@ namespace sql
         return "SELECT "
                "TYPE, IP_ADDR, PORT, EXTERNAL_HOST, EXTERNAL_PORT "
                "FROM information_schema.mv_nodes "
-               "WHERE TYPE != 'LEAF' "
+               "WHERE TYPE = 'CA' "
                "ORDER BY IP_ADDR, PORT, EXTERNAL_HOST, EXTERNAL_PORT";
     }
 }  // namespace sql

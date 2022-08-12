@@ -181,7 +181,7 @@ void write_test(S2Client *client)
         WriteVariable(w, "", 0);
         WriteVariable(w, "", 0);
 
-        WriteFixed(w, "", 0, 16 * get_db_char_size(), false);
+        WriteFixed(w, "", 0, 16 * db_char_size, false);
         WriteFixed(w, "", 0, 9, true);
 
         WriteInt64(w, int64Null);

@@ -7,7 +7,8 @@
 
 #define MySQLResultPtr std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)>
 
-std::unique_ptr<S2Connection> S2Connection::Connect(const Credentials& creds)
+std::unique_ptr<S2Connection>
+S2Connection::Connect(const Credentials& creds)
 {
     return Connect(
         creds.host.c_str(),
@@ -16,6 +17,31 @@ std::unique_ptr<S2Connection> S2Connection::Connect(const Credentials& creds)
         creds.user.c_str(),
         creds.password.c_str(),
         creds.ssl_ca);
+}
+
+std::unique_ptr<S2Connection>
+S2Connection::ConnectWithRetryMA(
+    const Credentials& creds,
+    const Credentials& masterCreds,
+    S2ClientError &err)
+{
+    try
+    {
+        return S2Connection::Connect(creds);
+    }
+    catch (S2ClientError &s2_err)
+    {
+        try
+        {
+            return S2Connection::Connect(masterCreds);
+        }
+        catch (S2ClientError &s2_err)
+        {
+            err.m_errorCode = s2_err.m_errorCode;
+            err.m_errorMessage = s2_err.m_errorMessage;
+            return nullptr;
+        }
+    }
 }
 
 std::unique_ptr<S2Connection>

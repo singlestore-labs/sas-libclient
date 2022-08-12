@@ -66,10 +66,9 @@ MultiPassQueue::CreateChunkQueue(
 
         return nullptr;
     }
-    std::vector<AggregatorNode> aggregators;
     try
     {
-        aggregators = client->m_conn->GetAggregators();
+        chunkQueue->m_aggregators = client->m_conn->GetAggregators();
     }
     catch (S2ClientError &s2_err)
     {
@@ -110,7 +109,7 @@ MultiPassQueue::CreateChunkQueue(
             default:
                 return nullptr;
         }
-        utils::FillCredentials(aggregators, partition, &creds);
+        utils::FillCredentials(chunkQueue->m_aggregators, partition, &creds);
         // ResultTableReader will create its own connection to read from partition
         auto reader = ResultTableReader::CreateReader(
             creds,
@@ -196,7 +195,13 @@ MultiPassQueue::GetSingleRow(
     }
     if (!m_consumers[threadId].conn)
     {
-        m_consumers[threadId].conn = S2Connection::Connect(m_credentials);
+        Credentials creds = m_credentials;
+        utils::FillCredentials(m_aggregators, partitionId, &creds);
+        m_consumers[threadId].conn = S2Connection::ConnectWithRetryMA(creds, m_credentials, err);
+        if (err.m_errorCode)
+        {
+            return nullptr;
+        }
         m_consumers[threadId].writer = std::make_unique<SuperChunkWriter>();
     }
 
@@ -239,7 +244,13 @@ MultiPassQueue::GetMultipleRows(
     }
     if (!m_consumers[threadId].conn)
     {
-        m_consumers[threadId].conn = S2Connection::Connect(m_credentials);
+        Credentials creds = m_credentials;
+        utils::FillCredentials(m_aggregators, partitionId, &creds);
+        m_consumers[threadId].conn = S2Connection::ConnectWithRetryMA(creds, m_credentials, err);
+        if (err.m_errorCode)
+        {
+            return nullptr;
+        }
         m_consumers[threadId].writer = std::make_unique<SuperChunkWriter>();
     }
 

@@ -429,8 +429,8 @@ parseAllDataTypesChunkRow(
     memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
     out->variable_binary.len = len;
     // Fixed, CHAR(16)
-    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * get_db_char_size());
-    current_offset += 16 * get_db_char_size();
+    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * db_char_size);
+    current_offset += 16 * db_char_size;
     // Fixed, BINARY(9)
     memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 16);
     current_offset += 16;

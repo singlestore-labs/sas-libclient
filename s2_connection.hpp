@@ -29,6 +29,10 @@ class S2Connection
     const char* m_ssl_ca;
 
     static std::unique_ptr<S2Connection> Connect(const Credentials& creds);
+    static std::unique_ptr<S2Connection> ConnectWithRetryMA(
+        const Credentials& creds,
+        const Credentials& masterCreds,
+        S2ClientError &err);
 
     // Connect creates an instance of S2Connection and connects to the S2 using mysql C client lib
     static std::unique_ptr<S2Connection>

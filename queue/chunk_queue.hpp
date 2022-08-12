@@ -125,6 +125,7 @@ class ChunkQueue
     std::vector<std::unique_ptr<ResultTableReader>> m_readers;
 
     Credentials m_credentials;
+    std::vector<AggregatorNode> m_aggregators;
 
     int m_consumers;
     std::vector<ThreadSafeQueue<Chunk *> *> m_consumer_queues;
