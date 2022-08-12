@@ -566,6 +566,56 @@ S2Connection::NextChunk(
     chunk->row_count = row_count;
 }
 
+void
+S2Connection::GetMultipleRows(
+    SuperChunkWriter* writer,
+    Chunk *chunk /*out*/,
+    RowSchema* schema,
+    const std::string& resultTable,
+    const std::string& selectQuery,
+    const std::string& keyColumnName,
+    const uint32_t partitionId,
+    const int64_t* rowIds,
+    const int rowIdsNum,
+    ParallelReadType readType)
+{
+    writer->Reset(chunk, schema);
+    std::string queryParam = readType == ParallelReadType::ReadTypeOriginalTable ? selectQuery : "";
+
+    std::string query = sql::MakeRowIdFilterQuery(
+        resultTable,
+        queryParam,
+        keyColumnName,
+        partitionId,
+        rowIds,
+        rowIdsNum);
+    bool result = Prepare(query.c_str(), true);
+
+    if (!result ||
+        !m_last_fetched_lengths ||
+        !m_last_fetched_row)
+    {
+        throw S2ClientError(
+            S2C_ERROR_INV_ARG,
+            "Failed to get the row with " + std::to_string(rowIdsNum) + " rows from table " + resultTable);
+    }
+    uint64_t row_count = 0;
+    while (HasNextRow())
+    {
+        bool was_row_written = writer->WriteRow(m_last_fetched_row, m_last_fetched_lengths);
+        if (was_row_written)
+        {
+            row_count++;
+            Advance();
+        }
+        else  // if WriteRow returned false, the m_last_fetched_row has not been written to the current chunk
+        {
+            break;
+        }
+    }
+    chunk->row_count = row_count;
+}
+
 Chunk*
 S2Connection::GetSingleRow(
     SuperChunkWriter* writer,

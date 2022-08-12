@@ -126,6 +126,19 @@ class S2Connection
         const int64_t partitionRowId,
         ParallelReadType readType);
 
+    void
+    GetMultipleRows(
+        SuperChunkWriter* writer,
+        Chunk *chunk /*out*/,
+        RowSchema* schema,
+        const std::string& resultTable,
+        const std::string& selectQuery,
+        const std::string& keyColumnName,
+        const uint32_t partitionId,
+        const int64_t* rowIds,
+        const int rowIdsNum,
+        ParallelReadType readType);
+
     // GetPartitionsNumber returns the number of partitions in the table
     int GetPartitionsNumber();
 

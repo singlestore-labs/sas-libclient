@@ -389,6 +389,22 @@ namespace sql
     }
 
     std::string
+    JoinIds(
+        const int64_t* cols,
+        const int colsNum)
+    {
+        if (colsNum <= 0) return "";
+        std::string result;
+        result += std::to_string(cols[0]);
+        for (int i = 1; i < colsNum; ++i)
+        {
+            result += ",";
+            result += std::to_string(cols[i]);
+        }
+        return result;
+    }
+
+    std::string
     JoinColumnNames(
         const char* const* const cols,
         const int colsNum)
@@ -618,6 +634,31 @@ namespace sql
             resultQuery += " AND " + QuotedName(keyColumnName) + "=" + std::to_string(row_id);
             return resultQuery;
         }
+    }
+
+    std::string
+    MakeRowIdFilterQuery(
+        const std::string& table,
+        const std::string& selectQuery,
+        const std::string& keyColumnName,
+        int partition_id,
+        const int64_t* rowIds,
+        const int rowIdsNum)
+    {
+        std::string resultQuery;
+        // we set selectQuery to non-empty string when ReadTypeOriginalTable is used
+        if (selectQuery != "")
+        {
+            resultQuery = "SELECT * FROM (" + selectQuery + ")";
+        }
+        else
+        {
+            std::string resultQuery = "SELECT * FROM " + QuotedName(table);
+        }
+        resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
+        resultQuery += " AND " + QuotedName(keyColumnName) + " IN ";
+        resultQuery += "(" + JoinIds(rowIds, rowIdsNum) + ")";
+        return resultQuery;
     }
 
     std::string MakeLoadDataQuery(const std::string& tableName)
