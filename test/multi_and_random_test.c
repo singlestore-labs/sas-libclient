@@ -101,23 +101,35 @@ void *reader_thread(void *input)
         if (args->n_chunks_read)
         {
             uint64_t rowId;
+            bool result;
             for (int i = 0; i < args->n_chunks_read; ++i)
             {
                 for (uint64_t row_num = 0; row_num < args->chunks_read[i].row_count; ++row_num)
                 {
                     rowId = args->read_type == ReadTypeResultTable ? args->chunks_read[i].upto_row_count + row_num
                                                                    : args->chunks_read[i].row_ids_read[row_num];
-                    bool result = GetChunkRow(
+                    result = GetChunkRow(
                         args->queue,
                         args->chunks_read[i].partition_id,
                         rowId,
                         args->id,
                         chunk,
                         &EH.callback);
+                    assert(result);
                     ChunkFree(chunk);
                     TOTAL_SINGLE_ROWS++;
                     numReceived++;
                 }
+                result = GetChunkMultipleRows(
+                    args->queue,
+                    args->chunks_read[i].partition_id,
+                    args->chunks_read[i].row_ids_read,
+                    args->chunks_read[i].row_count,
+                    args->id,
+                    chunk,
+                    chunkSize,
+                    &EH.callback);
+                assert(result);
             }
         }
         PRINT_INFO(
@@ -125,6 +137,7 @@ void *reader_thread(void *input)
             args->id,
             args->worker_id,
             numReceived);
+
         free(chunk);
         return NULL;
     }
