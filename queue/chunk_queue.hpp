@@ -80,7 +80,7 @@ class ChunkQueue
         int chunkId,
         S2ClientError &error) = 0;
 
-    // GetSingleRow retrieves the row identified by rowId from partiotionId
+    // GetSingleRow retrieves the row identified by rowId from partitionId
     virtual Chunk *
     GetSingleRow(
         uint32_t partitionId,
@@ -88,7 +88,7 @@ class ChunkQueue
         int threadId,
         S2ClientError &error) = 0;
 
-    // GetMultipleRows retrieves the rows identified by rowIds from partiotionId
+    // GetMultipleRows retrieves the rows identified by rowIds from partitionId
     virtual Chunk *
     GetMultipleRows(
         uint64_t chunkSize,

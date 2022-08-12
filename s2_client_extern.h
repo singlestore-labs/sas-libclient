@@ -108,9 +108,11 @@ GetChunkMulti(
     S2ErrorCallback* cb);
 
 // GetChunkRow can be called after a queue for multi-pass has been created and
-// chunk with id `chunkId` has been read from partition `partitionId` by thread
-// number `threadId`.
-// `rowId` is the number of the row in the 'partitionId`.
+// a chunk containing the row identified by `rowId` was read
+// from partition `partitionId` by thread number `threadId`.
+// `rowId` is
+// - the number of the row in the 'partitionId` (ReadTypeResultTable)
+// - or the value of `keyColumnName` (ReadTypeColumnStoreTable / ReadTypeOriginalTable)
 // `threadId` must be between 0 and `nReaderThreads` - 1, where
 // `nReaderThreads` is the value that has been passed to ParallelReadGetQueue
 bool
@@ -122,6 +124,13 @@ GetChunkRow(
     Chunk* chunk /*out*/,
     S2ErrorCallback* cb);
 
+// GetChunkMultipleRows can be called after a queue for multi-pass has been created and
+// chunks containing the rows identified by the `rowIds` array were read
+// from partition `partitionId` by thread number `threadId`.
+// `rowIds` is the array of length `rowIdsNum` containing the values of keyColumnName.
+// `threadId` must be between 0 and `nReaderThreads` - 1, where
+// `nReaderThreads` is the value that has been passed to ParallelReadGetQueue
+// `chunkSize` bytes will be allocated for reading the rows to the `chunk`
 bool
 GetChunkMultipleRows(
     ChunkQueue* queue,
