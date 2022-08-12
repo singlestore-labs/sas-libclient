@@ -124,14 +124,14 @@ GetChunkRow(
 
 bool
 GetChunkMultipleRows(
-    ChunkQueue *queue,
+    ChunkQueue* queue,
     uint32_t partitionId,
     int64_t* rowIds,
     int64_t rowIdsNum,
     int threadId,
-    Chunk *chunk /*out*/,
+    Chunk* chunk /*out*/,
     uint64_t chunkSize,
-    S2ErrorCallback *cb);
+    S2ErrorCallback* cb);
 
 // functions to free memory
 

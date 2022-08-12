@@ -299,7 +299,17 @@ main_test(
     const char *partOrderCols[2] = {"i1", "rowId"};
 
     readType = ParallelReadInit(
-        client, resultTable, testQuery, multiPassTable, keyCol, readType, true, partCols, 2, partOrderCols, 2);
+        client,
+        resultTable,
+        testQuery,
+        multiPassTable,
+        keyCol,
+        readType,
+        true,
+        partCols,
+        2,
+        partOrderCols,
+        2);
     if (S2Errno(client)) PRINT_ERROR("S2 Error in controller: %d %s\n", S2Errno(client), S2Error(client));
 
     printf("Using read type: %d\n", readType);

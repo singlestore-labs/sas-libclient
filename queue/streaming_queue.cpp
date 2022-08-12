@@ -91,11 +91,16 @@ StreamingQueue::CreateChunkQueue(
                     break;
                 case ReadTypeColumnStoreTable:
                     client->SetError(
-                        S2ClientError(S2C_ERROR_INV_ARG, "Cannot use ReadTypeColumnStoreTable in Single Pass"), cb);
+                        S2ClientError(S2C_ERROR_INV_ARG, "Cannot use ReadTypeColumnStoreTable in Single Pass"),
+                        cb);
                     return nullptr;
                 case ReadTypeOriginalTable:
                     readQuery = sql::MakeReadOriginalTableQuery(
-                        selectQuery, NULL, partitionOrderByCols, partitionOrderByColsNumber, partition);
+                        selectQuery,
+                        NULL,
+                        partitionOrderByCols,
+                        partitionOrderByColsNumber,
+                        partition);
                     break;
                 default:
                     return nullptr;
@@ -170,7 +175,7 @@ Chunk *
 StreamingQueue::GetMultipleRows(
     uint64_t chunkSize,
     uint32_t partitionId,
-    int64_t* rowIds,
+    int64_t *rowIds,
     int64_t rowIdsNum,
     int threadId,
     S2ClientError &error)

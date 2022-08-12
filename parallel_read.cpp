@@ -295,7 +295,7 @@ extern "C"
     GetChunkMultipleRows(
         ChunkQueue *queue,
         uint32_t partitionId,
-        int64_t* rowIds,
+        int64_t *rowIds,
         int64_t rowIdsNum,
         int threadId,
         Chunk *chunk /*out*/,

@@ -96,7 +96,11 @@ MultiPassQueue::CreateChunkQueue(
                 break;
             case ReadTypeColumnStoreTable:
                 readQuery = sql::MakeReadColumnStoreTableQuery(
-                    resultTableName, keyColumnName, partitionOrderByCols, partitionOrderByColsNumber, partition);
+                    resultTableName,
+                    keyColumnName,
+                    partitionOrderByCols,
+                    partitionOrderByColsNumber,
+                    partition);
                 break;
             case ReadTypeOriginalTable:
                 readQuery = sql::MakeReadOriginalTableQuery(
@@ -230,7 +234,7 @@ Chunk *
 MultiPassQueue::GetMultipleRows(
     uint64_t chunkSize,
     uint32_t partitionId,
-    int64_t* rowIds,
+    int64_t *rowIds,
     int64_t rowIdsNum,
     int threadId,
     S2ClientError &err)

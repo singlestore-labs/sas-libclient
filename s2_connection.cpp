@@ -7,8 +7,7 @@
 
 #define MySQLResultPtr std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)>
 
-std::unique_ptr<S2Connection>
-S2Connection::Connect(const Credentials& creds)
+std::unique_ptr<S2Connection> S2Connection::Connect(const Credentials& creds)
 {
     return Connect(
         creds.host.c_str(),
@@ -23,19 +22,19 @@ std::unique_ptr<S2Connection>
 S2Connection::ConnectWithRetryMA(
     const Credentials& creds,
     const Credentials& masterCreds,
-    S2ClientError &err)
+    S2ClientError& err)
 {
     try
     {
         return S2Connection::Connect(creds);
     }
-    catch (S2ClientError &s2_err)
+    catch (S2ClientError& s2_err)
     {
         try
         {
             return S2Connection::Connect(masterCreds);
         }
-        catch (S2ClientError &s2_err)
+        catch (S2ClientError& s2_err)
         {
             err.m_errorCode = s2_err.m_errorCode;
             err.m_errorMessage = s2_err.m_errorMessage;
@@ -595,7 +594,7 @@ S2Connection::NextChunk(
 void
 S2Connection::GetMultipleRows(
     SuperChunkWriter* writer,
-    Chunk *chunk /*out*/,
+    Chunk* chunk /*out*/,
     RowSchema* schema,
     const std::string& resultTable,
     const std::string& selectQuery,

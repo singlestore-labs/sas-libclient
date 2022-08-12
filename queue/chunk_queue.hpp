@@ -93,7 +93,7 @@ class ChunkQueue
     GetMultipleRows(
         uint64_t chunkSize,
         uint32_t partitionId,
-        int64_t* rowIds,
+        int64_t *rowIds,
         int64_t rowIdsNum,
         int threadId,
         S2ClientError &error) = 0;
