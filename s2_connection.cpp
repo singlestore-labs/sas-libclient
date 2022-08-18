@@ -490,7 +490,7 @@ S2Connection::GetParallelReadType(
             }
         }
         // sort key matching
-        if (partitionOrderByColsNumber > tableKeys.sort_key.size())
+        if ((size_t)partitionOrderByColsNumber > tableKeys.sort_key.size())
         {
             isColumnstoreScanOk = false;
         }

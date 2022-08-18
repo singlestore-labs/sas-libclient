@@ -425,7 +425,7 @@ namespace sql
         std::string result;
         assert(cols && cols->size() > 0);
         result += QuotedName((*cols)[0]);
-        for (int i = 1; i < cols->size(); ++i)
+        for (size_t i = 1; i < cols->size(); ++i)
         {
             result += ",";
             result += QuotedName((*cols)[i]);
@@ -658,6 +658,7 @@ namespace sql
         resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
         resultQuery += " AND " + QuotedName(keyColumnName) + " IN ";
         resultQuery += "(" + JoinIds(rowIds, rowIdsNum) + ")";
+        resultQuery += " ORDER BY " + QuotedName(keyColumnName);
         return resultQuery;
     }
 
