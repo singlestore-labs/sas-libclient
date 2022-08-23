@@ -728,7 +728,7 @@ S2Connection::WriteChunk(
         tw.ss_local_infile_error,
         &tsv_output);
 
-    std::string query = sql::MakeLoadDataQuery(table);
+    std::string query = sql::MakeLoadDataQuery(table, schema);
 
     if (mysql_query(m_conn, query.c_str()))
     {

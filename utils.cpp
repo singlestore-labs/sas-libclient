@@ -662,10 +662,19 @@ namespace sql
         return resultQuery;
     }
 
-    std::string MakeLoadDataQuery(const std::string& tableName)
+    std::string
+    MakeLoadDataQuery(
+        const std::string& tableName,
+        const RowSchema* schema)
     {
-        return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedName(tableName) +
-               "FIELDS OPTIONALLY ENCLOSED BY '\"'";
+        std::string columnsPart = " (" + QuotedName(std::string(schema->ColumnInfo[0].name));
+        for (uint32_t i = 1; i < schema->numColumns; i++)
+        {
+            columnsPart += "," + QuotedName(schema->ColumnInfo[i].name);
+        }
+        columnsPart += ")";
+        return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedName(tableName) + columnsPart +
+               " FIELDS OPTIONALLY ENCLOSED BY '\"'";
     }
 
     std::string MakeSelectQueryMeta(const std::string& tableName)

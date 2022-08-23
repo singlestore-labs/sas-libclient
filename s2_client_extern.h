@@ -131,7 +131,7 @@ GetChunkRow(
 // `threadId` must be between 0 and `nReaderThreads` - 1, where
 // `nReaderThreads` is the value that has been passed to ParallelReadGetQueue
 // `chunkSize` bytes will be allocated for reading the rows to the `chunk`
-// Rows in the chunk are ordered by `keyColumnName` 
+// Rows in the chunk are ordered by `keyColumnName`
 bool
 GetChunkMultipleRows(
     ChunkQueue* queue,
