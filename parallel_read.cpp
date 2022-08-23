@@ -269,13 +269,41 @@ extern "C"
     GetChunkRow(
         ChunkQueue *queue,
         uint32_t partitionId,
-        int64_t rowWithinPartition,
+        int64_t rowId,
         int threadId,
         Chunk *chunk /*out*/,
         S2ErrorCallback *cb)
     {
         S2ClientError err(0, "");
-        Chunk *res = queue->GetSingleRow(partitionId, rowWithinPartition, threadId, err);
+        Chunk *res = queue->GetSingleRow(partitionId, rowId, threadId, err);
+
+        if (err.m_errorCode)
+        {
+            cb->setError(cb, err.m_errorCode, std::move(err.m_errorMessage).c_str(), S2C_SEVERITY_ERROR);
+        }
+        if (!res)
+        {
+            return false;
+        }
+
+        utils::MoveChunk(chunk, res);
+
+        return true;
+    }
+
+    bool
+    GetChunkMultipleRows(
+        ChunkQueue *queue,
+        uint32_t partitionId,
+        int64_t *rowIds,
+        int64_t rowIdsNum,
+        int threadId,
+        Chunk *chunk /*out*/,
+        uint64_t chunkSize,
+        S2ErrorCallback *cb)
+    {
+        S2ClientError err(0, "");
+        Chunk *res = queue->GetMultipleRows(chunkSize, partitionId, rowIds, rowIdsNum, threadId, err);
 
         if (err.m_errorCode)
         {

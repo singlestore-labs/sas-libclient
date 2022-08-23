@@ -19,6 +19,31 @@ std::unique_ptr<S2Connection> S2Connection::Connect(const Credentials& creds)
 }
 
 std::unique_ptr<S2Connection>
+S2Connection::ConnectWithRetryMA(
+    const Credentials& creds,
+    const Credentials& masterCreds,
+    S2ClientError& err)
+{
+    try
+    {
+        return S2Connection::Connect(creds);
+    }
+    catch (S2ClientError& s2_err)
+    {
+        try
+        {
+            return S2Connection::Connect(masterCreds);
+        }
+        catch (S2ClientError& s2_err)
+        {
+            err.m_errorCode = s2_err.m_errorCode;
+            err.m_errorMessage = s2_err.m_errorMessage;
+            return nullptr;
+        }
+    }
+}
+
+std::unique_ptr<S2Connection>
 S2Connection::Connect(
     const char* host,
     uint32_t port,
@@ -465,7 +490,7 @@ S2Connection::GetParallelReadType(
             }
         }
         // sort key matching
-        if (partitionOrderByColsNumber > tableKeys.sort_key.size())
+        if ((size_t)partitionOrderByColsNumber > tableKeys.sort_key.size())
         {
             isColumnstoreScanOk = false;
         }
@@ -549,6 +574,56 @@ S2Connection::NextChunk(
 {
     writer->Reset(chunk, rowSchema);
 
+    uint64_t row_count = 0;
+    while (HasNextRow())
+    {
+        bool was_row_written = writer->WriteRow(m_last_fetched_row, m_last_fetched_lengths);
+        if (was_row_written)
+        {
+            row_count++;
+            Advance();
+        }
+        else  // if WriteRow returned false, the m_last_fetched_row has not been written to the current chunk
+        {
+            break;
+        }
+    }
+    chunk->row_count = row_count;
+}
+
+void
+S2Connection::GetMultipleRows(
+    SuperChunkWriter* writer,
+    Chunk* chunk /*out*/,
+    RowSchema* schema,
+    const std::string& resultTable,
+    const std::string& selectQuery,
+    const std::string& keyColumnName,
+    const uint32_t partitionId,
+    const int64_t* rowIds,
+    const int rowIdsNum,
+    ParallelReadType readType)
+{
+    writer->Reset(chunk, schema);
+    std::string queryParam = readType == ParallelReadType::ReadTypeOriginalTable ? selectQuery : "";
+
+    std::string query = sql::MakeRowIdFilterQuery(
+        resultTable,
+        queryParam,
+        keyColumnName,
+        partitionId,
+        rowIds,
+        rowIdsNum);
+    bool result = Prepare(query.c_str(), true);
+
+    if (!result ||
+        !m_last_fetched_lengths ||
+        !m_last_fetched_row)
+    {
+        throw S2ClientError(
+            S2C_ERROR_INV_ARG,
+            "Failed to get the row with " + std::to_string(rowIdsNum) + " rows from table " + resultTable);
+    }
     uint64_t row_count = 0;
     while (HasNextRow())
     {

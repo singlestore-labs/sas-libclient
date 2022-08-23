@@ -144,6 +144,15 @@ namespace sql
         int64_t row_id,
         bool is_result_table);
 
+    std::string
+    MakeRowIdFilterQuery(
+        const std::string& table,
+        const std::string& selectQuery,
+        const std::string& keyColumnName,
+        int partition_id,
+        const int64_t* rowIds,
+        const int rowIdsNum);
+
     std::string MakeLoadDataQuery(
         const std::string& tableName);
 

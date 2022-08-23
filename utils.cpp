@@ -389,6 +389,22 @@ namespace sql
     }
 
     std::string
+    JoinIds(
+        const int64_t* cols,
+        const int colsNum)
+    {
+        if (colsNum <= 0) return "";
+        std::string result;
+        result += std::to_string(cols[0]);
+        for (int i = 1; i < colsNum; ++i)
+        {
+            result += ",";
+            result += std::to_string(cols[i]);
+        }
+        return result;
+    }
+
+    std::string
     JoinColumnNames(
         const char* const* const cols,
         const int colsNum)
@@ -407,9 +423,9 @@ namespace sql
     std::string JoinColumnNames(const std::vector<std::string>* cols)
     {
         std::string result;
-        assert (cols && cols->size() > 0);
+        assert(cols && cols->size() > 0);
         result += QuotedName((*cols)[0]);
-        for (int i = 1; i < cols->size(); ++i)
+        for (size_t i = 1; i < cols->size(); ++i)
         {
             result += ",";
             result += QuotedName((*cols)[i]);
@@ -620,6 +636,32 @@ namespace sql
         }
     }
 
+    std::string
+    MakeRowIdFilterQuery(
+        const std::string& table,
+        const std::string& selectQuery,
+        const std::string& keyColumnName,
+        int partition_id,
+        const int64_t* rowIds,
+        const int rowIdsNum)
+    {
+        std::string resultQuery;
+        // we set selectQuery to non-empty string when ReadTypeOriginalTable is used
+        if (selectQuery != "")
+        {
+            resultQuery = "SELECT * FROM (" + selectQuery + ")";
+        }
+        else
+        {
+            std::string resultQuery = "SELECT * FROM " + QuotedName(table);
+        }
+        resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
+        resultQuery += " AND " + QuotedName(keyColumnName) + " IN ";
+        resultQuery += "(" + JoinIds(rowIds, rowIdsNum) + ")";
+        resultQuery += " ORDER BY " + QuotedName(keyColumnName);
+        return resultQuery;
+    }
+
     std::string MakeLoadDataQuery(const std::string& tableName)
     {
         return "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedName(tableName) +
@@ -642,7 +684,7 @@ namespace sql
         return "SELECT "
                "TYPE, IP_ADDR, PORT, EXTERNAL_HOST, EXTERNAL_PORT "
                "FROM information_schema.mv_nodes "
-               "WHERE TYPE != 'LEAF' "
+               "WHERE TYPE = 'CA' "
                "ORDER BY IP_ADDR, PORT, EXTERNAL_HOST, EXTERNAL_PORT";
     }
 }  // namespace sql

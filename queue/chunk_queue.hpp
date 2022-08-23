@@ -80,11 +80,21 @@ class ChunkQueue
         int chunkId,
         S2ClientError &error) = 0;
 
-    // GetSingleRow retrieves the row identified by (chunkId, rowNum) from partiotionId
+    // GetSingleRow retrieves the row identified by rowId from partitionId
     virtual Chunk *
     GetSingleRow(
         uint32_t partitionId,
-        int64_t rowWithinPartition,
+        int64_t rowId,
+        int threadId,
+        S2ClientError &error) = 0;
+
+    // GetMultipleRows retrieves the rows identified by rowIds from partitionId
+    virtual Chunk *
+    GetMultipleRows(
+        uint64_t chunkSize,
+        uint32_t partitionId,
+        int64_t *rowIds,
+        int64_t rowIdsNum,
         int threadId,
         S2ClientError &error) = 0;
 
@@ -115,6 +125,7 @@ class ChunkQueue
     std::vector<std::unique_ptr<ResultTableReader>> m_readers;
 
     Credentials m_credentials;
+    std::vector<AggregatorNode> m_aggregators;
 
     int m_consumers;
     std::vector<ThreadSafeQueue<Chunk *> *> m_consumer_queues;

@@ -206,7 +206,8 @@ void setup_multi_pass_table(S2Client *client)
         t1 TEXT,\
         t2 TEXT,\
         SHARD KEY(i1),\
-        SORT KEY (i1, rowId)\
+        SORT KEY (i1, rowId),\
+        KEY(rowId)\
         )",
         &EH.callback);
 
@@ -429,8 +430,8 @@ parseAllDataTypesChunkRow(
     memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
     out->variable_binary.len = len;
     // Fixed, CHAR(16)
-    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * get_db_char_size());
-    current_offset += 16 * get_db_char_size();
+    memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * db_char_size);
+    current_offset += 16 * db_char_size;
     // Fixed, BINARY(9)
     memcpy(out->fixed_binary, chunk->m_ptr + current_offset, 16);
     current_offset += 16;
