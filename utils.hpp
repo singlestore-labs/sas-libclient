@@ -153,8 +153,10 @@ namespace sql
         const int64_t* rowIds,
         const int rowIdsNum);
 
-    std::string MakeLoadDataQuery(
-        const std::string& tableName);
+    std::string
+    MakeLoadDataQuery(
+        const std::string& tableName,
+        const RowSchema* schema);
 
     std::string MakeSelectQueryMeta(
         const std::string& tableName);
