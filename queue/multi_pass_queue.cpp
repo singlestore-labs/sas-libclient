@@ -262,6 +262,12 @@ MultiPassQueue::GetMultipleRows(
     {
         // initialize the chunk to fill
         char *ptr = (char *)malloc(chunkSize);
+        if (!ptr)
+        {
+            err.m_errorCode = S2C_ERROR_MEMORY_ALLOCATION;
+            err.m_errorMessage = "GetMultipleRows cannot allocate chunk size: " + std::to_string(chunkSize);
+            return nullptr;
+        }
         Chunk *chunk = new Chunk();
         chunk->m_ptr = ptr;
         chunk->m_size = chunkSize;
