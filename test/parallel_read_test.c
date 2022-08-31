@@ -18,10 +18,10 @@ int queueCapacity = 32;
 
 bool printInfo = 0;
 
-const char *queryMain = "SELECT * FROM small_test";
-const char *queryWarn = "SELECT * FROM small_test WHERE rowId = 'i' OR 1";
+const char *queryMain = "SELECT * FROM `small'test`";
+const char *queryWarn = "SELECT * FROM `small'test` WHERE rowId = 'i' OR 1";
 const char *queryPartition = "SELECT * FROM partition_test";
-const char *smallTable = "small_test";
+const char *smallTable = "small'test";
 const char *partitionTable = "partition_test";
 
 const char *resultTable = "tmp";
@@ -174,7 +174,7 @@ void error_test(S2Client *client)
     readType = ParallelReadInit(
         client,
         resultTable,
-        "SELECT * FROM small_test WHERE non_defined_func(i1) = 1",
+        "SELECT * FROM `small'test` WHERE non_defined_func(i1) = 1",
         NULL,
         keyCol,
         readType,
@@ -409,7 +409,7 @@ main(
     // parallel read modes tests
     const char *partCols[3] = {"i1", "rowId"};
     const char *partOrderCols[2] = {"i1", "d1"};
-    mult_table(client, "small_test", "partition_test", 10);
+    mult_table(client, smallTable, "partition_test", 10);
 
     // [TEST] no partitioning
     parallel_test(client, queryWarn, smallTable, NULL, 0, NULL, 0, false, false);

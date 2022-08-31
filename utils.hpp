@@ -165,6 +165,8 @@ namespace sql
         const char* selectQuery);
 
     std::string MakeGetAggregatorsQuery();
+
+    std::string MakeGetTableKeysQuery(const char* db, const char* tableName);
 }  // namespace sql
 
 #endif  // UTILS_HPP

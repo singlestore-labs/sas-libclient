@@ -120,6 +120,15 @@ void ResultTableReader::Read()
         {
             // initialize the chunk to fill
             char *ptr = (char *)malloc(m_chunk_size);
+            if (!ptr)
+            {
+                std::unique_lock<std::mutex> lock(m_error_mutex);
+                m_error = S2ClientError(
+                    S2C_ERROR_MEMORY_ALLOCATION,
+                    "ResultTableReader cannot allocate chunk size: " + std::to_string(m_chunk_size));
+                break;
+            }
+            
             Chunk *chunk = new Chunk();
             chunk->m_ptr = ptr;
             chunk->m_size = m_chunk_size;

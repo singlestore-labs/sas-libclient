@@ -696,4 +696,16 @@ namespace sql
                "WHERE TYPE = 'CA' "
                "ORDER BY IP_ADDR, PORT, EXTERNAL_HOST, EXTERNAL_PORT";
     }
+
+    std::string MakeGetTableKeysQuery(const char* db, const char* tableName)
+    {
+        std::stringstream queryStream;
+        queryStream << "SELECT SEQ_IN_INDEX, COLUMN_NAME, INDEX_TYPE FROM INFORMATION_SCHEMA.STATISTICS";
+        queryStream << " WHERE TABLE_SCHEMA = " << std::quoted(std::string(db), '\'', '\\');
+        queryStream << " AND TABLE_NAME = " << std::quoted(std::string(tableName), '\'', '\\');
+        queryStream << " AND (INDEX_TYPE = 'CLUSTERED COLUMNSTORE' OR INDEX_TYPE = 'SHARD')";
+        queryStream << " ORDER BY INDEX_TYPE, SEQ_IN_INDEX";
+        return queryStream.str();
+    }
+
 }  // namespace sql

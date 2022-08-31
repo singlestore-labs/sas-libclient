@@ -527,11 +527,7 @@ TableKeys S2Connection::GetTableKeys(const char* sourceTable)
     MYSQL_ROW row;
     unsigned long* lengths;
 
-    std::string query = "SELECT SEQ_IN_INDEX, COLUMN_NAME, INDEX_TYPE FROM INFORMATION_SCHEMA.STATISTICS";
-    query += " WHERE TABLE_SCHEMA='" + std::string(m_db) + "'";
-    query += " AND TABLE_NAME='" + std::string(sourceTable) + "'";
-    query += " AND (INDEX_TYPE='CLUSTERED COLUMNSTORE' OR INDEX_TYPE='SHARD')";
-    query += " ORDER BY INDEX_TYPE, SEQ_IN_INDEX";
+    std::string query = sql::MakeGetTableKeysQuery(m_db, sourceTable);
 
     if (mysql_query(m_conn, query.c_str()))
     {
@@ -672,13 +668,19 @@ S2Connection::GetSingleRow(
             "Failed to get the row with id " + std::to_string(partitionRowId) + " from table " + resultTable);
     }
 
-    uint64_t chunk_size = rowSize(schema, m_last_fetched_lengths);
+    uint64_t chunkSize = rowSize(schema, m_last_fetched_lengths);
 
-    char* ptr = (char*)malloc(chunk_size);
+    char* ptr = (char*)malloc(chunkSize);
+    if (!ptr)
+    {
+        throw S2ClientError(
+            S2C_ERROR_MEMORY_ALLOCATION,
+            "GetSingleRow cannot allocate chunk size: " + std::to_string(chunkSize));
+    }
 
     Chunk* chunk = new Chunk();
     chunk->m_ptr = ptr;
-    chunk->m_size = chunk_size;
+    chunk->m_size = chunkSize;
     chunk->row_count = 0;
     chunk->partition_id = partitionId;
     chunk->consumed_size = 0;
