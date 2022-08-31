@@ -527,11 +527,7 @@ TableKeys S2Connection::GetTableKeys(const char* sourceTable)
     MYSQL_ROW row;
     unsigned long* lengths;
 
-    std::string query = "SELECT SEQ_IN_INDEX, COLUMN_NAME, INDEX_TYPE FROM INFORMATION_SCHEMA.STATISTICS";
-    query += " WHERE TABLE_SCHEMA='" + std::string(m_db) + "'";
-    query += " AND TABLE_NAME='" + std::string(sourceTable) + "'";
-    query += " AND (INDEX_TYPE='CLUSTERED COLUMNSTORE' OR INDEX_TYPE='SHARD')";
-    query += " ORDER BY INDEX_TYPE, SEQ_IN_INDEX";
+    std::string query = sql::MakeGetTableKeysQuery(m_db, sourceTable);
 
     if (mysql_query(m_conn, query.c_str()))
     {

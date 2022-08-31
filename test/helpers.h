@@ -168,11 +168,11 @@ dummyHandleError(
 
 void setup_small_test_table(S2Client *client)
 {
-    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS small_test", &EH.callback);
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS `small'test`", &EH.callback);
 
     ExecuteDDLQuery(
         client,
-        "CREATE TABLE small_test (\
+        "CREATE TABLE `small'test` (\
         i1 BIGINT,\
         rowId BIGINT AUTO_INCREMENT,\
         d1 DOUBLE,\
@@ -186,7 +186,7 @@ void setup_small_test_table(S2Client *client)
 
     for (int i = 0; i < nSmallTestRows; ++i)
     {
-        char query[queryLen] = "INSERT INTO small_test (i1, d1, d2, t1, t2) VALUES ";
+        char query[queryLen] = "INSERT INTO `small'test` (i1, d1, d2, t1, t2) VALUES ";
         strcat(query, smallTestData[i]);
         ExecuteDDLQuery(client, query, &EH.callback);
     }
@@ -262,7 +262,7 @@ setup_all_data_types_table(
 
 void cleanup_small_test_table(S2Client *client)
 {
-    ExecuteDDLQuery(client, "DROP TABLE small_test", &EH.callback);
+    ExecuteDDLQuery(client, "DROP TABLE `small'test`", &EH.callback);
 }
 
 void cleanup_all_data_types_table(S2Client *client)
@@ -277,7 +277,13 @@ mult_table(
     const char *outTable,
     int scaleFactor)
 {
-    int len = strlen("DROP TABLE IF EXISTS ") + strlen(outTable);
+    MYSQL *mysqlDummy = mysql_init(NULL);
+    char *inTableQuoted = (char *)malloc(strlen(inTable) + 2);
+    inTableQuoted[0] = '`';
+    strcpy(inTableQuoted + 1, inTable);
+    inTableQuoted[strlen(inTable) + 1] = '`';
+
+    size_t len = strlen("DROP TABLE IF EXISTS ") + strlen(outTable);
     char *query = (char *)malloc(len + 1);
     query[0] = '\0';
     strcpy(query, "DROP TABLE IF EXISTS ");
@@ -286,13 +292,13 @@ mult_table(
 
     free(query);
 
-    len = strlen("CREATE TABLE ") + strlen(outTable) + strlen(" AS SELECT * FROM ") + strlen(inTable);
+    len = strlen("CREATE TABLE ") + strlen(outTable) + strlen(" AS SELECT * FROM ") + strlen(inTableQuoted);
     query = (char *)malloc(len + 1);
     query[0] = '\0';
     strcpy(query, "CREATE TABLE ");
     strcat(query, outTable);
     strcat(query, " AS SELECT * FROM ");
-    strcat(query, inTable);
+    strcat(query, inTableQuoted);
     ExecuteDDLQuery(client, query, &EH.callback);
 
     free(query);
