@@ -125,11 +125,6 @@ class SuperChunkWriter
     // m_row_column_count keeps track of the number of columns written to the current row
     uint32_t m_row_column_count;
 
-    // m_variable_offset is the offset of the variable length section in the chunk
-    // each time we write a new variable length value this offset will *decrease*
-    // since we write each variable value in reverse from the end of the chunk
-    uint64_t m_variable_offset;
-
     RowSchema *m_row_schema;
 };
 

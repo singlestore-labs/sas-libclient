@@ -684,6 +684,7 @@ S2Connection::GetSingleRow(
     chunk->row_count = 0;
     chunk->partition_id = partitionId;
     chunk->consumed_size = 0;
+    chunk->variable_offset = 0;
 
     writer->Reset(chunk, schema);
     writer->WriteRow(m_last_fetched_row, m_last_fetched_lengths);
