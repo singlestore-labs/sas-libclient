@@ -22,13 +22,12 @@ SuperChunkWriter::Reset(
     m_row_column_count = 0;
 
     m_chunk_size = chunk->m_size;
-    m_variable_offset = chunk->m_size;
 }
 
 bool SuperChunkWriter::HasEnoughSpace(uint64_t requestedSize)
 {
-    assert(m_current_chunk->Offset() <= m_variable_offset);
-    if (m_variable_offset - m_current_chunk->Offset() < requestedSize)
+    assert(m_current_chunk->GetOffset() + m_current_chunk->GetVariableOffset() <= m_chunk_size);
+    if (m_chunk_size - m_current_chunk->GetVariableOffset() - m_current_chunk->GetOffset() < requestedSize)
     {
         // not enough space
         return false;
@@ -80,15 +79,15 @@ SuperChunkWriter::WriteVariable(
 {
     RecordColumn();
 
-    // update m_variable_offset to store the new value
-    m_variable_offset -= len;
+    // update variable_offset to store the new value
+    m_current_chunk->IncrVariableOffset(len);
 
     // write offset and length
-    m_current_chunk->Write8Typed(m_variable_offset);
+    m_current_chunk->Write8Typed(m_current_chunk->GetVariableOffset());
     m_current_chunk->Write8Typed(len);
 
     // write the value into the variable length region if it's nonempty
-    m_current_chunk->WriteAt(m_variable_offset, val, len);
+    m_current_chunk->WriteAt(m_chunk_size - m_current_chunk->GetVariableOffset(), val, len);
 }
 
 inline void SuperChunkWriter::WriteInt64Null()
@@ -159,12 +158,12 @@ void SuperChunkWriter::WriteRowEnd()
     if (m_row_fixed_size == 0)
     {
         assert(m_row_offset == 0);  // should be the first row
-        m_row_fixed_size = m_current_chunk->Offset();
+        m_row_fixed_size = m_current_chunk->GetOffset();
     }
     // update the row count
     m_current_chunk->IncrRowCount();
     // update the current row offset for the next row
-    m_row_offset = m_current_chunk->Offset();
+    m_row_offset = m_current_chunk->GetOffset();
     // reset the column counter for the next row
     m_row_column_count = 0;
 }

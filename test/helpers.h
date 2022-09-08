@@ -363,6 +363,7 @@ Chunk *allocChunk(int chunkSize)
     chunk->m_ptr = chunk_data;
     chunk->m_size = chunkSize;
     chunk->consumed_size = 0;
+    chunk->variable_offset = 0;
     chunk->row_count = 0;
     return chunk;
 }
@@ -413,27 +414,27 @@ parseAllDataTypesChunkRow(
     current_offset += 8;
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
-    memcpy(out->variable_text.data, chunk->m_ptr + offset, len);
+    memcpy(out->variable_text.data, chunk->m_ptr + chunk->m_size - offset, len);
     out->variable_text.len = len;
     // Variable, LONGTEXT
     memcpy(&offset, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
-    memcpy(out->variable_long_text.data, chunk->m_ptr + offset, len);
+    memcpy(out->variable_long_text.data, chunk->m_ptr + chunk->m_size - offset, len);
     // Variable, VARCHAR
     memcpy(&offset, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
-    memcpy(out->variable_char.data, chunk->m_ptr + offset, len);
+    memcpy(out->variable_char.data, chunk->m_ptr + chunk->m_size - offset, len);
     out->variable_char.len = len;
     // Variable, VARBINARY
     memcpy(&offset, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
     memcpy(&len, chunk->m_ptr + current_offset, 8);
     current_offset += 8;
-    memcpy(out->variable_binary.data, chunk->m_ptr + offset, len);
+    memcpy(out->variable_binary.data, chunk->m_ptr + chunk->m_size - offset, len);
     out->variable_binary.len = len;
     // Fixed, CHAR(16)
     memcpy(out->fixed_char, chunk->m_ptr + current_offset, 16 * db_char_size);
@@ -482,13 +483,14 @@ RecordChunk(
     if (print)
     {
         printf(
-            "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d, consumed_size: %d\n",
+            "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d, consumed_size: %d, vaiable_offest: %d\n",
             chunk,
             chunk->m_ptr,
             chunk->partition_id,
             chunk->m_size,
             chunk->row_count,
-            chunk->consumed_size);
+            chunk->consumed_size,
+            chunk->variable_offset);
     }
     if (args->check_partition_order)
     {

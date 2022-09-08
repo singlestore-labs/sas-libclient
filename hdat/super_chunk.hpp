@@ -28,9 +28,19 @@ class SuperChunk
     void operator=(const SuperChunk &) = delete;
 
     // metadata methods
-    inline uint64_t Offset()
+    inline uint64_t GetOffset()
     {
         return m_offset;
+    }
+
+    inline uint64_t GetVariableOffset()
+    {
+        return m_chunk->variable_offset;
+    }
+
+    inline void IncrVariableOffset(uint64_t len)
+    {
+        m_chunk->variable_offset += len;
     }
 
     inline uint64_t Size()

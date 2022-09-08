@@ -9,7 +9,7 @@ SuperChunkReader::ReadFloat(
     double* out,
     bool* isnull)
 {
-    if (!CanRead(m_current_chunk->Offset(), 8))
+    if (!CanRead(m_current_chunk->GetOffset(), 8))
     {
         m_error = "no space available to read Float";
         return false;
@@ -25,7 +25,7 @@ SuperChunkReader::ReadInt64(
     int64_t* out,
     bool* isnull)
 {
-    if (!CanRead(m_current_chunk->Offset(), 8))
+    if (!CanRead(m_current_chunk->GetOffset(), 8))
     {
         m_error = "no space available to read Int64";
         return false;
@@ -41,7 +41,7 @@ SuperChunkReader::ReadInt32(
     int32_t* out,
     bool* isnull)
 {
-    if (!CanRead(m_current_chunk->Offset(), 8))
+    if (!CanRead(m_current_chunk->GetOffset(), 8))
     {
         m_error = "no space available to read Int32";
         return false;
@@ -59,7 +59,7 @@ SuperChunkReader::ReadVariable(
     uint64_t* len,
     bool* isnull)
 {
-    if (!CanRead(m_current_chunk->Offset(), 16))
+    if (!CanRead(m_current_chunk->GetOffset(), 16))
     {
         m_error = "no space available to read Variable length and offset";
         return false;
@@ -75,6 +75,7 @@ SuperChunkReader::ReadVariable(
         *isnull = true;
         return true;
     }
+    offset = m_current_chunk->Size() - offset;
 
     if (!CanRead(offset, *len))
     {

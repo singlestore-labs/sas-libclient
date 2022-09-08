@@ -36,6 +36,7 @@ typedef struct Chunk
     uint64_t m_size;
     uint64_t row_count;
     uint64_t consumed_size;
+    uint64_t variable_offset;  // the offset of the variable length section in the chunk measured from the end of the chunk
     uint64_t id;
     uint32_t partition_id;  // S2 partition, serves as a part of key in multi-pass
 } Chunk;
