@@ -22,19 +22,23 @@ set(LIBCLIENT_SOURCES
     queue/thread_safe_queue.hpp
     queue/thread_safe_batch_queue.hpp
     queue/thread_safe_simple_queue.hpp
-    table_writer.cpp
+    avro_table_writer.hpp
+    avro_table_writer.cpp
+    tsv_table_writer.hpp
+    tsv_table_writer.cpp
     utils.cpp)
 
 add_library(s2client SHARED ${LIBCLIENT_SOURCES})
 
-target_include_directories(s2client PUBLIC $ENV{PATH_TO_LIBCLIENT}
-                                           libmariadb/include)
-
-target_link_directories(s2client PUBLIC $ENV{PATH_TO_LIBCLIENT}/libmariadb)
+target_include_directories(
+  s2client PUBLIC $ENV{PATH_TO_LIBCLIENT} vendor/libmariadb/include
+                  vendor/libavro/include vendor/libjansson/include)
 
 target_link_libraries(
   s2client
   mariadb
+  avro
+  jansson
   dl
   pthread
   crypto

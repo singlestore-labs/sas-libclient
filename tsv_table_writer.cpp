@@ -2,12 +2,12 @@
 #include <iomanip>
 #include <sstream>
 
-#include "table_writer.hpp"
+#include "tsv_table_writer.hpp"
 #include "hdat/common.hpp"
 
 // ChunkToTSV writes
 bool
-TableWriter::ChunkToTSV(
+TsvTableWriter::ChunkToTSV(
     std::unique_ptr<SuperChunkReader> &reader,
     int64_t row_count)
 {
@@ -159,11 +159,11 @@ TableWriter::ChunkToTSV(
     return true;
 }
 
-// in ss_local_infile_init we cpoy the pointer *caller_data which is passed to
+// ss_local_infile_init copies the pointer *caller_data which is passed to
 // mysql_set_local_infile_handler before the LOAD DATA statment is issued.
 // This pointer will be then used in ss_local_infile_read
 int
-TableWriter::ss_local_infile_init(
+TsvTableWriter::ss_local_infile_init(
     void **ptr,
     const char *filename,
     void *caller_data)
@@ -176,7 +176,7 @@ TableWriter::ss_local_infile_init(
 // It reads buf_len characters from stringstream pointed by ptr
 // and returns the actual number of bytes read
 int
-TableWriter::ss_local_infile_read(
+TsvTableWriter::ss_local_infile_read(
     void *ptr,
     char *buf,
     unsigned int buf_len)
@@ -193,7 +193,7 @@ TableWriter::ss_local_infile_read(
 
 // ss_local_infile_end as long as we don't allocate additional
 // memory in ss_local_infile_init
-void TableWriter::ss_local_infile_end(void *ptr)
+void TsvTableWriter::ss_local_infile_end(void *ptr)
 {
     return;
 }
@@ -201,7 +201,7 @@ void TableWriter::ss_local_infile_end(void *ptr)
 // ss_local_infile_error is called to get a textual error message
 // to return to the user in case any of ss_local_infile_* functions returns an error
 int
-TableWriter::ss_local_infile_error(
+TsvTableWriter::ss_local_infile_error(
     void *ptr,
     char *error_msg,
     unsigned int error_msg_len)

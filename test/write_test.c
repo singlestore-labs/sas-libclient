@@ -4,17 +4,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/time.h>
 #include <stdatomic.h>
 #include <unistd.h>
 
 #include "s2_client_extern.h"
 #include "chunk_extern.h"
 #include "hdat_write_extern.h"
+#include "avro_write_extern.h"
+
+#include "avro.h"
 
 #include "test/db_creds.h"
 #include "test/helpers.h"
 
-int chunkSize = 1024000;
+int chunkSize = 1 << 30;
 int printInfo = 1;
 uint64_t nRowsToWrite = 30;
 int queueCapacity = 10;
@@ -55,7 +60,7 @@ is_const_buffer(
 
 void read_and_check(S2Client *client)
 {
-    const char *query = "SELECT * FROM all_data_types_table WHERE rowId > 0";
+    const char *query = "SELECT * FROM all_data_types_table WHERE rowId > 0 ORDER BY rowId";
 
     ChunkQueue *q = QueryGetQueue(
         client,
@@ -125,7 +130,7 @@ void read_and_check(S2Client *client)
     printf("[SUCCESS] validity checked. Write test passed!\n");
 }
 
-void write_test(S2Client *client)
+void write_chunk_test(S2Client *client)
 {
     Chunk *chunk = allocChunk(chunkSize);
 
@@ -197,6 +202,79 @@ void write_test(S2Client *client)
     ChunkFree(chunk);
     free(chunk);
     printf("[SUCCESS] data written!\n");
+}
+
+void write_avro_test(S2Client *client)
+{
+    int db_char_size = get_db_char_size();
+    RowSchema *schema = GetTableRowSchema(client, allDataTypesTable, &EH.callback);
+    IF_INFO(PrintRowSchema(schema));
+
+    int buf_size = 1 << 30;
+    char *buf = (char *)malloc(buf_size);
+
+    avro_writer_t w = avro_writer_memory(buf, buf_size);
+
+    for (uint64_t i = 0; i < nRowsToWrite; ++i)
+    {
+        WriteInt64Avro(w, i * i);
+        WriteInt32Avro(w, i);
+        if (i % 3 == 0)
+        {
+            WriteDoubleAvro(w, doubleNull);
+        }
+        if (i % 3 == 1)
+        {
+            WriteDoubleAvro(w, val_64);
+        }
+        if (i % 3 == 2)
+        {
+            WriteDoubleAvro(w, (double)i);
+        }
+
+        char buffer[33];
+        snprintf(buffer, 33, "Cube %d", i * i * i);
+        WriteBytesAvro(w, buffer, strlen(buffer));
+
+        // these values are copied from TEST_DATA
+        WriteBytesAvro(w, "t\nt", 3);
+        WriteBytesAvro(w, "lon\ttxt", 7);
+        WriteBytesAvro(w, "\x40\x60", 2);
+
+        WriteBytesAvro(w, "юникод", 12);
+        WriteBytesAvro(w, "fixed", 5);
+
+        WriteInt64Avro(w, TEST_DATA.date_time);
+        WriteInt64Avro(w, TEST_DATA.date_time_6);
+        WriteInt32Avro(w, TEST_DATA.date);
+        WriteInt64Avro(w, TEST_DATA.time);
+    }
+    {
+        WriteInt64Avro(w, 0);
+        WriteInt32Avro(w, int32Null);
+        WriteDoubleAvro(w, doubleNull);
+
+        WriteBytesAvro(w, "", 0);
+        WriteBytesAvro(w, "", 0);
+        WriteBytesAvro(w, "", 0);
+        WriteBytesAvro(w, "", 0);
+
+        WriteBytesAvro(w, "", 0);
+        WriteBytesAvro(w, "", 0);
+
+        WriteInt64Avro(w, int64Null);
+        WriteInt64Avro(w, int64Null);
+        WriteInt32Avro(w, int32Null);
+        WriteInt64Avro(w, int64Null);
+    }
+    avro_writer_flush(w);
+    int written = avro_writer_tell(w);
+    avro_writer_free(w);
+
+    LoadDataAvro(client, buf, written, schema, allDataTypesTable, &EH.callback);
+    RowSchemaFree(schema);
+
+    printf("[SUCCESS] AVRO data written!\n");
 }
 
 void boundary_test(S2Client *client)
@@ -344,10 +422,38 @@ main(
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
+    struct timeval start, end;
+    long seconds, micros;
+
     setup_all_data_types_table(client, 0);
-    write_test(client);
+    clock_t tic = clock();
+    gettimeofday(&start, NULL);
+    write_chunk_test(client);
+    gettimeofday(&end, NULL);
+    clock_t toc = clock();
+    seconds = (end.tv_sec - start.tv_sec);
+    micros = ((seconds * 1000000) + end.tv_usec) - (start.tv_usec);
+    PRINT_INFO("write_chunk_test active: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
+    PRINT_INFO("write_chunk_test elapsed: %d.%d seconds\n", seconds, micros);
+
     read_and_check(client);
     cleanup_all_data_types_table(client);
+
+    setup_all_data_types_table(client, 0);
+
+    tic = clock();
+    gettimeofday(&start, NULL);
+    write_avro_test(client);
+    gettimeofday(&end, NULL);
+    toc = clock();
+    seconds = (end.tv_sec - start.tv_sec);
+    micros = ((seconds * 1000000) + end.tv_usec) - (start.tv_usec);
+    PRINT_INFO("write_avro_test active: %f seconds\n", (double)(toc - tic) / CLOCKS_PER_SEC);
+    PRINT_INFO("write_avro_test elapsed: %d.%d seconds\n", seconds, micros);
+
+    read_and_check(client);
+    cleanup_all_data_types_table(client);
+
     boundary_test(client);
     max_allowed_packet_test(client);
 

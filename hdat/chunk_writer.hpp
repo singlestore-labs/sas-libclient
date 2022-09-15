@@ -128,47 +128,4 @@ class SuperChunkWriter
     RowSchema *m_row_schema;
 };
 
-extern "C"
-{
-    SuperChunkWriter *
-    CreateWriter(
-        Chunk *chunk,
-        RowSchema *schema,
-        S2ErrorCallback *cb);
-
-    void
-    ResetWriter(
-        SuperChunkWriter *writer,
-        Chunk *chunk,
-        RowSchema *schema);
-
-    void WriterFree(SuperChunkWriter *writer);
-
-    bool
-    WriteInt64(
-        SuperChunkWriter *writer,
-        int64_t val);
-
-    bool
-    WriteDouble(
-        SuperChunkWriter *writer,
-        double val);
-
-    bool
-    WriteFixed(
-        SuperChunkWriter *writer,
-        const void *val,
-        const int64_t data_size,
-        const int64_t field_size,
-        const bool pad_with_zero);
-
-    bool
-    WriteVariable(
-        SuperChunkWriter *writer,
-        const void *val,
-        uint64_t len);
-
-    void WriteRowEnd(SuperChunkWriter *writer);
-}
-
 #endif  // HDAT_CHUNK_WRITER_HPP

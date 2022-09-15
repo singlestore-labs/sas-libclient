@@ -11,6 +11,8 @@
 #include "mysql.h"
 
 #include "chunk_extern.h"
+#include "tsv_table_writer.hpp"
+#include "avro_table_writer.hpp"
 #include "utils.hpp"
 
 #include "hdat/chunk_writer.hpp"
@@ -162,13 +164,19 @@ class S2Connection
     {
         m_need_stmt_close = false;
     }
-    // WriteChunk executes LOAD DATA INFILE
+    // WriteChunk executes LOAD DATA LOCAL INFILE
     void
     WriteChunk(
         std::unique_ptr<SuperChunkReader>& reader,
         Chunk* chunk,
         RowSchema* schema,
         const std::string table);
+
+    void
+    WriteAvro(
+        AvroBuffer* sourceData,
+        const RowSchema* schema,
+        const std::string& table);
 
   private:
     MYSQL* m_conn = nullptr;

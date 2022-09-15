@@ -1,9 +1,11 @@
-#include "memory"
+#include <memory>
 #include <sstream>
 
+#include "avro_table_writer.hpp"
 #include "hdat/chunk_writer.hpp"
+#include "tsv_table_writer.hpp"
+
 #include "s2_connection.hpp"
-#include "table_writer.hpp"
 
 #define MySQLResultPtr std::unique_ptr<MYSQL_RES, decltype(&mysql_free_result)>
 
@@ -742,7 +744,7 @@ S2Connection::WriteChunk(
     reader->Reset(chunk, schema);
 
     std::stringstream tsv_output;
-    TableWriter tw(&tsv_output);
+    TsvTableWriter tw(&tsv_output);
 
     if (!(tw.ChunkToTSV(reader, chunk->row_count)))
     {
@@ -757,8 +759,42 @@ S2Connection::WriteChunk(
         tw.ss_local_infile_error,
         &tsv_output);
 
-    std::string query = sql::MakeLoadDataQuery(table, schema);
+    std::string query = sql::MakeLoadDataQuery(table, schema, WriteBufferType::TSV);
+    if (mysql_query(m_conn, query.c_str()))
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+}
 
+void
+S2Connection::WriteAvro(
+    AvroBuffer* sourceData,
+    const RowSchema* schema,
+    const std::string& table)
+{
+    int is_infile_enabled;
+    if (mysql_get_option(m_conn, MYSQL_OPT_LOCAL_INFILE, &is_infile_enabled))
+    {
+        FreeResult();
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+    if (!is_infile_enabled)
+    {
+        FreeResult();
+        throw S2ClientError(S2C_ERROR_BAD_CONNECTION, "LOAD DATA INFILE LOCAL is disabled on the server side");
+    }
+
+    AvroTableWriter tw(sourceData);
+
+    mysql_set_local_infile_handler(
+        m_conn,
+        tw.ss_local_infile_init,
+        tw.ss_local_infile_read,
+        tw.ss_local_infile_end,
+        tw.ss_local_infile_error,
+        tw.m_buf);
+
+    std::string query = sql::MakeLoadDataQuery(table, schema, WriteBufferType::AVRO);
     if (mysql_query(m_conn, query.c_str()))
     {
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));

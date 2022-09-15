@@ -128,7 +128,6 @@ void ResultTableReader::Read()
                     "ResultTableReader cannot allocate chunk size: " + std::to_string(m_chunk_size));
                 break;
             }
-            
             Chunk *chunk = new Chunk();
             chunk->m_ptr = ptr;
             chunk->m_size = m_chunk_size;

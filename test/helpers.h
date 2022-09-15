@@ -488,7 +488,8 @@ RecordChunk(
     if (print)
     {
         printf(
-            "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d, consumed_size: %d, vaiable_offest: %d\n",
+            "Got chunk: %p, m_ptr: %p, partition_id: %d, m_size: %d, row_count: %d, consumed_size: %d, vaiable_offest: "
+            "%d\n",
             chunk,
             chunk->m_ptr,
             chunk->partition_id,

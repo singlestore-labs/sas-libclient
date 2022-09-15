@@ -44,6 +44,13 @@ class S2Client
         RowSchema* schema,
         const char* table);
 
+    void
+    LoadDataAvro(
+        char* sourceData,
+        int64_t sourceDataLen,
+        RowSchema* schema,
+        const char* table);
+
   private:
     S2Client(
         uint32_t workerId,
