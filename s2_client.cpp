@@ -22,6 +22,7 @@ S2Client::Connect(
 
     // get the number of partitions
     s2Client->m_numPartitions = s2Client->m_conn->GetPartitionsNumber();
+    s2Client->m_serverVersion = s2Client->m_conn->GetServerVersion();
 
     s2Client->m_chunk_reader = std::make_unique<SuperChunkReader>();
 

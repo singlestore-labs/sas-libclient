@@ -34,6 +34,7 @@ MultiPassQueue::CreateChunkQueue(
     chunkQueue->m_query = selectQuery;
     chunkQueue->m_key_column = keyColumnName;
     chunkQueue->m_read_type = readType;
+    chunkQueue->m_serverVersion = client->m_serverVersion;
 
     std::vector<int> partitions = utils::WorkerPartitions(
         client->m_numWorkers,
@@ -92,7 +93,7 @@ MultiPassQueue::CreateChunkQueue(
         switch (readType)
         {
             case ReadTypeResultTable:
-                readQuery = sql::MakeReadResultTableQuery(resultTableName, partition);
+                readQuery = sql::MakeReadResultTableQuery(resultTableName, partition, client->m_serverVersion);
                 break;
             case ReadTypeColumnStoreTable:
                 readQuery = sql::MakeReadColumnStoreTableQuery(
@@ -219,7 +220,8 @@ MultiPassQueue::GetSingleRow(
             m_key_column,
             partitionId,
             rowId,
-            m_read_type);
+            m_read_type,
+            m_serverVersion);
         return res;
     }
     catch (S2ClientError &s2_err)

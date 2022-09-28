@@ -29,6 +29,8 @@ class MultiPassQueue : public ChunkQueue
     int m_consumer_threads_num;
     std::vector<ConnAndWriter> m_consumers;
 
+    std::string m_serverVersion;
+
   public:
     ~MultiPassQueue();
 
