@@ -86,7 +86,7 @@ extern "C"
         return avro_binary_encoding.write_int(w, val);
     }
 
-    bool
+    int
     WriteDoubleAvro(
         avro_writer_t w,
         double val)
@@ -94,7 +94,7 @@ extern "C"
         return avro_binary_encoding.write_double(w, val);
     }
 
-    bool
+    int
     WriteBytesAvro(
         avro_writer_t w,
         const void *val,

@@ -214,64 +214,66 @@ void write_avro_test(S2Client *client)
     char *buf = (char *)malloc(buf_size);
 
     avro_writer_t w = avro_writer_memory(buf, buf_size);
+    int totalBytesWritten = 0;
 
     for (uint64_t i = 0; i < nRowsToWrite; ++i)
     {
-        WriteInt64Avro(w, i * i);
+        if (WriteInt64Avro(w, i * i)) break;
         WriteInt32Avro(w, i);
         if (i % 3 == 0)
         {
-            WriteDoubleAvro(w, doubleNull);
+            if(WriteDoubleAvro(w, doubleNull)) break;
         }
         if (i % 3 == 1)
         {
-            WriteDoubleAvro(w, val_64);
+            if(WriteDoubleAvro(w, val_64)) break;
         }
         if (i % 3 == 2)
         {
-            WriteDoubleAvro(w, (double)i);
+            if(WriteDoubleAvro(w, (double)i)) break;
         }
 
         char buffer[33];
         snprintf(buffer, 33, "Cube %d", i * i * i);
-        WriteBytesAvro(w, buffer, strlen(buffer));
+        if(WriteBytesAvro(w, buffer, strlen(buffer))) break;
 
         // these values are copied from TEST_DATA
-        WriteBytesAvro(w, "t\nt", 3);
-        WriteBytesAvro(w, "lon\ttxt", 7);
-        WriteBytesAvro(w, "\x40\x60", 2);
+        if(WriteBytesAvro(w, "t\nt", 3)) break;
+        if(WriteBytesAvro(w, "lon\ttxt", 7)) break;
+        if(WriteBytesAvro(w, "\x40\x60", 2)) break;
 
-        WriteBytesAvro(w, "юникод", 12);
-        WriteBytesAvro(w, "fixed", 5);
+        if(WriteBytesAvro(w, "юникод", 12)) break;
+        if(WriteBytesAvro(w, "fixed", 5)) break;
 
-        WriteInt64Avro(w, TEST_DATA.date_time);
-        WriteInt64Avro(w, TEST_DATA.date_time_6);
-        WriteInt32Avro(w, TEST_DATA.date);
-        WriteInt64Avro(w, TEST_DATA.time);
+        if(WriteInt64Avro(w, TEST_DATA.date_time)) break;
+        if(WriteInt64Avro(w, TEST_DATA.date_time_6)) break;
+        if(WriteInt32Avro(w, TEST_DATA.date)) break;
+        if(WriteInt64Avro(w, TEST_DATA.time)) break;
+        totalBytesWritten = avro_writer_tell(w);
     }
-    {
-        WriteInt64Avro(w, 0);
-        WriteInt32Avro(w, int32Null);
-        WriteDoubleAvro(w, doubleNull);
+    do {
+        if(WriteInt64Avro(w, 0)) break;
+        if(WriteInt32Avro(w, int32Null)) break;
+        if(WriteDoubleAvro(w, doubleNull)) break;
 
-        WriteBytesAvro(w, "", 0);
-        WriteBytesAvro(w, "", 0);
-        WriteBytesAvro(w, "", 0);
-        WriteBytesAvro(w, "", 0);
+        if(WriteBytesAvro(w, "", 0)) break;
+        if(WriteBytesAvro(w, "", 0)) break;
+        if(WriteBytesAvro(w, "", 0)) break;
+        if(WriteBytesAvro(w, "", 0)) break;
 
-        WriteBytesAvro(w, "", 0);
-        WriteBytesAvro(w, "", 0);
+        if(WriteBytesAvro(w, "", 0)) break;
+        if(WriteBytesAvro(w, "", 0)) break;
 
-        WriteInt64Avro(w, int64Null);
-        WriteInt64Avro(w, int64Null);
-        WriteInt32Avro(w, int32Null);
-        WriteInt64Avro(w, int64Null);
-    }
-    avro_writer_flush(w);
-    int written = avro_writer_tell(w);
+        if(WriteInt64Avro(w, int64Null)) break;
+        if(WriteInt64Avro(w, int64Null)) break;
+        if(WriteInt32Avro(w, int32Null)) break;
+        if(WriteInt64Avro(w, int64Null)) break;
+        totalBytesWritten = avro_writer_tell(w);
+    } while(false);
+    avro_writer_flush(w); 
     avro_writer_free(w);
 
-    LoadDataAvro(client, buf, written, schema, allDataTypesTable, &EH.callback);
+    LoadDataAvro(client, buf, totalBytesWritten, schema, allDataTypesTable, &EH.callback);
     RowSchemaFree(schema);
 
     printf("[SUCCESS] AVRO data written!\n");
