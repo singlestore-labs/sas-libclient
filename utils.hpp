@@ -117,7 +117,8 @@ namespace sql
     std::string
     MakeReadResultTableQuery(
         const char* resultTableName,
-        uint32_t partition);
+        uint32_t partition,
+        const std::string& s2Version);
 
     std::string
     MakeReadColumnStoreTableQuery(
@@ -142,7 +143,8 @@ namespace sql
         const std::string& keyColumnName,
         int partition_id,
         int64_t row_id,
-        bool is_result_table);
+        bool is_result_table,
+        const std::string& serverVersion);
 
     std::string
     MakeRowIdFilterQuery(

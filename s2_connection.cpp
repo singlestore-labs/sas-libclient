@@ -115,6 +115,30 @@ int S2Connection::GetPartitionsNumber()
     return numPartitions;
 }
 
+std::string S2Connection::GetServerVersion()
+{
+    if (mysql_query(m_conn, "SELECT @@memsql_version"))
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+
+    MySQLResultPtr res(mysql_store_result(m_conn), &mysql_free_result);
+    if (res == nullptr)
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+    std::string version;
+    MYSQL_ROW row;
+    row = mysql_fetch_row(res.get());
+    if (!row || !row[0])
+    {
+        throw S2ClientError(
+            S2C_ERROR_UNKNOWN_FAILURE,
+            "Failed to get SELECT @@memsql_version result: database returned no data");
+    }
+    return std::string(row[0]);
+}
+
 std::vector<AggregatorNode> S2Connection::GetAggregators()
 {
     std::vector<AggregatorNode> aggregatorsList;
@@ -646,7 +670,8 @@ S2Connection::GetSingleRow(
     const std::string& keyColumnName,
     const uint32_t partitionId,
     const int64_t partitionRowId,
-    ParallelReadType readType)
+    ParallelReadType readType,
+    std::string &serverVersion)
 {
     std::string queryParam = readType == ParallelReadType::ReadTypeOriginalTable ? selectQuery : "";
 
@@ -656,7 +681,8 @@ S2Connection::GetSingleRow(
         keyColumnName,
         partitionId,
         partitionRowId,
-        readType == ParallelReadType::ReadTypeResultTable);
+        readType == ParallelReadType::ReadTypeResultTable,
+        serverVersion);
     bool result = Prepare(query.c_str(), true);
 
     if (!result ||

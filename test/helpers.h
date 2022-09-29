@@ -161,8 +161,13 @@ dummyHandleError(
         printf("[EXPECTED][DUMMMY CALLBACK] Got error: %d %s\n", error, errorString);
     else
     {
-        printf("[ERROR][DUMMMY CALLBACK] Got error: %d %s\n", error, errorString);
-        assert(0);
+        if (severity == S2C_SEVERITY_WARNING)
+            printf("[WARNING][DUMMMY CALLBACK] Got error: %d %s\n", error, errorString);
+        else
+        {
+            printf("[ERROR][DUMMMY CALLBACK] Got error: %d %s\n", error, errorString);
+            assert(0);
+        }
     }
 }
 

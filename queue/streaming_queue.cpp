@@ -87,7 +87,7 @@ StreamingQueue::CreateChunkQueue(
             switch (readType)
             {
                 case ReadTypeResultTable:
-                    readQuery = sql::MakeReadResultTableQuery(resultTableName, partition);
+                    readQuery = sql::MakeReadResultTableQuery(resultTableName, partition, client->m_serverVersion);
                     break;
                 case ReadTypeColumnStoreTable:
                     client->SetError(

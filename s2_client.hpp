@@ -11,6 +11,7 @@ class S2Client
 {
   public:
     uint32_t m_numPartitions;
+    std::string m_serverVersion;
     uint32_t m_workerId;
     uint32_t m_numWorkers;
     std::unique_ptr<S2Connection> m_conn;
