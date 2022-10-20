@@ -51,6 +51,22 @@ S2Client::LoadDataWrite(
     this->m_conn->WriteChunk(this->m_chunk_reader, chunk, schema, table);
 }
 
+void
+S2Client::LoadDataAvro(
+    char* sourceData,
+    int64_t sourceDataLen,
+    RowSchema* schema,
+    const char* table)
+{
+    AvroBuffer source =
+        {
+            .m_ptr = sourceData,
+            .m_size = sourceDataLen,
+            .m_current_pos = 0
+        };
+    this->m_conn->WriteAvro(&source, schema, table);
+}
+
 extern "C"
 {
     S2Client*
@@ -118,6 +134,25 @@ extern "C"
         try
         {
             client->LoadDataWrite(chunk, schema, table);
+        }
+        catch (S2ClientError& s2_err)
+        {
+            cb->setError(cb, s2_err.m_errorCode, std::move(s2_err.m_errorMessage).c_str(), S2C_SEVERITY_ERROR);
+        }
+    }
+
+    void
+    LoadDataAvro(
+        S2Client* client,
+        char* sourceData,
+        int64_t sourceDataLen,
+        RowSchema* schema,
+        const char* table,
+        S2ErrorCallback* cb)
+    {
+        try
+        {
+            client->LoadDataAvro(sourceData, sourceDataLen, schema, table);
         }
         catch (S2ClientError& s2_err)
         {

@@ -40,6 +40,12 @@ enum TableType
     RegularTable,
 };
 
+enum WriteBufferType
+{
+    TSV,
+    AVRO,
+};
+
 typedef struct TableKeys
 {
     std::set<std::string> shard_key;
@@ -158,7 +164,8 @@ namespace sql
     std::string
     MakeLoadDataQuery(
         const std::string& tableName,
-        const RowSchema* schema);
+        const RowSchema* schema,
+        WriteBufferType format);
 
     std::string MakeSelectQueryMeta(
         const std::string& tableName);
@@ -168,7 +175,10 @@ namespace sql
 
     std::string MakeGetAggregatorsQuery();
 
-    std::string MakeGetTableKeysQuery(const char* db, const char* tableName);
+    std::string
+    MakeGetTableKeysQuery(
+        const char* db,
+        const char* tableName);
 }  // namespace sql
 
 #endif  // UTILS_HPP

@@ -189,6 +189,17 @@ LoadDataWrite(
     const char* table,
     S2ErrorCallback* cb);
 
+// LoadDataWrite takes an AVRO-formatted buffer sourceDataAvroBuffer along with its Row Schema
+// and writes it to the table using simulated LOAD DATA LOCAL INFILE ... FORMAT AVRO statement
+void
+LoadDataAvro(
+    S2Client* client,
+    char* sourceDataAvroBuffer,
+    int64_t sourceDataLen,
+    RowSchema* schema,
+    const char* table,
+    S2ErrorCallback* cb);
+
 // metadata functions
 
 // RowSchema returns the types of the columns in the table. The pointer is invalidated and

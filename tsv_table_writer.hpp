@@ -1,5 +1,5 @@
-#ifndef TABLE_WRITER_HPP
-#define TABLE_WRITER_HPP
+#ifndef TSV_TABLE_WRITER_HPP
+#define TSV_TABLE_WRITER_HPP
 
 #include "memory"
 #include <iostream>
@@ -11,10 +11,10 @@
 #include "hdat/chunk_writer.hpp"
 #include "hdat/chunk_reader.hpp"
 
-class TableWriter
+class TsvTableWriter
 {
   public:
-    TableWriter(std::stringstream *rows)
+    TsvTableWriter(std::stringstream *rows)
     {
         m_tsv_rows = rows;
     };
@@ -47,4 +47,4 @@ class TableWriter
     std::stringstream *m_tsv_rows;
 };
 
-#endif  // TABLE_WRITER_HPP
+#endif  // TSV_TABLE_WRITER_HPP

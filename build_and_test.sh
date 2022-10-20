@@ -39,17 +39,17 @@ mkdir -p "${LD_LIBRARY_PATH}"
 
 # compile and run the test binaries
 test_c() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -W -g
+    gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -W -g
     echo 'Running' "$1"...
-    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/libmariadb:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:$LD_LIBRARY_PATH
     ./build/"$1".o $2
     # gdb ./build/"$1".o $2
 }
 
 test_cpp() {
-    g++ -I "${PATH_TO_LIBCLIENT}"  -I "${PATH_TO_LIBCLIENT}"/libmariadb/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -g
+    g++ -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -g
     echo 'Running' "$1" test...
-    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/libmariadb:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:$LD_LIBRARY_PATH
     ./build/"$1".o $2
 }
 
