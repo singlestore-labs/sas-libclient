@@ -429,6 +429,7 @@ main(
     struct timeval start, end;
     long seconds, micros;
 
+    ExecuteDDLQuery(client, "SET GLOBAL data_conversion_compatibility_level = '6.0'", &EH.callback);
     setup_all_data_types_table(client, 0);
     clock_t tic = clock();
     gettimeofday(&start, NULL);
@@ -443,6 +444,7 @@ main(
     read_and_check(client);
     cleanup_all_data_types_table(client);
 
+    ExecuteDDLQuery(client, "SET GLOBAL data_conversion_compatibility_level = '8.0'", &EH.callback);
     setup_all_data_types_table(client, 0);
 
     tic = clock();
