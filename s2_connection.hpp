@@ -132,7 +132,7 @@ class S2Connection
         const uint32_t partitionId,
         const int64_t partitionRowId,
         ParallelReadType readType,
-        std::string &serverVersion);
+        std::string& serverVersion);
 
     void
     GetMultipleRows(
@@ -150,7 +150,7 @@ class S2Connection
     // GetPartitionsNumber returns the number of partitions in the table
     int GetPartitionsNumber();
 
-    // GetServerVersion returns @@memsql_version server variable 
+    // GetServerVersion returns @@memsql_version server variable
     std::string GetServerVersion();
 
     // GetAggregators returns the list of all aggregators in the cluster

@@ -34,6 +34,11 @@ target_include_directories(
   s2client PUBLIC $ENV{PATH_TO_LIBCLIENT} vendor/libmariadb/include
                   vendor/libavro/include vendor/libjansson/include)
 
+target_link_directories(
+  s2client PUBLIC $ENV{PATH_TO_LIBCLIENT}/vendor/libmariadb
+  $ENV{PATH_TO_LIBCLIENT}/vendor/libavro
+  $ENV{PATH_TO_LIBCLIENT}/vendor/libjansson)
+
 target_link_libraries(
   s2client
   mariadb

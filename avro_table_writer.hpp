@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "avro.h"
-#include "encoding.h"
+#include "avro/encoding.h"
 
 typedef struct AvroBuffer
 {

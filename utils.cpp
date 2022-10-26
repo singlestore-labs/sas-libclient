@@ -82,15 +82,22 @@ namespace utils
 
     // CompareVersions returns 1 if v1 is greater than v2, 0 if they are equal,
     // -1 if v2 is greater
-    int CompareVersions(const std::string &v1, const std::string &v2)
+    int
+    CompareVersions(
+        const std::string& v1,
+        const std::string& v2)
     {
         int v1Major, v1Minor, v1Patch, v2Major, v2Minor, v2Patch;
         sscanf(v1.c_str(), "%d.%d.%d", &v1Major, &v1Minor, &v1Patch);
         sscanf(v2.c_str(), "%d.%d.%d", &v2Major, &v2Minor, &v2Patch);
         if (v1Major > v2Major) return 1;
         if (v1Major == v2Major && v1Minor > v2Minor) return 1;
-        if (v1Major == v2Major && v1Minor == v2Minor && v1Patch > v2Patch) return 1;
-        if (v1Major == v2Major && v1Minor == v2Minor && v1Patch == v2Patch) return 0;
+        if (v1Major == v2Major &&
+            v1Minor == v2Minor &&
+            v1Patch > v2Patch) return 1;
+        if (v1Major == v2Major &&
+            v1Minor == v2Minor &&
+            v1Patch == v2Patch) return 0;
         return -1;
     }
 
@@ -576,8 +583,7 @@ namespace sql
 
         resultQuery += QuotedName(resultTableName);
         // check if we need to add an alias to optimize processing in the engine
-        if (utils::CompareVersions(s2Version, "7.8.14") > 0)
-            resultQuery + " AS alias ";
+        if (utils::CompareVersions(s2Version, "7.8.14") > 0) resultQuery + " AS alias ";
         resultQuery += " WHERE partition_id() = " + std::to_string(partition);
         return resultQuery;
     }
@@ -645,8 +651,7 @@ namespace sql
         {
             std::string resultQuery = "SELECT * FROM ::" + QuotedName(table);
             // check if we need to add an alias to optimize processing in the engine
-            if (utils::CompareVersions(s2Version, "7.8.14") >= 0)
-                resultQuery + " AS alias ";
+            if (utils::CompareVersions(s2Version, "7.8.14") >= 0) resultQuery + " AS alias ";
             resultQuery += " WHERE partition_id() = " + std::to_string(partition_id);
             resultQuery += " AND partition_row_id() = " + std::to_string(row_id);
             return resultQuery;
