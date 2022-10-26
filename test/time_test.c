@@ -27,8 +27,8 @@ const char *queryMain = "SELECT dt, d, t FROM t_date_time ORDER BY dt";
 
 const struct ParsedDateTime TIME_TEST_DATA[nTableRows] =
     {
-        {-61854364800000000,
-         -715907,
+        {-6185436480000000,
+         -71590,
          0},
         {-1234567,
          -50,
@@ -113,7 +113,7 @@ void read_data(S2Client *client)
 
     // free the queue
     ChunkQueueFree(q);
-    printf("[SUCCESS] data types test passed\n");
+    printf("[SUCCESS] date/time test passed\n");
 }
 
 int
@@ -149,7 +149,6 @@ main(
 
     // free the client
     S2ClientFree(client);
-    printf("[SUCCESS] time test passed!\n");
 
     return 0;
 }

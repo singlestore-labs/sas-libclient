@@ -673,7 +673,7 @@ S2Connection::GetSingleRow(
     const uint32_t partitionId,
     const int64_t partitionRowId,
     ParallelReadType readType,
-    std::string &serverVersion)
+    std::string& serverVersion)
 {
     std::string queryParam = readType == ParallelReadType::ReadTypeOriginalTable ? selectQuery : "";
 

@@ -222,55 +222,57 @@ void write_avro_test(S2Client *client)
         WriteInt32Avro(w, i);
         if (i % 3 == 0)
         {
-            if(WriteDoubleAvro(w, doubleNull)) break;
+            if (WriteDoubleAvro(w, doubleNull)) break;
         }
         if (i % 3 == 1)
         {
-            if(WriteDoubleAvro(w, val_64)) break;
+            if (WriteDoubleAvro(w, val_64)) break;
         }
         if (i % 3 == 2)
         {
-            if(WriteDoubleAvro(w, (double)i)) break;
+            if (WriteDoubleAvro(w, (double)i)) break;
         }
 
         char buffer[33];
         snprintf(buffer, 33, "Cube %d", i * i * i);
-        if(WriteBytesAvro(w, buffer, strlen(buffer))) break;
+        if (WriteBytesAvro(w, buffer, strlen(buffer))) break;
 
         // these values are copied from TEST_DATA
-        if(WriteBytesAvro(w, "t\nt", 3)) break;
-        if(WriteBytesAvro(w, "lon\ttxt", 7)) break;
-        if(WriteBytesAvro(w, "\x40\x60", 2)) break;
+        if (WriteBytesAvro(w, "t\nt", 3)) break;
+        if (WriteBytesAvro(w, "lon\ttxt", 7)) break;
+        if (WriteBytesAvro(w, "\x40\x60", 2)) break;
 
-        if(WriteBytesAvro(w, "юникод", 12)) break;
-        if(WriteBytesAvro(w, "fixed", 5)) break;
+        if (WriteBytesAvro(w, "юникод", 12)) break;
+        if (WriteBytesAvro(w, "fixed", 5)) break;
 
-        if(WriteInt64Avro(w, TEST_DATA.date_time)) break;
-        if(WriteInt64Avro(w, TEST_DATA.date_time_6)) break;
-        if(WriteInt32Avro(w, TEST_DATA.date)) break;
-        if(WriteInt64Avro(w, TEST_DATA.time)) break;
+        if (WriteInt64Avro(w, TEST_DATA.date_time)) break;
+        if (WriteInt64Avro(w, TEST_DATA.date_time_6)) break;
+        if (WriteInt32Avro(w, TEST_DATA.date)) break;
+        if (WriteInt64Avro(w, TEST_DATA.time)) break;
         totalBytesWritten = avro_writer_tell(w);
     }
-    do {
-        if(WriteInt64Avro(w, 0)) break;
-        if(WriteInt32Avro(w, int32Null)) break;
-        if(WriteDoubleAvro(w, doubleNull)) break;
+    do
+    {
+        if (WriteInt64Avro(w, 0)) break;
+        if (WriteInt32Avro(w, int32Null)) break;
+        if (WriteDoubleAvro(w, doubleNull)) break;
 
-        if(WriteBytesAvro(w, "", 0)) break;
-        if(WriteBytesAvro(w, "", 0)) break;
-        if(WriteBytesAvro(w, "", 0)) break;
-        if(WriteBytesAvro(w, "", 0)) break;
+        if (WriteBytesAvro(w, "", 0)) break;
+        if (WriteBytesAvro(w, "", 0)) break;
+        if (WriteBytesAvro(w, "", 0)) break;
+        if (WriteBytesAvro(w, "", 0)) break;
 
-        if(WriteBytesAvro(w, "", 0)) break;
-        if(WriteBytesAvro(w, "", 0)) break;
+        if (WriteBytesAvro(w, "", 0)) break;
+        if (WriteBytesAvro(w, "", 0)) break;
 
-        if(WriteInt64Avro(w, int64Null)) break;
-        if(WriteInt64Avro(w, int64Null)) break;
-        if(WriteInt32Avro(w, int32Null)) break;
-        if(WriteInt64Avro(w, int64Null)) break;
+        if (WriteInt64Avro(w, int64Null)) break;
+        if (WriteInt64Avro(w, int64Null)) break;
+        if (WriteInt32Avro(w, int32Null)) break;
+        if (WriteInt64Avro(w, int64Null)) break;
         totalBytesWritten = avro_writer_tell(w);
-    } while(false);
-    avro_writer_flush(w); 
+    }
+    while (false);
+    avro_writer_flush(w);
     avro_writer_free(w);
 
     LoadDataAvro(client, buf, totalBytesWritten, schema, allDataTypesTable, &EH.callback);
@@ -427,6 +429,7 @@ main(
     struct timeval start, end;
     long seconds, micros;
 
+    ExecuteDDLQuery(client, "SET GLOBAL data_conversion_compatibility_level = '6.0'", &EH.callback);
     setup_all_data_types_table(client, 0);
     clock_t tic = clock();
     gettimeofday(&start, NULL);
@@ -441,6 +444,7 @@ main(
     read_and_check(client);
     cleanup_all_data_types_table(client);
 
+    ExecuteDDLQuery(client, "SET GLOBAL data_conversion_compatibility_level = '8.0'", &EH.callback);
     setup_all_data_types_table(client, 0);
 
     tic = clock();

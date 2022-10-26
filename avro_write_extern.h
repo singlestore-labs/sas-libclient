@@ -16,10 +16,10 @@ USAGE INSTRUCTIONS
   has not been written.
   - If all values from the rows have been written successfully, update `total_bytes_written`:
     total_bytes_written = avro_writer_tell(w);
-4. When all rows are written, or some value cannot be written (indicated by non-zero 
+4. When all rows are written, or some value cannot be written (indicated by non-zero
   return value of the corresponding write function), the writer object can be deleted and
   the buffer can be passed to `LOAD DATA...`:
-    avro_writer_flush(w); 
+    avro_writer_flush(w);
     avro_writer_free(w);
     LoadDataAvro(s2Client, buf, total_bytes_written, row_schema, table_name, error_callback);
 */
