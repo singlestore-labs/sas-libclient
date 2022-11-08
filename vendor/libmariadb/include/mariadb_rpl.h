@@ -1,4 +1,4 @@
-/* Copyright (C) 2018 MariaDB Corporation AB 
+/* Copyright (C) 2018-2021 MariaDB Corporation AB
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -38,6 +38,9 @@ extern "C" {
 
 #define LOG_EVENT_ARTIFICIAL_F 0x20
 
+/* SEMI SYNCHRONOUS REPLICATION */
+#define SEMI_SYNC_INDICATOR 0xEF
+#define SEMI_SYNC_ACK_REQ   0x01
 
 /* Options */
 enum mariadb_rpl_option {
@@ -93,13 +96,14 @@ enum mariadb_rpl_event {
   TRANSACTION_CONTEXT_EVENT= 36,
   VIEW_CHANGE_EVENT= 37,
   XA_PREPARE_LOG_EVENT= 38,
+  PARTIAL_UPDATE_ROWS_EVENT = 39,
 
   /*
     Add new events here - right above this comment!
     Existing events (except ENUM_END_EVENT) should never change their numbers
   */
 
-  /* New MySQL/Sun events are to be added right above this comment */
+  /* New MySQL events are to be added right above this comment */
   MYSQL_EVENTS_END,
 
   MARIA_EVENTS_BEGIN= 160,
@@ -152,6 +156,7 @@ typedef struct st_mariadb_rpl {
   uint32_t flags;
   uint8_t fd_header_len; /* header len from last format description event */
   uint8_t use_checksum;
+  uint8_t artificial_checksun;
 } MARIADB_RPL;
 
 /* Event header */
@@ -245,6 +250,8 @@ struct st_mariadb_rpl_rows_event {
   char *column_update_bitmap;
   size_t row_data_size;
   void *row_data;
+  size_t extra_data_size;
+  void *extra_data;
 };
 
 struct st_mariadb_rpl_heartbeat_event {
@@ -284,6 +291,9 @@ typedef struct st_mariadb_rpl_event
     struct st_mariadb_rpl_rows_event rows;
     struct st_mariadb_rpl_heartbeat_event heartbeat;
   } event;
+  /* Added in C/C 3.3.0 */
+  uint8_t is_semi_sync;
+  uint8_t semi_sync_flags;
 } MARIADB_RPL_EVENT;
 
 #define mariadb_rpl_init(a) mariadb_rpl_init_ex((a), MARIADB_RPL_VERSION)

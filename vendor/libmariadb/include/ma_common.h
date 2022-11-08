@@ -21,6 +21,7 @@
 #define _ma_common_h
 
 #include <mysql.h>
+#include <mysql/client_plugin.h>
 #include <ma_hashtbl.h>
 
 enum enum_multi_status {
@@ -80,6 +81,11 @@ struct st_mysql_options_extension {
   size_t proxy_header_len;
   int (*io_wait)(my_socket handle, my_bool is_read, int timeout);
   my_bool skip_read_response;
+  char *restricted_auth;
+  char *rpl_host;
+  unsigned short rpl_port;
+  void (*status_callback)(void *ptr, enum enum_mariadb_status_info type, ...);
+  void *status_data;
 };
 
 typedef struct st_connection_handler
@@ -93,6 +99,8 @@ typedef struct st_connection_handler
 struct st_mariadb_net_extension {
   enum enum_multi_status multi_status;
   int extended_errno;
+  ma_compress_ctx *compression_ctx;
+  MARIADB_COMPRESSION_PLUGIN *compression_plugin;
 };
 
 struct st_mariadb_session_state

@@ -31,7 +31,7 @@
 
 #define NAME_CHAR_LEN   64
 #define NAME_LEN	256		/* Field/table name length */
-#define HOSTNAME_LENGTH 60
+#define HOSTNAME_LENGTH 255
 #define SYSTEM_MB_MAX_CHAR_LENGTH 4
 #define USERNAME_CHAR_LENGTH 128
 #define USERNAME_LENGTH (USERNAME_CHAR_LENGTH * SYSTEM_MB_MAX_CHAR_LENGTH)
@@ -161,6 +161,7 @@ enum enum_server_command
 #define CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (1UL << 21)
 #define CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS (1UL << 22)
 #define CLIENT_SESSION_TRACKING  (1UL << 23)
+#define CLIENT_ZSTD_COMPRESSION  (1UL << 26)
 #define CLIENT_PROGRESS          (1UL << 29) /* client supports progress indicator */
 #define CLIENT_PROGRESS_OBSOLETE  CLIENT_PROGRESS 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
@@ -303,6 +304,13 @@ enum enum_mysql_set_option
 {
   MYSQL_OPTION_MULTI_STATEMENTS_ON,
   MYSQL_OPTION_MULTI_STATEMENTS_OFF
+};
+
+/* for status callback function */
+enum enum_mariadb_status_info
+{
+  STATUS_TYPE= 0,
+  SESSION_TRACK_TYPE
 };
 
 enum enum_session_state_type
