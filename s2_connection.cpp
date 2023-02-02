@@ -64,7 +64,7 @@ S2Connection::Connect(
         throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to init a connection using MySQL C client");
     }
 
-    if (!user || user[0] == '\0')
+    if (!user)
     {
         user = "root";
     }
