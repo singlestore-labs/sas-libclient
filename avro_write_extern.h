@@ -21,7 +21,7 @@ USAGE INSTRUCTIONS
   the buffer can be passed to `LOAD DATA...`:
     avro_writer_flush(w);
     avro_writer_free(w);
-    LoadDataAvro(s2Client, buf, total_bytes_written, row_schema, table_name, error_callback);
+    LoadDataAvro(s2Client, buf, total_bytes_written, row_schema, table_name, treat_zero_len_as_null, error_callback);
 */
 
 int

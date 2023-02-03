@@ -176,7 +176,8 @@ class S2Connection
     WriteAvro(
         AvroBuffer* sourceData,
         const RowSchema* schema,
-        const std::string& table);
+        const std::string& table,
+        bool treatZeroLenAsNull);
 
   private:
     MYSQL* m_conn = nullptr;

@@ -701,71 +701,84 @@ namespace sql
         return "@var_" + std::to_string(i);
     }
 
-    std::pair<std::string, std::string> MakeColumnsAvro(const RowSchema* schema)
+    std::pair<std::string, std::string> MakeColumnsAvro(const RowSchema* schema, bool treatZeroLenAsNull)
     {
-        std::string directColumns = "";
-        std::string dateTimeColumnsPart = "";
+        std::string mappingFieldsPart = "";
+        std::string computingColumnsPart = "";
         for (uint32_t i = 0; i < schema->numColumns; i++)
         {
-            if (i > 0) directColumns += ",";
+            if (i > 0) mappingFieldsPart += ",";
             switch (schema->ColumnInfo[i].type)
             {
                 case Int64:
-                    directColumns += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
-                    if (dateTimeColumnsPart.length())
-                        dateTimeColumnsPart += ",";
+                    mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
+                    if (computingColumnsPart.length())
+                        computingColumnsPart += ",";
                     else
-                        dateTimeColumnsPart += "SET ";
-                    dateTimeColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
+                        computingColumnsPart += "SET ";
+                    computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
                                            MakeAvroVarName(i) + " != -9223372036854775808," + MakeAvroVarName(i) +
                                            ",NULL)";
                     break;
                 case Int32:
-                    directColumns += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
-                    if (dateTimeColumnsPart.length())
-                        dateTimeColumnsPart += ",";
+                    mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
+                    if (computingColumnsPart.length())
+                        computingColumnsPart += ",";
                     else
-                        dateTimeColumnsPart += "SET ";
-                    dateTimeColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
+                        computingColumnsPart += "SET ";
+                    computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
                                            MakeAvroVarName(i) + " != -2147483648," + MakeAvroVarName(i) + ",NULL)";
                     break;
                 case DateTime:
-                    directColumns += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
-                    if (dateTimeColumnsPart.length())
-                        dateTimeColumnsPart += ",";
+                    mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
+                    if (computingColumnsPart.length())
+                        computingColumnsPart += ",";
                     else
-                        dateTimeColumnsPart += "SET ";
-                    dateTimeColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) +
+                        computingColumnsPart += "SET ";
+                    computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) +
                                            " = ADDDATE(\"1960-01-01\", INTERVAL " + MakeAvroVarName(i) +
                                            " MICROSECOND)";
                     break;
                 case Time:
-                    directColumns += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
-                    if (dateTimeColumnsPart.length())
-                        dateTimeColumnsPart += ",";
+                    mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
+                    if (computingColumnsPart.length())
+                        computingColumnsPart += ",";
                     else
-                        dateTimeColumnsPart += "SET ";
-                    dateTimeColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
+                        computingColumnsPart += "SET ";
+                    computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
                                            MakeAvroVarName(i) + "= -9223372036854775808,NULL,ADDTIME(SEC_TO_TIME(" +
                                            MakeAvroVarName(i) + "/1000000),CONCAT(IF(" + MakeAvroVarName(i) +
                                            " > 0, '', '-'), \"00:00:00.\",LPAD(ABS(" + MakeAvroVarName(i) +
                                            ") % 1000000 :> TEXT, 6, '0'))))";
                     break;
                 case Date:
-                    directColumns += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
-                    if (dateTimeColumnsPart.length())
-                        dateTimeColumnsPart += ",";
+                    mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
+                    if (computingColumnsPart.length())
+                        computingColumnsPart += ",";
                     else
-                        dateTimeColumnsPart += "SET ";
-                    dateTimeColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) +
+                        computingColumnsPart += "SET ";
+                    computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) +
                                            " = ADDDATE(\"1960-01-01\", INTERVAL " + MakeAvroVarName(i) + " DAY)";
                     break;
+                case Fixed:
+                case Variable:
+                    if (treatZeroLenAsNull)
+                    {
+                        mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
+                        if (computingColumnsPart.length())
+                            computingColumnsPart += ",";
+                        else
+                            computingColumnsPart += "SET ";
+                        computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(LENGTH(" +
+                                            MakeAvroVarName(i) + ") = 0, NULL," + MakeAvroVarName(i) + ")";
+                        break;
+                    }
                 default:
-                    directColumns +=
+                    mappingFieldsPart +=
                         QuotedName(std::string(schema->ColumnInfo[i].name)) + " <- %::" + MakeAvroFieldName(i);
             }
         }
-        return std::make_pair(directColumns, dateTimeColumnsPart);
+        return std::make_pair(mappingFieldsPart, computingColumnsPart);
     }
 
     std::string MakeAvroJsonSchema(const RowSchema* schema)
@@ -783,37 +796,34 @@ namespace sql
             json_object_set_new(field, "name", json_string(MakeAvroFieldName(i).c_str()));
 
             std::string avro_type;
+            // this comment and json_* below correspond to the potential use of union types
+            // json_t* bytes_null_type = json_array();
+
             switch (schema->ColumnInfo[i].type)
             {
                 case Int64:
-                    avro_type = "long";
+                case DateTime:
+                case Time:
+                    json_object_set_new(field, "type", json_string("long"));
                     break;
                 case Int32:
-                    avro_type = "int";
+                case Date:
+                    json_object_set_new(field, "type", json_string("int"));
                     break;
                 case Double:
-                    avro_type = "double";
+                    json_object_set_new(field, "type", json_string("double"));
                     break;
                 case Variable:
-                    avro_type = "bytes";
-                    break;
                 case Fixed:
-                    avro_type = "bytes";
-                    break;
-                case DateTime:
-                    avro_type = "long";
-                    break;
-                case Time:
-                    avro_type = "long";
-                    break;
-                case Date:
-                    avro_type = "int";
+                    // json_array_append_new(bytes_null_type, json_string("bytes"));
+                    // json_array_append_new(bytes_null_type, json_string("null"));
+                    json_object_set(field, "type", json_string("bytes"));
                     break;
                 default:
                     throw S2ClientError(S2C_ERROR_INV_ARG, "Unsupported data type: " + schema->ColumnInfo[i].type);
             }
-            json_object_set_new(field, "type", json_string(avro_type.c_str()));
             json_array_append_new(fields_arr, field);
+            // json_decref(bytes_null_type);
         }
 
         char* schema_c_str = json_dumps(schema_obj, 0);
@@ -828,7 +838,8 @@ namespace sql
     MakeLoadDataQuery(
         const std::string& tableName,
         const RowSchema* schema,
-        WriteBufferType format)
+        WriteBufferType format,
+        bool treatZeroLenAsNull)
     {
         std::string result = "LOAD DATA LOCAL INFILE 'placeholder' INTO TABLE " + QuotedName(tableName) + " ";
         if (format == WriteBufferType::TSV)
@@ -843,7 +854,7 @@ namespace sql
         }
         else if (format == WriteBufferType::AVRO)
         {
-            auto columnsPair = MakeColumnsAvro(schema);
+            auto columnsPair = MakeColumnsAvro(schema, treatZeroLenAsNull);
             return result + " FORMAT AVRO " + "(" + columnsPair.first + ")" + " SCHEMA " + "'" +
                    MakeAvroJsonSchema(schema) + "'" + " " + columnsPair.second;
         }

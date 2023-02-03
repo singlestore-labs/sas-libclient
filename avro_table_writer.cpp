@@ -100,6 +100,12 @@ extern "C"
         const void *val,
         const int64_t len)
     {
+        // this can be potentially used for ["bytes", "null"] union
+        // if (len == 0)
+        // {
+        //     return avro_binary_encoding.write_int(w, 1);
+        // }
+        // avro_binary_encoding.write_int(w, 0);
         return avro_binary_encoding.write_bytes(w, (char *)val, len);
     }
 }

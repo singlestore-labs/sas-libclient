@@ -56,7 +56,8 @@ S2Client::LoadDataAvro(
     char* sourceData,
     int64_t sourceDataLen,
     RowSchema* schema,
-    const char* table)
+    const char* table,
+    bool treatZeroLenAsNull)
 {
     AvroBuffer source =
         {
@@ -64,7 +65,7 @@ S2Client::LoadDataAvro(
             .m_size = sourceDataLen,
             .m_current_pos = 0
         };
-    this->m_conn->WriteAvro(&source, schema, table);
+    this->m_conn->WriteAvro(&source, schema, table, treatZeroLenAsNull);
 }
 
 extern "C"
@@ -148,11 +149,12 @@ extern "C"
         int64_t sourceDataLen,
         RowSchema* schema,
         const char* table,
+        bool treatZeroLenAsNull,
         S2ErrorCallback* cb)
     {
         try
         {
-            client->LoadDataAvro(sourceData, sourceDataLen, schema, table);
+            client->LoadDataAvro(sourceData, sourceDataLen, schema, table, treatZeroLenAsNull);
         }
         catch (S2ClientError& s2_err)
         {

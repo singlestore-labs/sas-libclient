@@ -49,7 +49,8 @@ class S2Client
         char* sourceData,
         int64_t sourceDataLen,
         RowSchema* schema,
-        const char* table);
+        const char* table,
+        bool treatZeroLenAsNull);
 
   private:
     S2Client(
