@@ -165,7 +165,8 @@ namespace sql
     MakeLoadDataQuery(
         const std::string& tableName,
         const RowSchema* schema,
-        WriteBufferType format);
+        WriteBufferType format,
+        bool treatZeroLenAsNull);
 
     std::string MakeSelectQueryMeta(
         const std::string& tableName);

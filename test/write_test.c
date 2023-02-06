@@ -275,7 +275,9 @@ void write_avro_test(S2Client *client)
     avro_writer_flush(w);
     avro_writer_free(w);
 
-    LoadDataAvro(client, buf, totalBytesWritten, schema, allDataTypesTable, &EH.callback);
+    LoadDataAvro(client, buf, totalBytesWritten, schema, allDataTypesTable, true, &EH.callback);
+    // LoadDataAvro(client, buf, totalBytesWritten, schema, allDataTypesTable, false, &EH.callback);
+
     RowSchemaFree(schema);
 
     printf("[SUCCESS] AVRO data written!\n");
@@ -458,7 +460,7 @@ main(
     PRINT_INFO("write_avro_test elapsed: %d.%d seconds\n", seconds, micros);
 
     read_and_check(client);
-    cleanup_all_data_types_table(client);
+    // cleanup_all_data_types_table(client);
 
     boundary_test(client);
     max_allowed_packet_test(client);

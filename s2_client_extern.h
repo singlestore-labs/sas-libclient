@@ -198,6 +198,7 @@ LoadDataAvro(
     int64_t sourceDataLen,
     RowSchema* schema,
     const char* table,
+    bool treatZeroLenAsNull,
     S2ErrorCallback* cb);
 
 // metadata functions

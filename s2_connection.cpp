@@ -64,7 +64,7 @@ S2Connection::Connect(
         throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to init a connection using MySQL C client");
     }
 
-    if (!user || user[0] == '\0')
+    if (!user)
     {
         user = "root";
     }
@@ -759,7 +759,7 @@ S2Connection::WriteChunk(
         tw.ss_local_infile_error,
         &tsv_output);
 
-    std::string query = sql::MakeLoadDataQuery(table, schema, WriteBufferType::TSV);
+    std::string query = sql::MakeLoadDataQuery(table, schema, WriteBufferType::TSV, true /* treatZeroLenAsNull */);
     if (mysql_query(m_conn, query.c_str()))
     {
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
@@ -770,7 +770,8 @@ void
 S2Connection::WriteAvro(
     AvroBuffer* sourceData,
     const RowSchema* schema,
-    const std::string& table)
+    const std::string& table,
+    bool treatZeroLenAsNull)
 {
     int is_infile_enabled;
     if (mysql_get_option(m_conn, MYSQL_OPT_LOCAL_INFILE, &is_infile_enabled))
@@ -794,7 +795,7 @@ S2Connection::WriteAvro(
         tw.ss_local_infile_error,
         tw.m_buf);
 
-    std::string query = sql::MakeLoadDataQuery(table, schema, WriteBufferType::AVRO);
+    std::string query = sql::MakeLoadDataQuery(table, schema, WriteBufferType::AVRO, treatZeroLenAsNull);
     if (mysql_query(m_conn, query.c_str()))
     {
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
