@@ -701,7 +701,10 @@ namespace sql
         return "@var_" + std::to_string(i);
     }
 
-    std::pair<std::string, std::string> MakeColumnsAvro(const RowSchema* schema, bool treatZeroLenAsNull)
+    std::pair<std::string, std::string>
+    MakeColumnsAvro(
+        const RowSchema* schema,
+        bool treatZeroLenAsNull)
     {
         std::string mappingFieldsPart = "";
         std::string computingColumnsPart = "";
@@ -717,8 +720,8 @@ namespace sql
                     else
                         computingColumnsPart += "SET ";
                     computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
-                                           MakeAvroVarName(i) + " != -9223372036854775808," + MakeAvroVarName(i) +
-                                           ",NULL)";
+                                            MakeAvroVarName(i) + " != -9223372036854775808," + MakeAvroVarName(i) +
+                                            ",NULL)";
                     break;
                 case Int32:
                     mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
@@ -727,7 +730,7 @@ namespace sql
                     else
                         computingColumnsPart += "SET ";
                     computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
-                                           MakeAvroVarName(i) + " != -2147483648," + MakeAvroVarName(i) + ",NULL)";
+                                            MakeAvroVarName(i) + " != -2147483648," + MakeAvroVarName(i) + ",NULL)";
                     break;
                 case DateTime:
                     mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
@@ -736,8 +739,8 @@ namespace sql
                     else
                         computingColumnsPart += "SET ";
                     computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) +
-                                           " = ADDDATE(\"1960-01-01\", INTERVAL " + MakeAvroVarName(i) +
-                                           " MICROSECOND)";
+                                            " = ADDDATE(\"1960-01-01\", INTERVAL " + MakeAvroVarName(i) +
+                                            " MICROSECOND)";
                     break;
                 case Time:
                     mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
@@ -745,11 +748,11 @@ namespace sql
                         computingColumnsPart += ",";
                     else
                         computingColumnsPart += "SET ";
-                    computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(" +
-                                           MakeAvroVarName(i) + "= -9223372036854775808,NULL,ADDTIME(SEC_TO_TIME(" +
-                                           MakeAvroVarName(i) + "/1000000),CONCAT(IF(" + MakeAvroVarName(i) +
-                                           " > 0, '', '-'), \"00:00:00.\",LPAD(ABS(" + MakeAvroVarName(i) +
-                                           ") % 1000000 :> TEXT, 6, '0'))))";
+                    computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + "= IF(" +
+                                            MakeAvroVarName(i) + "= -9223372036854775808,NULL,CONCAT(IF(" +
+                                            MakeAvroVarName(i) + "> 0, '', '-'),ADDTIME(SEC_TO_TIME(FLOOR(ABS(" +
+                                            MakeAvroVarName(i) + "/1000000))),CONCAT('00:00:00.',LPAD(ABS(" +
+                                            MakeAvroVarName(i) + ") % 1000000 :> TEXT, 6, '0')))))";
                     break;
                 case Date:
                     mappingFieldsPart += MakeAvroVarName(i) + " <- %::" + MakeAvroFieldName(i);
@@ -758,7 +761,7 @@ namespace sql
                     else
                         computingColumnsPart += "SET ";
                     computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) +
-                                           " = ADDDATE(\"1960-01-01\", INTERVAL " + MakeAvroVarName(i) + " DAY)";
+                                            " = ADDDATE(\"1960-01-01\", INTERVAL " + MakeAvroVarName(i) + " DAY)";
                     break;
                 case Fixed:
                 case Variable:
@@ -770,7 +773,7 @@ namespace sql
                         else
                             computingColumnsPart += "SET ";
                         computingColumnsPart += QuotedName(std::string(schema->ColumnInfo[i].name)) + " = IF(LENGTH(" +
-                                            MakeAvroVarName(i) + ") = 0, NULL," + MakeAvroVarName(i) + ")";
+                                                MakeAvroVarName(i) + ") = 0, NULL," + MakeAvroVarName(i) + ")";
                         break;
                     }
                 default:

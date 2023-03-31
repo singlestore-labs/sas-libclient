@@ -44,7 +44,7 @@ const struct ParsedTestChunk TEST_DATA =
         1935835200000000,
         31666394987654,
         2,
-        40271001234,
+        -40271751234,
 };
 
 int
