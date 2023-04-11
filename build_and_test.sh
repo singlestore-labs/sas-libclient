@@ -43,7 +43,7 @@ test_c() {
     echo 'Running' "$1"...
     export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:"${PATH_TO_LIBCLIENT}"/vendor/libjansson:$LD_LIBRARY_PATH
     ./build/"$1".o $2
-    # gdb ./build/"$1".o $2
+    # gdb ./build/"$1".o
 }
 
 test_cpp() {
