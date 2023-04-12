@@ -20,8 +20,15 @@ S2Client::Connect(
     // create a connection
     s2Client->m_conn = S2Connection::Connect(host, port, db, user, password, ssl_ca);
 
-    // get the number of partitions
-    s2Client->m_numPartitions = s2Client->m_conn->GetPartitionsNumber();
+    // get the number of partitions if not connecting to information_schema
+    if (strcasecmp(db, "information_schema"))
+    {
+       s2Client->m_numPartitions = s2Client->m_conn->GetPartitionsNumber();
+    }
+    else
+    {
+        s2Client->m_numPartitions = 1;
+    }
     s2Client->m_serverVersion = s2Client->m_conn->GetServerVersion();
 
     s2Client->m_chunk_reader = std::make_unique<SuperChunkReader>();

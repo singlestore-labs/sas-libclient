@@ -340,16 +340,15 @@ void non_parallel_test()
             current_offset += 16;
             if (printInfo)
             {
-                printf("Got table #%d: ", i);
+                printf("Got table #%d of len %d: ", i, len);
                 for (int j = 0; j < len; j++)
                 {
-                    printf("%c", (chunk->m_ptr + offset + j)[0]);
+                    printf("%c", (chunk->m_ptr + chunk->m_size - offset + j)[0]);
                 }
                 printf("\n");
                 fflush(stdout);
             }
         }
-
         ChunkFree(chunk);
     }
     free(chunk);
