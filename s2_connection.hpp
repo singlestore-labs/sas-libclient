@@ -111,6 +111,7 @@ class S2Connection
         ParallelReadType readType);
 
     TableKeys GetTableKeys(const char* sourceTable);
+    bool CheckExplainOperations(const char* selectQuery);
 
     // HasNextRow returns true if the result set has a data
     bool HasNextRow();

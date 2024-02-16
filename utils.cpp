@@ -870,9 +870,10 @@ namespace sql
         return "SELECT * FROM " + QuotedName(tableName) + " WHERE 1 = 0";
     }
 
-    std::string MakeExplainCreateResultTableQuery(const char* selectQuery)
+    // explainType is one of "EXTENDED", "JSON", ""
+    std::string MakeExplainCreateResultTableQuery(const char* selectQuery, std::string explainType)
     {
-        return "EXPLAIN EXTENDED CREATE RESULT TABLE tmp AS " + std::string(selectQuery);
+        return "EXPLAIN " + explainType + " CREATE RESULT TABLE tmp AS " + std::string(selectQuery);
     }
 
     // TYPE, IP_ADDR, PORT, EXTERNAL_HOST, EXTERNAL_PORT
