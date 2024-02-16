@@ -67,6 +67,7 @@ void read_and_check(S2Client *client)
         query,
         chunkSize,
         queueCapacity,
+        true,
         &EH.callback);
 
     assert(q != NULL && "ChunkQueue is NULL");
@@ -306,6 +307,7 @@ void boundary_test(S2Client *client)
         query,
         chunkSize,
         queueCapacity,
+        true,
         &EH.callback);
 
     assert(q != NULL && "ChunkQueue is NULL");
@@ -383,6 +385,7 @@ void max_allowed_packet_test(S2Client *client)
         query,
         chunkSize,
         queueCapacity,
+        true,
         &EH.callback);
 
     assert(q != NULL && "ChunkQueue is NULL");

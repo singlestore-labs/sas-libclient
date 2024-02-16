@@ -66,7 +66,7 @@ void write_data(S2Client *client)
 
 void read_data(S2Client *client)
 {
-    ChunkQueue *q = QueryGetQueue(client, queryMain, chunkSize, queueCapacity, NULL);
+    ChunkQueue *q = QueryGetQueue(client, queryMain, chunkSize, queueCapacity, true, NULL);
 
     assert(q != NULL && "ChunkQueue is NULL");
     if (S2Errno(client))

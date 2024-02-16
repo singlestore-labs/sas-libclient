@@ -28,7 +28,8 @@ class ResultTableReader
         ThreadSafeQueue<Chunk *> *q,
         const char *query,
         RowSchema *schema,
-        uint64_t size);
+        uint64_t size,
+        bool usePreparedProtocol);
 
     ~ResultTableReader()
     {
@@ -94,6 +95,7 @@ class ResultTableReader
     const uint64_t m_chunk_size;
 
     RowSchema *m_row_schema = nullptr;
+    bool m_use_binary_protocol = true; 
 
     std::unique_ptr<SuperChunkWriter> m_chunk_writer = nullptr;
 

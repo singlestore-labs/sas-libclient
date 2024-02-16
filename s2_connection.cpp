@@ -182,6 +182,26 @@ int64_t S2Connection::ExecuteDDL(std::string query)
     return mysql_affected_rows(m_conn);
 }
 
+bool S2Connection::Execute(std::string query)
+{
+    if (mysql_query(m_conn, query.c_str()))
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+    if (!(m_res = mysql_use_result(m_conn)))
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+    // if we have a result set then prefetch the first row
+    //
+    if (mysql_num_fields(m_res))
+    {
+        AdvanceText();
+        return true;
+    }
+    return false;
+}
+
 bool
 S2Connection::Prepare(
     const char* query,
@@ -201,11 +221,11 @@ S2Connection::Prepare(
         {
             throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
         }
-
-        // if we have the result set then prefetch the first row
+        // if we have a result set then prefetch the first row
+        //
         if (mysql_stmt_field_count(m_stmt))
         {
-            Advance();
+            AdvanceBinary();
             return true;
         }
     }
@@ -216,10 +236,10 @@ void S2Connection::CleanupStatement(bool needFreeResult)
 {
     mysql_stmt_close(m_stmt);
     m_stmt = nullptr;
-    if (needFreeResult) FreeResult();
+    if (needFreeResult) FreeLastFetched();
 }
 
-void S2Connection::FreeResult()
+void S2Connection::FreeLastFetched()
 {
     // delete actual fields of the result
     for (int i = 0; i < m_last_columns_num; i++)
@@ -238,10 +258,104 @@ void S2Connection::FreeResult()
     m_last_columns_num = 0;
 }
 
-bool S2Connection::Advance()
+bool S2Connection::AdvanceText()
+{
+    FreeLastFetched();
+    m_last_columns_num = mysql_num_fields(m_res);
+    MYSQL_FIELD* fields = mysql_fetch_fields(m_res);
+    if (fields == nullptr)
+    {
+        FreeLastFetched();
+        throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get text result set fields");
+    }
+
+    m_last_fetched_lengths = new unsigned long[m_last_columns_num];
+    m_last_fetched_row = new char*[m_last_columns_num];
+    memset(m_last_fetched_row, 0, sizeof(char*) * m_last_columns_num);
+
+    MYSQL_ROW row = mysql_fetch_row(m_res);
+    if (!row)
+    {
+        // an error occurred
+        //
+        if (mysql_errno(m_conn))
+        {
+            throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+        }
+        // no more rows to read
+        //
+        FreeLastFetched();
+        return false;
+    }
+    unsigned long* lengths = mysql_fetch_lengths(m_res);
+    for (int i = 0; i < m_last_columns_num; i++)
+    {
+        // NULL value
+        if (!row[i])
+        {
+            m_last_fetched_lengths[i] = 0;
+            m_last_fetched_row[i] = nullptr;
+            continue;
+        }
+        // not NULL value, may need to be converted to binary form from text 
+        switch (fields[i].type)
+        {
+            // string
+            case MYSQL_TYPE_STRING:
+            case MYSQL_TYPE_VAR_STRING:
+            case MYSQL_TYPE_LONG_BLOB:
+            case MYSQL_TYPE_MEDIUM_BLOB:
+            case MYSQL_TYPE_BLOB:
+            case MYSQL_TYPE_TINY_BLOB:
+            {
+                m_last_fetched_lengths[i] = lengths[i];
+                m_last_fetched_row[i] = new char[lengths[i]];
+                memcpy(m_last_fetched_row[i], row[i], lengths[i]);
+                break;
+            }
+            case MYSQL_TYPE_LONG:
+            {
+                m_last_fetched_lengths[i] = 4;
+                m_last_fetched_row[i] = new char[4];
+                sscanf(row[i], "%d", (int*)m_last_fetched_row[i]);
+                break;
+            }
+            case MYSQL_TYPE_LONGLONG:
+            {
+                m_last_fetched_lengths[i] = 8;
+                m_last_fetched_row[i] = new char[8];
+                sscanf(row[i], "%lld", (long long*)m_last_fetched_row[i]);
+                break;
+            }
+            case MYSQL_TYPE_DOUBLE:
+            {
+                m_last_fetched_lengths[i] = 8;
+                m_last_fetched_row[i] = new char[8];
+                sscanf(row[i], "%lf", (double*)m_last_fetched_row[i]);
+                break;
+            }
+            // date and time
+            case MYSQL_TYPE_DATETIME:
+            case MYSQL_TYPE_DATE:
+            case MYSQL_TYPE_TIME:
+            case MYSQL_TYPE_NEWDATE:
+            case MYSQL_TYPE_DATETIME2:
+            {
+                // TODO: implement
+                break;
+            }
+            default:
+                // should never get here, but for unsupported types it can happen
+                break;
+        }
+    }
+    return true;
+}
+
+bool S2Connection::AdvanceBinary()
 {
     // free the previous result set
-    FreeResult();
+    FreeLastFetched();
 
     // find the columns number
     m_last_columns_num = mysql_stmt_field_count(m_stmt);
@@ -250,15 +364,15 @@ bool S2Connection::Advance()
     MySQLResultPtr metadata(mysql_stmt_result_metadata(m_stmt), &mysql_free_result);
     if (metadata == nullptr)
     {
-        FreeResult();
-        throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get result set metadata");
+        FreeLastFetched();
+        throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get binary result set metadata");
     }
 
     MYSQL_FIELD* fields = mysql_fetch_fields(metadata.get());
     if (fields == nullptr)
     {
-        FreeResult();
-        throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get result set metadata fields");
+        FreeLastFetched();
+        throw S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get binary result set fields");
     }
 
     m_last_fetched_lengths = new unsigned long[m_last_columns_num];
@@ -331,7 +445,7 @@ bool S2Connection::Advance()
 
     if (mysql_stmt_bind_result(m_stmt, bind.get()))
     {
-        FreeResult();
+        FreeLastFetched();
         throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
     }
 
@@ -343,7 +457,7 @@ bool S2Connection::Advance()
     }
     else if (status != MYSQL_DATA_TRUNCATED && status != 0)
     {
-        FreeResult();
+        FreeLastFetched();
         if (mysql_stmt_errno(m_stmt))
         {
             throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
@@ -380,7 +494,7 @@ bool S2Connection::Advance()
         bind[i].length = nullptr;
         if (mysql_stmt_fetch_column(m_stmt, &bind[i], i, 0))
         {
-            FreeResult();
+            FreeLastFetched();
             throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
         }
     }
@@ -388,16 +502,26 @@ bool S2Connection::Advance()
     return true;
 }
 
-RowSchema* S2Connection::GetRowSchema()
+RowSchema* S2Connection::GetRowSchema(bool usePreparedProtocol)
 {
-    MySQLResultPtr res(mysql_stmt_result_metadata(m_stmt), &mysql_free_result);
-    if (!res)
-    {
-        throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
-    }
+    unsigned int num_fields;
+    MYSQL_FIELD* fields;
 
-    unsigned int num_fields = mysql_num_fields(res.get());
-    MYSQL_FIELD* fields = mysql_fetch_fields(res.get());
+    if (usePreparedProtocol)
+    {
+        MySQLResultPtr res(mysql_stmt_result_metadata(m_stmt), &mysql_free_result);
+        if (!res)
+        {
+            throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
+        }
+        num_fields = mysql_num_fields(res.get());
+        fields = mysql_fetch_fields(res.get());
+    }
+    else
+    {
+        num_fields = mysql_num_fields(m_res);
+        fields = mysql_fetch_fields(m_res);
+    }
 
     auto freeColumns = [num_fields](Column column_info[])
     {
@@ -505,7 +629,7 @@ S2Connection::GetParallelReadType(
     // now we check if we can perform the read from the original table
     //
     TableKeys tableKeys = GetTableKeys(sourceTable);
-    bool isOriginalTableScanOk = true;
+    bool isColumnstoreScanOk = true;
 
     std::string currentColumn;
     // Shard key matching.
@@ -517,7 +641,7 @@ S2Connection::GetParallelReadType(
         // shard_key must be non-empty
         if (tableKeys.shard_key.empty())
         {
-            isOriginalTableScanOk = false;
+            isColumnstoreScanOk = false;
         }
         else
         {
@@ -531,7 +655,7 @@ S2Connection::GetParallelReadType(
             {
                 if (!partitionByColSet.count(col))
                 {
-                    isOriginalTableScanOk = false;
+                    isColumnstoreScanOk = false;
                     break;
                 }
             }
@@ -545,7 +669,7 @@ S2Connection::GetParallelReadType(
     //
     if ((size_t)partitionOrderByColsNumber > tableKeys.sort_key.size())
     {
-        isOriginalTableScanOk = false;
+        isColumnstoreScanOk = false;
     }
     else
     {
@@ -554,22 +678,15 @@ S2Connection::GetParallelReadType(
             currentColumn = std::string(partitionOrderByCols[i]);
             if (tableKeys.sort_key[i] != currentColumn)
             {
-                isOriginalTableScanOk = false;
+                isColumnstoreScanOk = false;
                 break;
             }
         }
     }
-    if (!isOriginalTableScanOk)
-    {
-        if (materialized)
-        {
-            return ReadTypeColumnStoreTable;
-        }
-        return ReadTypeResultTable;
-    }
     // now we check EXPLAIN CREATE RESULT TABLE statement corresponding to the selectQuery
-    //
-    if (CheckExplainOperations(selectQuery))
+    bool isSelectSimple = CheckExplainOperations(selectQuery);
+
+    if (isColumnstoreScanOk && isSelectSimple)
     {
         return ReadTypeOriginalTable;
     }
@@ -684,7 +801,8 @@ void
 S2Connection::NextChunk(
     std::unique_ptr<SuperChunkWriter>& writer,
     Chunk* chunk,
-    RowSchema* rowSchema)
+    RowSchema* rowSchema,
+    bool useBinaryProtocol)
 {
     writer->Reset(chunk, rowSchema);
 
@@ -695,7 +813,14 @@ S2Connection::NextChunk(
         if (was_row_written)
         {
             row_count++;
-            Advance();
+            if (useBinaryProtocol)
+            {
+                AdvanceBinary();
+            }
+            else
+            {
+                AdvanceText();
+            }
         }
         else  // if WriteRow returned false, the m_last_fetched_row has not been written to the current chunk
         {
@@ -745,7 +870,7 @@ S2Connection::GetMultipleRows(
         if (was_row_written)
         {
             row_count++;
-            Advance();
+            AdvanceBinary();
         }
         else  // if WriteRow returned false, the m_last_fetched_row has not been written to the current chunk
         {
@@ -824,12 +949,12 @@ S2Connection::WriteChunk(
     int is_infile_enabled;
     if (mysql_get_option(m_conn, MYSQL_OPT_LOCAL_INFILE, &is_infile_enabled))
     {
-        FreeResult();
+        FreeLastFetched();
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
     }
     if (!is_infile_enabled)
     {
-        FreeResult();
+        FreeLastFetched();
         throw S2ClientError(S2C_ERROR_BAD_CONNECTION, "LOAD DATA INFILE LOCAL is disabled on the server side");
     }
 
@@ -868,12 +993,12 @@ S2Connection::WriteAvro(
     int is_infile_enabled;
     if (mysql_get_option(m_conn, MYSQL_OPT_LOCAL_INFILE, &is_infile_enabled))
     {
-        FreeResult();
+        FreeLastFetched();
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
     }
     if (!is_infile_enabled)
     {
-        FreeResult();
+        FreeLastFetched();
         throw S2ClientError(S2C_ERROR_BAD_CONNECTION, "LOAD DATA INFILE LOCAL is disabled on the server side");
     }
 

@@ -49,7 +49,7 @@ class S2Connection
 
     ~S2Connection()
     {
-        FreeResult();
+        FreeLastFetched();
         // if the flag m_need_stmt_close is set to true (default behavior)
         // we close the statement before closing the connection.
         // Otherwise we close the statement after connection, this
@@ -84,13 +84,22 @@ class S2Connection
     // ExecuteDDL runs a ddl query through text protocol
     int64_t ExecuteDDL(const std::string query);
 
-    // Advance retrieves the next row from the result set and saves a result in the
+    // Execute runs a query through text protocol
+    bool Execute(const std::string query);
+
+    // AdvanceBinary retrieves the next row from the result set of a query executed
+    // using binary (prepared statement) protocol, and saves the result in the
     // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
-    bool Advance();
+    bool AdvanceBinary();
+
+    // AdvanceText retrieves the next row from the result set of a query executed
+    // using text protocol, and saves the result in the
+    // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
+    bool AdvanceText();
 
     // GetRowSchema retrieves the schema of query result
     // If an error occurred, S2ClientError is thrown
-    RowSchema* GetRowSchema();
+    RowSchema* GetRowSchema(bool usePreparedProtocol);
 
     // ExplainRowSchema gets the row schema for the result table
     // created using selectQuery
@@ -121,7 +130,8 @@ class S2Connection
     NextChunk(
         std::unique_ptr<SuperChunkWriter>& writer,
         Chunk* chunk,
-        RowSchema* schema);
+        RowSchema* schema,
+        bool useBinaryProtocol);
 
     Chunk*
     GetSingleRow(
@@ -183,6 +193,7 @@ class S2Connection
   private:
     MYSQL* m_conn = nullptr;
     MYSQL_STMT* m_stmt = nullptr;
+    MYSQL_RES* m_res = nullptr;
     bool m_need_stmt_close = true;
 
     MYSQL_ROW m_last_fetched_row = nullptr;
@@ -205,7 +216,7 @@ class S2Connection
         m_ssl_ca(ssl_ca)
             {};
 
-    void FreeResult();
+    void FreeLastFetched();
 };
 
 #endif  // S2_CONNECTION_HPP

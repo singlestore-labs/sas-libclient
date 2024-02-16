@@ -160,6 +160,7 @@ extern "C"
                        chunkSize,
                        nReaderThreads,
                        true /* doesParallelRead */,
+                       true /* usePreparedProtocol */,
                        cb)
                 .release();
         }
@@ -181,6 +182,7 @@ extern "C"
         const char *query,
         uint64_t chunkSize,
         int queueCapacity,
+        bool usePreparedProtocol,
         S2ErrorCallback *cb)
     {
         // clear the previous error if any
@@ -200,6 +202,7 @@ extern "C"
                        chunkSize,
                        1,
                        false /* doesParallelRead */,
+                       usePreparedProtocol,
                        cb)
                 .release();
         }

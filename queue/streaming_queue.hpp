@@ -35,6 +35,7 @@ class StreamingQueue : public ChunkQueue
         uint64_t chunkSize,
         int nReaderThreads,
         bool doesParallelRead,
+        bool usePreparedProtocol,
         S2ErrorCallback *cb);
 
     Chunk *

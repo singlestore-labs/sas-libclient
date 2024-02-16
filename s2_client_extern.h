@@ -180,6 +180,7 @@ QueryGetQueue(
     const char* query,
     uint64_t chunkSize,
     int queueCapacity,
+    bool usePreparedProtocol,
     S2ErrorCallback* cb);
 
 // LoadDataWrite takes a chunk along with its Row Schema

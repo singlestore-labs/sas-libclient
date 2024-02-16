@@ -286,6 +286,7 @@ void non_parallel_test()
         (char *)query_symbols,
         200,
         queueCapacity,
+        true,
         &EH.callback);
 
     if (S2Errno(client)) PRINT_ERROR("QueryGetQueue failed: %d %s\n", S2Errno(client), S2Error(client));
@@ -301,6 +302,7 @@ void non_parallel_test()
         query_bad,
         200,
         queueCapacity,
+        true,
         &EH.callback);
     assert(S2Errno(client));
 
@@ -315,6 +317,7 @@ void non_parallel_test()
         query,
         10000,
         1,
+        true,
         &EH.callback);
 
     if (S2Errno(client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
