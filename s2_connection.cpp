@@ -505,7 +505,7 @@ S2Connection::GetParallelReadType(
     // now we check if we can perform the read from the original table
     //
     TableKeys tableKeys = GetTableKeys(sourceTable);
-    bool isColumnstoreScanOk = true;
+    bool isOriginalTableScanOk = true;
 
     std::string currentColumn;
     // Shard key matching.
@@ -517,7 +517,7 @@ S2Connection::GetParallelReadType(
         // shard_key must be non-empty
         if (tableKeys.shard_key.empty())
         {
-            isColumnstoreScanOk = false;
+            isOriginalTableScanOk = false;
         }
         else
         {
@@ -531,7 +531,7 @@ S2Connection::GetParallelReadType(
             {
                 if (!partitionByColSet.count(col))
                 {
-                    isColumnstoreScanOk = false;
+                    isOriginalTableScanOk = false;
                     break;
                 }
             }
@@ -545,7 +545,7 @@ S2Connection::GetParallelReadType(
     //
     if ((size_t)partitionOrderByColsNumber > tableKeys.sort_key.size())
     {
-        isColumnstoreScanOk = false;
+        isOriginalTableScanOk = false;
     }
     else
     {
@@ -554,15 +554,22 @@ S2Connection::GetParallelReadType(
             currentColumn = std::string(partitionOrderByCols[i]);
             if (tableKeys.sort_key[i] != currentColumn)
             {
-                isColumnstoreScanOk = false;
+                isOriginalTableScanOk = false;
                 break;
             }
         }
     }
+    if (!isOriginalTableScanOk)
+    {
+        if (materialized)
+        {
+            return ReadTypeColumnStoreTable;
+        }
+        return ReadTypeResultTable;
+    }
     // now we check EXPLAIN CREATE RESULT TABLE statement corresponding to the selectQuery
-    bool isSelectSimple = CheckExplainOperations(selectQuery);
-
-    if (isColumnstoreScanOk && isSelectSimple)
+    //
+    if (CheckExplainOperations(selectQuery))
     {
         return ReadTypeOriginalTable;
     }
