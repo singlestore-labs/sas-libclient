@@ -32,6 +32,9 @@ ParallelReadInit is called once by controller to initiate the processing of `sel
 - `resultTableName` is used as an identifier in ParallelReadGetQueue
 - `sourceTable` is supplied if query reads rows from a single table
 - `readType` indicates which mode of reading should be used
+  - if the caller already knows which type of read should be used, they can specify it here. It will
+  be used without addtional checks
+  - if the caller doesn't know which read type to use, they specify `ReadTypeUnknown`
 - `materialized` is set to true for multi-pass reading
 - `partitionByCols` is a pointer to an array of C strings indicating column names that are used for
 partitioning of the result table

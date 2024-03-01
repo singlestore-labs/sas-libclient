@@ -211,8 +211,8 @@ parallel_test(
         agg_ports[i] = db_creds.ma_port;
     }
     // init the parallel read
-    // ParallelReadType readType = ReadTypeUnknown;
-    ParallelReadType readType = ReadTypeOriginalTable;
+    ParallelReadType readType = ReadTypeUnknown;
+    // ParallelReadType readType = ReadTypeOriginalTable;
     readType = ParallelReadInit(
         client,
         resultTable,

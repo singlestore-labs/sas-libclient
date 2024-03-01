@@ -172,7 +172,8 @@ namespace sql
         const std::string& tableName);
 
     std::string MakeExplainCreateResultTableQuery(
-        const char* selectQuery);
+        const char* selectQuery,
+        std::string explainType);
 
     std::string MakeGetAggregatorsQuery();
 

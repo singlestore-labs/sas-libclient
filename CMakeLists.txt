@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
+project("libs2client")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
@@ -41,7 +42,7 @@ target_link_directories(
 
 target_link_libraries(
   s2client
-  mariadb
+mariadb
   avro
   jansson
   dl

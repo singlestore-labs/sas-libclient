@@ -429,7 +429,7 @@ RowSchema* S2Connection::ExplainRowSchema(const char* selectQuery)
     unsigned long* lengths;
 
     RowSchema* schema = new RowSchema;
-    std::string query = sql::MakeExplainCreateResultTableQuery(selectQuery);
+    std::string query = sql::MakeExplainCreateResultTableQuery(selectQuery, "EXTENDED");
     if (mysql_query(m_conn, query.c_str()))
     {
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
@@ -483,59 +483,83 @@ S2Connection::GetParallelReadType(
     const int partitionOrderByColsNumber,
     ParallelReadType readType)
 {
-    TableKeys tableKeys;
-    bool isColumnstoreScanOk = true;
-    if (readType == ReadTypeOriginalTable)
+    // in case the caller specified read type, we just use it
+    //
+    if (readType != ReadTypeUnknown)
     {
-        tableKeys = GetTableKeys(sourceTable);
-        std::string currentColumn;
-        // shard key matching
-        if (partitionByColsNumber > 0)
+        return readType;
+    }
+    // when `selectQuery` is not reading from a single table (i.e. it's reading from a view or
+    // multiple tables with join), we need to create a result table
+    //
+    if (!sourceTable)
+    {
+        // TODO:future the if block below when Agg Materialized Result Table is allowed
+        //
+        if (materialized)
         {
-            // shard_key must be non-empty
-            if (tableKeys.shard_key.empty())
-            {
-                isColumnstoreScanOk = false;
-            }
-            else
-            {
-                std::set<std::string> partitionByColSet;
-                for (int i = 0; i < partitionByColsNumber; ++i)
-                {
-                    partitionByColSet.insert(std::string(partitionByCols[i]));
-                }
-                // columnstore shard key is a subset of partition by columns
-                for (std::string col : tableKeys.shard_key)
-                {
-                    if (!partitionByColSet.count(col))
-                    {
-                        isColumnstoreScanOk = false;
-                        break;
-                    }
-                }
-            }
+            return ReadTypeColumnStoreTable;
         }
-        // sort key matching
-        if ((size_t)partitionOrderByColsNumber > tableKeys.sort_key.size())
+        return ReadTypeResultTable;
+    }
+    // now we check if we can perform the read from the original table
+    //
+    TableKeys tableKeys = GetTableKeys(sourceTable);
+    bool isOriginalTableScanOk = true;
+
+    std::string currentColumn;
+    // Shard key matching.
+    // We must check that columnstore shard key is a subset of partition by columns, so that
+    // the query can be processed on leaf nodes without repartitionning.
+    //
+    if (partitionByColsNumber > 0)
+    {
+        // shard_key must be non-empty
+        if (tableKeys.shard_key.empty())
         {
-            isColumnstoreScanOk = false;
+            isOriginalTableScanOk = false;
         }
         else
         {
-            for (int i = 0; i < partitionOrderByColsNumber; ++i)
+            std::set<std::string> partitionByColSet;
+            for (int i = 0; i < partitionByColsNumber; ++i)
             {
-                currentColumn = std::string(partitionOrderByCols[i]);
-                if (tableKeys.sort_key[i] != currentColumn)
+                partitionByColSet.insert(std::string(partitionByCols[i]));
+            }
+            // columnstore shard key is a subset of partition by columns
+            for (std::string col : tableKeys.shard_key)
+            {
+                if (!partitionByColSet.count(col))
                 {
-                    isColumnstoreScanOk = false;
+                    isOriginalTableScanOk = false;
                     break;
                 }
             }
         }
     }
-    // TODO: PLAT-6302 add sanity checks for ReadTypeOriginalTable
-    // Maybe also check if we can use ReadTypeOriginalTable if ReadTypeUnknown is passed
-    if (readType == ReadTypeUnknown || !isColumnstoreScanOk)
+    // Sort key matching.
+    // We must check that the table is already sorted by partitionOrderByCols.
+    // We compare the table sort key and partitionOrderByCols element-wise.
+    // column names in partitionOrderByCols must be supplied without backticks
+    // for this to work properly.
+    //
+    if ((size_t)partitionOrderByColsNumber > tableKeys.sort_key.size())
+    {
+        isOriginalTableScanOk = false;
+    }
+    else
+    {
+        for (int i = 0; i < partitionOrderByColsNumber; ++i)
+        {
+            currentColumn = std::string(partitionOrderByCols[i]);
+            if (tableKeys.sort_key[i] != currentColumn)
+            {
+                isOriginalTableScanOk = false;
+                break;
+            }
+        }
+    }
+    if (!isOriginalTableScanOk)
     {
         if (materialized)
         {
@@ -543,7 +567,17 @@ S2Connection::GetParallelReadType(
         }
         return ReadTypeResultTable;
     }
-    return ReadTypeOriginalTable;
+    // now we check EXPLAIN CREATE RESULT TABLE statement corresponding to the selectQuery
+    //
+    if (CheckExplainOperations(selectQuery))
+    {
+        return ReadTypeOriginalTable;
+    }
+    if (materialized)
+    {
+        return ReadTypeColumnStoreTable;
+    }
+    return ReadTypeResultTable;
 }
 
 TableKeys S2Connection::GetTableKeys(const char* sourceTable)
@@ -581,6 +615,64 @@ TableKeys S2Connection::GetTableKeys(const char* sourceTable)
     mysql_free_result(res);
 
     return keysToReturn;
+}
+
+// CheckExplainOperations returns true if the selectQuery plan has only
+// ColumnStoreScan, OrderedColumnStoreScan and ColumnStoreFilter operations
+bool S2Connection::CheckExplainOperations(const char* selectQuery)
+{
+    MYSQL_RES* res;
+    MYSQL_ROW row;
+    unsigned long* lengths;
+    auto query = sql::MakeExplainCreateResultTableQuery(selectQuery, "");
+
+    if (mysql_query(m_conn, query.c_str()))
+    {
+        throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
+    }
+    if ( !(res = mysql_store_result(m_conn)) )
+    {
+        throw S2ClientError(
+            S2C_ERROR_UNKNOWN_FAILURE,
+            "CheckExplainOperations failed to get the result of query: " + query);
+    }
+    std::string explainRow;
+    bool checkOperation = false;
+    /* 
+    Explain result has the following form 
+    +------------------------------------------------------------------------------------------------------------------------------------+
+    | WARNING: Histograms have not been collected on the following columns. Consider running the following commands to collect them now: |
+    |     ANALYZE TABLE db.`table_name` COLUMNS `id` ENABLE;                                                                             |
+    |                                                                                                                                    |
+    | See https://docs.memsql.com/docs/analyze for more information on statistics collection.                                            |
+    |                                                                                                                                    |
+    | ResultTable pavlo_sharehouse.tmp [r0.id] local:yes est_rows:1                                                                      |
+    | HashGroupBy [] groups:[r0.id]
+    | ...more rows follow
+    so we skip the first rows until ResultTable row is found
+    */
+    while ((row = mysql_fetch_row(res)))
+    {
+        lengths = mysql_fetch_lengths(res);
+        explainRow = std::string(row[0], lengths[0]);
+        if (checkOperation)
+        {
+            std::string op = explainRow.substr(0, explainRow.find(" "));
+            if ((op.compare("ColumnStoreScan") != 0) &&
+                (op.compare("OrderedColumnStoreScan") != 0) &&
+                (op.compare("ColumnStoreFilter") != 0)
+                )
+            {
+                return false;
+            }
+        }
+        if (!strncmp(row[0], "ResultTable", strlen("ResultTable")))
+        {
+            checkOperation = true;
+        }
+    }
+    mysql_free_result(res);
+    return true;
 }
 
 bool S2Connection::HasNextRow()
