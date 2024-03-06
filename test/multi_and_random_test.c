@@ -292,8 +292,8 @@ main_test(
     }
 
     // init the parallel read in multi-pass mode
-    // ParallelReadType readType = ReadTypeUnknown;
-    ParallelReadType readType = ReadTypeOriginalTable;
+    ParallelReadType readType = ReadTypeUnknown;
+    // ParallelReadType readType = ReadTypeColumnStoreTable;
 
     const char *partCols[2] = {"i1", "d1"};
     const char *partOrderCols[2] = {"i1", "rowId"};

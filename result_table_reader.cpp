@@ -51,7 +51,8 @@ ResultTableReader::CreateReaderNonParallel(
     ThreadSafeQueue<Chunk *> *q,
     const char *query,
     RowSchema *schema,
-    uint64_t size)
+    uint64_t size,
+    bool usePreparedProtocol)
 {
     // allocate a ResultTableReader object
     std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, 0 /*partition*/, size));
@@ -62,6 +63,7 @@ ResultTableReader::CreateReaderNonParallel(
     // prepare a query that will be executed
     reader->m_query = query;
     reader->m_row_schema = schema;
+    reader->m_use_prepared_protocol = usePreparedProtocol;
     reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
 
     return reader;
@@ -98,7 +100,14 @@ void ResultTableReader::Read()
 
     try
     {
-        m_conn->Prepare(m_query.c_str(), true);
+        if (m_use_prepared_protocol)
+        {
+            m_conn->Prepare(m_query.c_str(), true);
+        }
+        else
+        {
+            m_conn->Execute(m_query.c_str());
+        }
     }
     catch (S2ClientError &s2_err)
     {
@@ -128,12 +137,7 @@ void ResultTableReader::Read()
                     "ResultTableReader cannot allocate chunk size: " + std::to_string(m_chunk_size));
                 break;
             }
-            Chunk *chunk = new Chunk();
-            chunk->m_ptr = ptr;
-            chunk->m_size = m_chunk_size;
-            chunk->row_count = 0;
-            chunk->id = chunkId;
-            chunk->partition_id = m_partition;
+            Chunk *chunk = NewChunk(ptr, m_chunk_size, chunkId, m_partition);
 
             m_conn->NextChunk(m_chunk_writer, chunk, m_row_schema);
 

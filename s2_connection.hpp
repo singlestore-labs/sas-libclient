@@ -49,7 +49,7 @@ class S2Connection
 
     ~S2Connection()
     {
-        FreeResult();
+        FreeLastFetched();
         // if the flag m_need_stmt_close is set to true (default behavior)
         // we close the statement before closing the connection.
         // Otherwise we close the statement after connection, this
@@ -83,6 +83,9 @@ class S2Connection
 
     // ExecuteDDL runs a ddl query through text protocol
     int64_t ExecuteDDL(const std::string query);
+
+    // Execute runs a query through text protocol
+    bool Execute(const std::string query);
 
     // Advance retrieves the next row from the result set and saves a result in the
     // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
@@ -183,7 +186,9 @@ class S2Connection
   private:
     MYSQL* m_conn = nullptr;
     MYSQL_STMT* m_stmt = nullptr;
+    MYSQL_RES* m_res = nullptr;
     bool m_need_stmt_close = true;
+    bool m_use_binary_protocol = true;
 
     MYSQL_ROW m_last_fetched_row = nullptr;
     unsigned long* m_last_fetched_lengths = nullptr;
@@ -205,7 +210,17 @@ class S2Connection
         m_ssl_ca(ssl_ca)
             {};
 
-    void FreeResult();
+    // AdvanceBinary retrieves the next row from the result set of a query executed
+    // using binary (prepared statement) protocol, and saves the result in the
+    // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
+    bool AdvanceBinary();
+
+    // AdvanceText retrieves the next row from the result set of a query executed
+    // using text protocol, and saves the result in the
+    // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
+    bool AdvanceText();
+
+    void FreeLastFetched();
 };
 
 #endif  // S2_CONNECTION_HPP

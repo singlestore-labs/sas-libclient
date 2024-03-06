@@ -203,7 +203,7 @@ LoadDataTestAvro(
             .m_size = written,
             .m_current_pos = (uint64_t)0
         };
-    conn->WriteAvro(&source, &true_schema, "3_col_test_c");
+    conn->WriteAvro(&source, &true_schema, "3_col_test_c", true);
 
     // avro_value_decref(&test_val);
     // avro_value_iface_decref(test_class);
@@ -271,13 +271,8 @@ void TestRun(S2Connection* conn)
               << " milliseconds" << std::endl;
 
     // initialize the chunk to fill
-    Chunk* chunk = (Chunk*)malloc(sizeof(Chunk));
     char* chunk_data = (char*)malloc(CHUNK_SIZE * sizeof(char));
-    chunk->m_ptr = chunk_data;
-    chunk->m_size = CHUNK_SIZE;
-    chunk->consumed_size = 0;
-    chunk->variable_offset = 0;
-    chunk->row_count = 0;
+    Chunk* chunk = NewChunk(chunk_data, CHUNK_SIZE, 0, 0);
 
     std::cout << "Staring to work on FillChunk...";
     funcStart = std::chrono::system_clock::now();

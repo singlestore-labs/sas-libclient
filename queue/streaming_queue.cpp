@@ -17,6 +17,7 @@ StreamingQueue::CreateChunkQueue(
     uint64_t chunkSize,
     int nConsumers,
     bool doesParallelRead,
+    bool usePreparedProtocol,
     S2ErrorCallback *cb)
 {
     // allocate a ChunkQueue object
@@ -124,7 +125,14 @@ StreamingQueue::CreateChunkQueue(
     {
         try
         {
-            client->m_conn->Prepare(selectQuery, false);
+            if (usePreparedProtocol)
+            {
+                client->m_conn->Prepare(selectQuery, false);
+            }
+            else
+            {
+                client->m_conn->Execute(selectQuery);
+            }
             chunkQueue->m_row_schema = client->m_conn->GetRowSchema();
         }
         catch (S2ClientError &s2_err)
@@ -137,7 +145,8 @@ StreamingQueue::CreateChunkQueue(
             chunkQueue->m_consumer_queues[0],
             selectQuery,
             chunkQueue->m_row_schema,
-            chunkSize);
+            chunkSize,
+            usePreparedProtocol);
         if (!reader) return nullptr;
         chunkQueue->m_readers.push_back(std::move(reader));
     }
