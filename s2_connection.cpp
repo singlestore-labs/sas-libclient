@@ -184,6 +184,8 @@ int64_t S2Connection::ExecuteDDL(std::string query)
 
 bool S2Connection::Execute(std::string query)
 {
+    m_use_binary_protocol = false;
+
     if (mysql_query(m_conn, query.c_str()))
     {
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
@@ -193,10 +195,9 @@ bool S2Connection::Execute(std::string query)
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
     }
     // if we have a result set then prefetch the first row
-    //
     if (mysql_num_fields(m_res))
     {
-        AdvanceText();
+        Advance();
         return true;
     }
     return false;
@@ -207,6 +208,7 @@ S2Connection::Prepare(
     const char* query,
     bool execute)
 {
+    m_use_binary_protocol = true;
     if (!(m_stmt = mysql_stmt_init(m_conn)))
     {
         throw S2ClientError(mysql_errno(m_conn), mysql_error(m_conn));
@@ -222,10 +224,9 @@ S2Connection::Prepare(
             throw S2ClientError(mysql_stmt_errno(m_stmt), mysql_stmt_error(m_stmt));
         }
         // if we have a result set then prefetch the first row
-        //
         if (mysql_stmt_field_count(m_stmt))
         {
-            AdvanceBinary();
+            Advance();
             return true;
         }
     }
@@ -256,6 +257,11 @@ void S2Connection::FreeLastFetched()
 
     // reset columns number
     m_last_columns_num = 0;
+}
+
+bool S2Connection::Advance()
+{
+    return m_use_binary_protocol ? AdvanceBinary() : AdvanceText();
 }
 
 bool S2Connection::AdvanceText()
@@ -341,10 +347,11 @@ bool S2Connection::AdvanceText()
             case MYSQL_TYPE_NEWDATE:
             case MYSQL_TYPE_DATETIME2:
             {
-                // TODO: implement
+                // TODO: check if we need to implement this
                 break;
             }
             default:
+                assert(false);
                 // should never get here, but for unsupported types it can happen
                 break;
         }
@@ -502,12 +509,12 @@ bool S2Connection::AdvanceBinary()
     return true;
 }
 
-RowSchema* S2Connection::GetRowSchema(bool usePreparedProtocol)
+RowSchema* S2Connection::GetRowSchema()
 {
     unsigned int num_fields;
     MYSQL_FIELD* fields;
 
-    if (usePreparedProtocol)
+    if (m_use_binary_protocol)
     {
         MySQLResultPtr res(mysql_stmt_result_metadata(m_stmt), &mysql_free_result);
         if (!res)
@@ -801,8 +808,7 @@ void
 S2Connection::NextChunk(
     std::unique_ptr<SuperChunkWriter>& writer,
     Chunk* chunk,
-    RowSchema* rowSchema,
-    bool useBinaryProtocol)
+    RowSchema* rowSchema)
 {
     writer->Reset(chunk, rowSchema);
 
@@ -813,14 +819,7 @@ S2Connection::NextChunk(
         if (was_row_written)
         {
             row_count++;
-            if (useBinaryProtocol)
-            {
-                AdvanceBinary();
-            }
-            else
-            {
-                AdvanceText();
-            }
+            Advance();
         }
         else  // if WriteRow returned false, the m_last_fetched_row has not been written to the current chunk
         {
@@ -870,7 +869,7 @@ S2Connection::GetMultipleRows(
         if (was_row_written)
         {
             row_count++;
-            AdvanceBinary();
+            Advance();
         }
         else  // if WriteRow returned false, the m_last_fetched_row has not been written to the current chunk
         {

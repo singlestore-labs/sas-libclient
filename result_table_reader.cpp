@@ -63,7 +63,7 @@ ResultTableReader::CreateReaderNonParallel(
     // prepare a query that will be executed
     reader->m_query = query;
     reader->m_row_schema = schema;
-    reader->m_use_binary_protocol = usePreparedProtocol;
+    reader->m_use_prepared_protocol = usePreparedProtocol;
     reader->m_chunk_writer = std::make_unique<SuperChunkWriter>();
 
     return reader;
@@ -100,7 +100,7 @@ void ResultTableReader::Read()
 
     try
     {
-        if (m_use_binary_protocol)
+        if (m_use_prepared_protocol)
         {
             m_conn->Prepare(m_query.c_str(), true);
         }
@@ -144,7 +144,7 @@ void ResultTableReader::Read()
             chunk->id = chunkId;
             chunk->partition_id = m_partition;
 
-            m_conn->NextChunk(m_chunk_writer, chunk, m_row_schema, m_use_binary_protocol);
+            m_conn->NextChunk(m_chunk_writer, chunk, m_row_schema);
 
             if (chunk->row_count == 0)
             {

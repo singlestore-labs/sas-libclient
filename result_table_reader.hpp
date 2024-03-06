@@ -95,7 +95,7 @@ class ResultTableReader
     const uint64_t m_chunk_size;
 
     RowSchema *m_row_schema = nullptr;
-    bool m_use_binary_protocol = true; 
+    bool m_use_prepared_protocol = true; 
 
     std::unique_ptr<SuperChunkWriter> m_chunk_writer = nullptr;
 

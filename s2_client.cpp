@@ -179,7 +179,7 @@ extern "C"
         try
         {
             client->m_conn->Prepare(query.c_str(), false);
-            RowSchema* res = client->m_conn->GetRowSchema(true);
+            RowSchema* res = client->m_conn->GetRowSchema();
             return res;
         }
         catch (S2ClientError& s2_err)

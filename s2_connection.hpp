@@ -87,19 +87,13 @@ class S2Connection
     // Execute runs a query through text protocol
     bool Execute(const std::string query);
 
-    // AdvanceBinary retrieves the next row from the result set of a query executed
-    // using binary (prepared statement) protocol, and saves the result in the
+    // Advance retrieves the next row from the result set and saves a result in the
     // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
-    bool AdvanceBinary();
-
-    // AdvanceText retrieves the next row from the result set of a query executed
-    // using text protocol, and saves the result in the
-    // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
-    bool AdvanceText();
+    bool Advance();
 
     // GetRowSchema retrieves the schema of query result
     // If an error occurred, S2ClientError is thrown
-    RowSchema* GetRowSchema(bool usePreparedProtocol);
+    RowSchema* GetRowSchema();
 
     // ExplainRowSchema gets the row schema for the result table
     // created using selectQuery
@@ -130,8 +124,7 @@ class S2Connection
     NextChunk(
         std::unique_ptr<SuperChunkWriter>& writer,
         Chunk* chunk,
-        RowSchema* schema,
-        bool useBinaryProtocol);
+        RowSchema* schema);
 
     Chunk*
     GetSingleRow(
@@ -195,6 +188,7 @@ class S2Connection
     MYSQL_STMT* m_stmt = nullptr;
     MYSQL_RES* m_res = nullptr;
     bool m_need_stmt_close = true;
+    bool m_use_binary_protocol = true;
 
     MYSQL_ROW m_last_fetched_row = nullptr;
     unsigned long* m_last_fetched_lengths = nullptr;
@@ -215,6 +209,16 @@ class S2Connection
         m_password(password),
         m_ssl_ca(ssl_ca)
             {};
+
+    // AdvanceBinary retrieves the next row from the result set of a query executed
+    // using binary (prepared statement) protocol, and saves the result in the
+    // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
+    bool AdvanceBinary();
+
+    // AdvanceText retrieves the next row from the result set of a query executed
+    // using text protocol, and saves the result in the
+    // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
+    bool AdvanceText();
 
     void FreeLastFetched();
 };

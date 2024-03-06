@@ -133,7 +133,7 @@ StreamingQueue::CreateChunkQueue(
             {
                 client->m_conn->Execute(selectQuery);
             }
-            chunkQueue->m_row_schema = client->m_conn->GetRowSchema(usePreparedProtocol);
+            chunkQueue->m_row_schema = client->m_conn->GetRowSchema();
         }
         catch (S2ClientError &s2_err)
         {
