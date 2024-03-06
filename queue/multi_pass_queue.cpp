@@ -270,12 +270,8 @@ MultiPassQueue::GetMultipleRows(
             err.m_errorMessage = "GetMultipleRows cannot allocate chunk size: " + std::to_string(chunkSize);
             return nullptr;
         }
-        Chunk *chunk = new Chunk();
-        chunk->m_ptr = ptr;
-        chunk->m_size = chunkSize;
-        chunk->row_count = 0;
-        chunk->id = 0;
-        chunk->partition_id = partitionId;
+        Chunk *chunk = NewChunk(ptr, chunkSize, 0, partitionId);
+
         m_consumers[threadId].conn->GetMultipleRows(
             m_consumers[threadId].writer.get(),
             chunk,

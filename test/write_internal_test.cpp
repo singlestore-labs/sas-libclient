@@ -113,10 +113,7 @@ testRun(
     {
         // initialize chunk to fill
         char* ptr = (char*)malloc(size);
-        chunk = (Chunk*)malloc(sizeof(Chunk));
-        chunk->m_ptr = ptr;
-        chunk->m_size = size;
-        chunk->row_count = 0;
+        chunk = NewChunk(ptr, size, 0, 0);
 
         auto writer = std::make_unique<SuperChunkWriter>();
         writer->Reset(chunk, schema);

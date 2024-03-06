@@ -22,6 +22,20 @@ static const char dateFormat[] = "%Y-%m-%d";               // datetime-based for
 static const char dateTimeFormat[] = "%Y-%m-%d %H:%M:%S";  // datetime-based formatting
 static const char dateTimeMicroSec[] = ".%06d";            // integer-based formatting
 
+inline Chunk *NewChunk(char *ptr, uint64_t size, uint64_t id, uint32_t partition)
+{
+    Chunk *chunk = new Chunk();
+
+    chunk->m_ptr = ptr;
+    chunk->m_size = size;
+    chunk->id = id;
+    chunk->partition_id = partition;
+    chunk->consumed_size = 0;
+    chunk->variable_offset = 0;
+    chunk->row_count = 0;
+    return chunk;
+}
+
 inline const time_t zeroTimeCAS()
 {
     struct tm zeroDate =

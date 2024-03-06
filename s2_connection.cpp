@@ -208,6 +208,7 @@ S2Connection::Prepare(
     const char* query,
     bool execute)
 {
+    CleanupStatement(true);
     m_use_binary_protocol = true;
     if (!(m_stmt = mysql_stmt_init(m_conn)))
     {
@@ -922,13 +923,7 @@ S2Connection::GetSingleRow(
             "GetSingleRow cannot allocate chunk size: " + std::to_string(chunkSize));
     }
 
-    Chunk* chunk = new Chunk();
-    chunk->m_ptr = ptr;
-    chunk->m_size = chunkSize;
-    chunk->row_count = 0;
-    chunk->partition_id = partitionId;
-    chunk->consumed_size = 0;
-    chunk->variable_offset = 0;
+    Chunk* chunk = NewChunk(ptr, chunkSize, 0, partitionId);
 
     writer->Reset(chunk, schema);
     writer->WriteRow(m_last_fetched_row, m_last_fetched_lengths);
