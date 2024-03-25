@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdatomic.h>
 
+#include "chunk_extern.h"
 #include "s2_client_extern.h"
 #include "hdat_read_extern.h"
 
@@ -64,12 +65,12 @@ void explain_test(S2Client *client)
     }
     free(chunk);
     ChunkQueueFree(q);
+    printf("explain_test OK\n");
 }
 
 void infoschema_test(S2Client *client)
 {
     const char *query = "SELECT TABLE_NAME FROM tables WHERE TABLE_SCHEMA = 'information_schema'";
-    // const char *query = "EXPLAIN SELECT TABLE_NAME FROM tables WHERE TABLE_SCHEMA = 'information_schema'";
 
     ChunkQueue *q = QueryGetQueue(
         client,
@@ -88,6 +89,7 @@ void infoschema_test(S2Client *client)
 
     RowSchema *s = GetRowSchema(q);
     AssertRowSchema(s);
+    PrintRowSchema(s);
     IF_INFO(PrintRowSchema(s));
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
@@ -119,6 +121,37 @@ void infoschema_test(S2Client *client)
     printf("infoschema_test OK\n");
 }
 
+void long_column_name_test(S2Client *client)
+{
+    ExecuteDDLQuery(client, "CREATE TABLE IF NOT EXISTS testdb.sav128 (`££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££abc` DOUBLE)", &EH.callback);
+
+    const char *query = "SELECT * FROM testdb.sav128";
+
+    ChunkQueue *q = QueryGetQueue(
+        client,
+        query,
+        10000,
+        1,
+        true,
+        &EH.callback);
+
+    if (S2Errno(client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+    assert(q != NULL && "ChunkQueue is NULL");
+
+    int dummy_partition;
+    Chunk *chunk = (Chunk *)malloc(sizeof(Chunk));
+    int numReceived = 0;
+
+    RowSchema *s = GetRowSchema(q);
+    AssertRowSchema(s);
+    PrintRowSchema(s);
+    assert(s->ColumnInfo[0].name == "££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££abc");
+    assert(s->ColumnInfo[0].type == Double);
+    assert(s->ColumnInfo[0].size == 8);
+
+    printf("long_column_name_test OK\n");
+}
+
 int
 main(
     int argc,
@@ -148,7 +181,8 @@ main(
     assert(client != NULL && "S2Client is NULL");
 
     // infoschema_test(client);
-    explain_test(client);
+    // explain_test(client);
+    long_column_name_test(client);
 
     S2ClientFree(client);
 
