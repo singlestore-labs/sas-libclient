@@ -182,7 +182,7 @@ int64_t S2Connection::ExecuteDDL(std::string query)
     return mysql_affected_rows(m_conn);
 }
 
-bool S2Connection::Execute(std::string query)
+bool S2Connection::Execute(std::string query, bool prefetch)
 {
     m_use_binary_protocol = false;
 
@@ -206,7 +206,8 @@ bool S2Connection::Execute(std::string query)
 bool
 S2Connection::Prepare(
     const char* query,
-    bool execute)
+    bool execute,
+    bool prefetch)
 {
     CleanupStatement(true);
     m_use_binary_protocol = true;
@@ -227,7 +228,7 @@ S2Connection::Prepare(
         // if we have a result set then prefetch the first row
         if (mysql_stmt_field_count(m_stmt))
         {
-            Advance();
+            if (prefetch) Advance();
             return true;
         }
     }
@@ -853,7 +854,7 @@ S2Connection::GetMultipleRows(
         partitionId,
         rowIds,
         rowIdsNum);
-    bool result = Prepare(query.c_str(), true);
+    bool result = Prepare(query.c_str(), true /*execute*/, true /*prefetch*/);
 
     if (!result ||
         !m_last_fetched_lengths ||
@@ -902,7 +903,7 @@ S2Connection::GetSingleRow(
         partitionRowId,
         readType == ParallelReadType::ReadTypeResultTable,
         serverVersion);
-    bool result = Prepare(query.c_str(), true);
+    bool result = Prepare(query.c_str(), true /*execute*/, true /*prefetch*/);
 
     if (!result ||
         !m_last_fetched_lengths ||

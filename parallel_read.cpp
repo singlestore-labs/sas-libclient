@@ -187,6 +187,11 @@ extern "C"
     {
         // clear the previous error if any
         client->SetError(S2ClientError(0, ""), nullptr);
+        if (queueCapacity < 1)
+        {
+            client->SetError(S2ClientError(S2C_ERROR_INV_ARG, "Queue capacity must be positive"), cb);
+            return nullptr;
+        }
         try
         {
             return StreamingQueue::CreateChunkQueue(
