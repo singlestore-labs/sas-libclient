@@ -510,7 +510,7 @@ bool S2Connection::AdvanceBinary()
     return true;
 }
 
-RowSchema* S2Connection::GetRowSchema()
+RowSchema* S2Connection::GetRowSchema(bool useOriginalName)
 {
     unsigned int num_fields;
     MYSQL_FIELD* fields;
@@ -546,7 +546,7 @@ RowSchema* S2Connection::GetRowSchema()
     std::unique_ptr<Column[], decltype(freeColumns)> column_info(new Column[num_fields], freeColumns);
     memset(column_info.get(), 0, sizeof(Column) * num_fields);
     std::unique_ptr<RowSchema> row_schema(new RowSchema{column_info.get(), num_fields});
-    utils::FieldsToRowSchema(num_fields, fields, row_schema.get());
+    utils::FieldsToRowSchema(num_fields, fields, useOriginalName, row_schema.get());
 
     // release column_info as
     // it should be freed by the RowSchemaFree

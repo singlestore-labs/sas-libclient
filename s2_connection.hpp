@@ -93,7 +93,7 @@ class S2Connection
 
     // GetRowSchema retrieves the schema of query result
     // If an error occurred, S2ClientError is thrown
-    RowSchema* GetRowSchema();
+    RowSchema* GetRowSchema(bool useOriginalName);
 
     // ExplainRowSchema gets the row schema for the result table
     // created using selectQuery

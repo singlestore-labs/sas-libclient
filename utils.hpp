@@ -70,6 +70,7 @@ namespace utils
     FieldsToRowSchema(
         int num_fields,
         MYSQL_FIELD* fields,
+        bool useOriginalName,
         RowSchema* rowSchema /*out*/);
 
     bool
