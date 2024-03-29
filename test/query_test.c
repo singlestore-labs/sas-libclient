@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdatomic.h>
 
+#include "chunk_extern.h"
 #include "s2_client_extern.h"
 #include "hdat_read_extern.h"
 
@@ -18,7 +19,7 @@ bool printInfo = 0;
 
 void explain_test(S2Client *client)
 {
-    const char *query = "EXPLAIN SELECT TABLE_NAME FROM tables WHERE TABLE_SCHEMA = 'information_schema'";
+    const char *query = "EXPLAIN SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = 'information_schema'";
 
     ChunkQueue *q = QueryGetQueue(
         client,
@@ -51,7 +52,7 @@ void explain_test(S2Client *client)
             current_offset += 16;
             if (printInfo)
             {
-                printf("Got table #%d of len %d: ", i, len);
+                printf("Got row #%d of len %d: ", i, len);
                 for (int j = 0; j < len; j++)
                 {
                     printf("%c", (chunk->m_ptr + chunk->m_size - offset + j)[0]);
@@ -64,12 +65,12 @@ void explain_test(S2Client *client)
     }
     free(chunk);
     ChunkQueueFree(q);
+    printf("explain_test OK\n");
 }
 
 void infoschema_test(S2Client *client)
 {
-    const char *query = "SELECT TABLE_NAME FROM tables WHERE TABLE_SCHEMA = 'information_schema'";
-    // const char *query = "EXPLAIN SELECT TABLE_NAME FROM tables WHERE TABLE_SCHEMA = 'information_schema'";
+    const char *query = "SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = 'information_schema'";
 
     ChunkQueue *q = QueryGetQueue(
         client,
@@ -88,6 +89,7 @@ void infoschema_test(S2Client *client)
 
     RowSchema *s = GetRowSchema(q);
     AssertRowSchema(s);
+    PrintRowSchema(s);
     IF_INFO(PrintRowSchema(s));
     while (GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback))
     {
@@ -119,6 +121,47 @@ void infoschema_test(S2Client *client)
     printf("infoschema_test OK\n");
 }
 
+void long_column_schema_test(S2Client *client)
+{
+    ExecuteDDLQuery(client, "DROP TABLE IF EXISTS sav128", &EH.callback);
+
+    char query_create[2048] = {'\0'};
+    const char* long_name = "££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££££abc";
+    strcat(query_create, "CREATE TABLE sav128 (`");
+    strcat(query_create, long_name);
+    strcat(query_create, "` DOUBLE)");
+    ExecuteDDLQuery(client, query_create, &EH.callback);
+
+    const char *query = "SELECT * FROM sav128";
+
+    ChunkQueue *q = QueryGetQueue(
+        client,
+        query,
+        10000,
+        1,
+        true,
+        &EH.callback);
+
+    if (S2Errno(client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
+    assert(q != NULL && "ChunkQueue is NULL");
+
+    RowSchema *queue_schema = GetRowSchema(q);
+    AssertRowSchema(queue_schema);
+    PrintRowSchema(queue_schema);
+    assert(strlen(queue_schema->ColumnInfo[0].name) == 256);
+    assert(queue_schema->ColumnInfo[0].type == Double);
+    assert(queue_schema->ColumnInfo[0].size == 8);
+
+    RowSchema *table_schema = GetTableRowSchema(client, "sav128", &EH.callback);
+    AssertRowSchema(table_schema);
+    PrintRowSchema(table_schema);
+    assert(!strcmp(table_schema->ColumnInfo[0].name, long_name));
+    assert(table_schema->ColumnInfo[0].type == Double);
+    assert(table_schema->ColumnInfo[0].size == 8);
+
+    printf("long_column_name_test OK\n");
+}
+
 int
 main(
     int argc,
@@ -138,7 +181,7 @@ main(
     S2Client *client = S2ClientInit(
         db_creds.host,
         db_creds.ma_port,
-        "information_schema",
+        "testdb",
         db_creds.user,
         db_creds.password,
         db_creds.ssl_ca,
@@ -147,7 +190,8 @@ main(
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
-    // infoschema_test(client);
+    infoschema_test(client);
+    long_column_schema_test(client);
     explain_test(client);
 
     S2ClientFree(client);

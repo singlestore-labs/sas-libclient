@@ -33,7 +33,8 @@ ResultTableReader::CreateReader(
         catch (S2ClientError &s2_err)
         {
             std::string error = "Cannot connect to server using data from CAS worker's S2Client: ";
-            error += s2_err.what() + '\n';
+            error += s2_err.what();
+            error += "\n";
             cb->setError(cb, S2C_ERROR_BAD_CONNECTION, std::move(error).c_str(), S2C_SEVERITY_ERROR);
             return nullptr;
         }

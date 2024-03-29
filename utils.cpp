@@ -130,13 +130,21 @@ namespace utils
     FieldsToRowSchema(
         int num_fields,
         MYSQL_FIELD* fields,
+        bool useOriginalName,
         RowSchema* rowSchema /*out*/)
     {
         Column* column_info = rowSchema->ColumnInfo;
 
         for (int i = 0; i < num_fields; ++i)
         {
-            column_info[i].name = strdup(fields[i].name);
+            if (useOriginalName)
+            {
+                column_info[i].name = strndup(fields[i].org_name, fields[i].org_name_length);
+            }
+            else
+            {
+                column_info[i].name = strndup(fields[i].name, fields[i].name_length);
+            }
             switch (fields[i].type)
             {
                 // integer types
@@ -823,7 +831,7 @@ namespace sql
                     json_object_set(field, "type", json_string("bytes"));
                     break;
                 default:
-                    throw S2ClientError(S2C_ERROR_INV_ARG, "Unsupported data type: " + schema->ColumnInfo[i].type);
+                    throw S2ClientError(S2C_ERROR_INV_ARG, "Unsupported data type: " + std::to_string(schema->ColumnInfo[i].type));
             }
             json_array_append_new(fields_arr, field);
             // json_decref(bytes_null_type);
