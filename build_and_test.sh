@@ -42,8 +42,8 @@ test_c() {
     gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -W -g
     echo 'Running' "$1"...
     export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:"${PATH_TO_LIBCLIENT}"/vendor/libjansson:$LD_LIBRARY_PATH
-    # ./build/"$1".o $2
-    gdb ./build/"$1".o
+    ./build/"$1".o $2
+    # gdb ./build/"$1".o
 }
 
 test_cpp() {

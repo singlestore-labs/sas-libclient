@@ -129,7 +129,7 @@ void ResultTableReader::Read()
     if (!m_row_schema)
     {
         std::unique_lock<std::mutex> lock(m_error_mutex);
-        m_error = S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get RowSchmema from the queue");
+        m_error = S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get RowSchema from the queue");
 
         m_queue->DeleteProducer(m_partition);
         SetActive(false);
