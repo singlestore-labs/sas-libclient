@@ -125,30 +125,29 @@ StreamingQueue::CreateChunkQueue(
     {
         try
         {
-            if (usePreparedProtocol)
+            auto reader = ResultTableReader::CreateReaderNonParallel(
+                client->m_conn,
+                chunkQueue->m_consumer_queues[0],
+                selectQuery,
+                chunkQueue->m_row_schema,
+                chunkSize,
+                usePreparedProtocol);
+            if (!reader) return nullptr;
+            reader->PrepareRead(false /*prefetch*/);
+            if (reader->GetError().m_errorCode != 0)
             {
-                client->m_conn->Prepare(selectQuery, false);
+                client->SetError(reader->GetError(), cb);
+                return nullptr;
             }
-            else
-            {
-                client->m_conn->Execute(selectQuery);
-            }
-            chunkQueue->m_row_schema = client->m_conn->GetRowSchema(false /* useOriginalName */);
+            chunkQueue->m_row_schema = reader->UpdateRowSchema();
+            reader->Prefetch();
+            chunkQueue->m_readers.push_back(std::move(reader));
         }
         catch (S2ClientError &s2_err)
         {
             client->SetError(s2_err, cb);
             return nullptr;
         }
-        auto reader = ResultTableReader::CreateReaderNonParallel(
-            client->m_conn,
-            chunkQueue->m_consumer_queues[0],
-            selectQuery,
-            chunkQueue->m_row_schema,
-            chunkSize,
-            usePreparedProtocol);
-        if (!reader) return nullptr;
-        chunkQueue->m_readers.push_back(std::move(reader));
     }
     chunkQueue->m_error_before_read = false;
     // start Readers
@@ -211,6 +210,7 @@ StreamingQueue::~StreamingQueue()
         delete m_consumer_queues[consumer_id];
         m_consumer_queues[consumer_id] = nullptr;
     }
+
     utils::RowSchemaFree(m_row_schema);
     m_row_schema = nullptr;
 }

@@ -364,7 +364,7 @@ void max_allowed_packet_test(S2Client *client)
     ChunkFree(chunk);
     free(chunk);
 
-    ExecuteDDLQuery(client, "SET GLOBAL MAX_ALLOWED_PACKET = 1024", &EH.callback);
+    ExecuteDDLQuery(client, "SET GLOBAL MAX_ALLOWED_PACKET = 10240", &EH.callback);
 
     S2Client *read_client = S2ClientInit(
         db_creds.host,
@@ -379,6 +379,7 @@ void max_allowed_packet_test(S2Client *client)
     assert(read_client != NULL && "S2Client is NULL");
 
     const char *query = "SELECT * FROM max_allowed_packet_table";
+    EH.errorExpected = true;
 
     ChunkQueue *q = QueryGetQueue(
         read_client,
@@ -388,21 +389,10 @@ void max_allowed_packet_test(S2Client *client)
         true,
         &EH.callback);
 
-    assert(q != NULL && "ChunkQueue is NULL");
-    if (S2Errno(read_client)) PRINT_ERROR("S2 Error in worker: %d %s\n", S2Errno(client), S2Error(client));
-    assert(!S2Errno(read_client));
-
-    int dummy_partition;
-    chunk = (Chunk *)malloc(sizeof(Chunk));
-    SuperChunkReader *r = CreateReader(chunk, schema, &EH.callback);
-
-    EH.errorExpected = true;
-    GetNextChunk(q, 0, &dummy_partition, chunk, &EH.callback);
+    assert(q == NULL && "ChunkQueue is NULL");
     EH.errorExpected = false;
-
     ExecuteDDLQuery(client, "DROP TABLE IF EXISTS max_allowed_packet_table", &EH.callback);
-    ReaderFree(r);
-    RowSchemaFree(schema);
+
     ExecuteDDLQuery(client, "SET GLOBAL MAX_ALLOWED_PACKET = 104857600", &EH.callback);
     printf("[SUCCESS] Max allowed packet test passed!\n");
 }

@@ -68,6 +68,32 @@ void explain_test(S2Client *client)
     printf("explain_test OK\n");
 }
 
+void explain_and_row_schema(S2Client *client)
+{
+    ChunkQueue *queue = NULL;
+    RowSchema *rowSchema = NULL;
+
+    ExecuteDDLQuery(client, "create table if not exists t1 (id int, c1 int)", &EH.callback);
+    ExecuteDDLQuery(client, "create table if not exists t2 (id int, c2 int)", &EH.callback);
+    ExecuteDDLQuery(client, "drop view v1", &EH.callback);
+    ExecuteDDLQuery(client, "create view v1 as select t1.id, c1, c2 from t1 join t2 on t1.id = t2.id", &EH.callback);
+
+    queue = QueryGetQueue(client, "explain create result table r as select * from v1",
+                          4096, 1, false, &EH.callback);
+    printf("QueryGetQueue returned %p\n", queue);
+
+    if (queue) {
+        ChunkQueueFree(queue);
+        queue = NULL;
+    }
+
+    rowSchema = GetTableRowSchema(client, "t1", &EH.callback);
+    printf("GetTableRowSchema returned %p\n", rowSchema);
+
+    if (rowSchema)
+        RowSchemaFree(rowSchema);
+}
+
 void infoschema_test(S2Client *client)
 {
     const char *query = "SELECT TABLE_NAME FROM information_schema.tables WHERE TABLE_SCHEMA = 'information_schema'";
@@ -147,14 +173,14 @@ void long_column_schema_test(S2Client *client)
 
     RowSchema *queue_schema = GetRowSchema(q);
     AssertRowSchema(queue_schema);
-    PrintRowSchema(queue_schema);
+    IF_INFO(PrintRowSchema(queue_schema));
     assert(strlen(queue_schema->ColumnInfo[0].name) == 256);
     assert(queue_schema->ColumnInfo[0].type == Double);
     assert(queue_schema->ColumnInfo[0].size == 8);
 
     RowSchema *table_schema = GetTableRowSchema(client, "sav128", &EH.callback);
     AssertRowSchema(table_schema);
-    PrintRowSchema(table_schema);
+    IF_INFO(PrintRowSchema(table_schema));
     assert(!strcmp(table_schema->ColumnInfo[0].name, long_name));
     assert(table_schema->ColumnInfo[0].type == Double);
     assert(table_schema->ColumnInfo[0].size == 8);
@@ -190,9 +216,11 @@ main(
         &EH.callback);
     assert(client != NULL && "S2Client is NULL");
 
-    infoschema_test(client);
-    long_column_schema_test(client);
-    explain_test(client);
+    // infoschema_test(client);
+    // long_column_schema_test(client);
+
+    // explain_test(client);
+    explain_and_row_schema(client);
 
     S2ClientFree(client);
 

@@ -57,6 +57,7 @@ ResultTableReader::CreateReaderNonParallel(
 {
     // allocate a ResultTableReader object
     std::unique_ptr<ResultTableReader> reader(new ResultTableReader(q, 0 /*partition*/, size));
+    reader->m_is_parallel = false;
 
     // create a new connection
     reader->m_conn =
@@ -85,6 +86,42 @@ void ResultTableReader::NotifyConnUnfinishedStmt()
     m_conn->DiscardStmtClose();
 }
 
+void ResultTableReader::PrepareRead(bool prefetch)
+{
+    try
+    {
+        if (m_use_prepared_protocol)
+        {
+            m_conn->Prepare(m_query.c_str(), true, prefetch);
+        }
+        else
+        {
+            m_conn->Execute(m_query.c_str(), prefetch);
+        }
+
+    }
+    catch (S2ClientError &s2_err)
+    {
+        std::unique_lock<std::mutex> lock(m_error_mutex);
+        m_error = s2_err;
+    }
+}
+
+RowSchema *ResultTableReader::UpdateRowSchema()
+{
+    if (m_row_schema)
+    {
+        utils::RowSchemaFree(m_row_schema);
+    }
+    m_row_schema = m_conn->GetRowSchema(false /*useOriginalName*/);
+    return m_row_schema;
+}
+
+void ResultTableReader::Prefetch()
+{
+    m_conn->Advance();
+}
+
 void ResultTableReader::Read()
 {
     // if row_schema has not been provided by the queue that created the reader,
@@ -92,29 +129,13 @@ void ResultTableReader::Read()
     if (!m_row_schema)
     {
         std::unique_lock<std::mutex> lock(m_error_mutex);
-        m_error = S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get RowSchmema from the queue");
+        m_error = S2ClientError(S2C_ERROR_UNKNOWN_FAILURE, "Failed to get RowSchema from the queue");
 
         m_queue->DeleteProducer(m_partition);
         SetActive(false);
         return;
     }
-
-    try
-    {
-        if (m_use_prepared_protocol)
-        {
-            m_conn->Prepare(m_query.c_str(), true);
-        }
-        else
-        {
-            m_conn->Execute(m_query.c_str());
-        }
-    }
-    catch (S2ClientError &s2_err)
-    {
-        std::unique_lock<std::mutex> lock(m_error_mutex);
-        m_error = s2_err;
-    }
+    if (m_is_parallel) PrepareRead(true /*prefetch*/);
 
     if (m_error.m_errorCode)
     {

@@ -178,7 +178,7 @@ extern "C"
         std::string query = sql::MakeSelectQueryMeta(table);
         try
         {
-            client->m_conn->Prepare(query.c_str(), false);
+            client->m_conn->Prepare(query.c_str(), false /*execute*/, false /*prefetch*/);
             RowSchema* res = client->m_conn->GetRowSchema(true /* useOriginalName */);
             return res;
         }

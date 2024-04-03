@@ -5,8 +5,10 @@
 
 #include "s2_client.hpp"
 #include "queue/thread_safe_queue.hpp"
+#include "utils.hpp"
 
-// ResultTableReader is responsible for reading chunks from one partition and add them to the thread safe queue
+// ResultTableReader is responsible for reading chunks from one partition
+// and adding them to the thread safe queue
 class ResultTableReader
 {
   public:
@@ -39,6 +41,15 @@ class ResultTableReader
             m_reading_thread.join();
         }
     }
+
+    void PrepareRead(bool prefetch);
+
+    // UpdateRowSchema is called to update the reader row schema with
+    // the schema correponding to the query that is active on m_conn
+    RowSchema *UpdateRowSchema();
+
+    // Prefetch is called after PrepareRead with prefetch=false
+    void Prefetch();
 
     // StartReading starts a new thread which gets chunks from connection
     // and adds them to the queue
@@ -76,6 +87,7 @@ class ResultTableReader
         uint64_t size)
         :
         m_queue(q),
+        m_is_parallel(true),
         m_partition(partition),
         m_query(""),
         m_chunk_size(size),
@@ -87,6 +99,7 @@ class ResultTableReader
     std::unique_ptr<S2Connection> m_conn = nullptr;
     ThreadSafeQueue<Chunk *> *m_queue;
 
+    bool m_is_parallel;
     uint32_t m_partition;
 
     std::atomic<bool> m_active = ATOMIC_VAR_INIT(true);

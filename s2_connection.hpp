@@ -75,7 +75,8 @@ class S2Connection
     bool
     Prepare(
         const char* query,
-        bool execute);
+        bool execute,
+        bool prefetch);
 
     // CleanupStatement is called to reset m_stmt to NULL
     // and free the memory used to fetch results, if needed
@@ -85,7 +86,7 @@ class S2Connection
     int64_t ExecuteDDL(const std::string query);
 
     // Execute runs a query through text protocol
-    bool Execute(const std::string query);
+    bool Execute(const std::string query, bool prefetch);
 
     // Advance retrieves the next row from the result set and saves a result in the
     // m_last_fetched_row, m_last_fetched_lengths, m_last_columns_num variables
