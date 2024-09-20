@@ -43,7 +43,7 @@ target_link_directories(
 
 target_link_libraries(
   s2client
-mariadb
+  mariadb
   avro
   jansson
   dl

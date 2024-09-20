@@ -1,14 +1,14 @@
 #!/bin/bash
-set -euo pipefail
+set -euox pipefail
 export PATH_TO_LIBCLIENT=$(pwd)
-export CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-RelWithDebInfo}"
+export CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
 export BUILD_DIR=build/$CMAKE_BUILD_TYPE
 export ARTIFACTS_DIR=build/share
 mkdir -p build
 mkdir -p build/test
 mkdir -p build/$CMAKE_BUILD_TYPE
 
-display_usage() { 
+display_usage() {
 	echo -e "Usage: $0 [lib|share|test_name...]. \n\tUse 'lib' to build sources, 'share' to copy headers and libs2client.so to $ARTIFACTS_DIR directory
     'test_name' ro run 'test_name'_test.[c|cpp] file"
 	}
@@ -22,8 +22,8 @@ build_lib() {
 
 build_lib
 
-if [ $# -lt 1 ] 
-then 
+if [ $# -lt 1 ]
+then
     exit 0
 fi
 
@@ -34,22 +34,25 @@ place_shared() {
     echo "Successfully copied files for sharing to $ARTIFACTS_DIR"
 }
 
-export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}/${BUILD_DIR}"
-mkdir -p "${LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-/usr/lib64}"
 
 # compile and run the test binaries
 test_c() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -W -g
+    gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include \
+      -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libmariadb" -L "${PATH_TO_LIBCLIENT}/vendor/libavro" -L "${PATH_TO_LIBCLIENT}/vendor/libjansson" \
+      "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -ljansson -W -g
+    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}/${BUILD_DIR}:${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:"${PATH_TO_LIBCLIENT}"/vendor/libjansson:$LD_LIBRARY_PATH
     echo 'Running' "$1"...
-    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:"${PATH_TO_LIBCLIENT}"/vendor/libjansson:$LD_LIBRARY_PATH
     ./build/"$1".o $2
     # gdb ./build/"$1".o
 }
 
 test_cpp() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libmariadb" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -g
+    g++ -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include \
+      -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libavro" "${PATH_TO_LIBCLIENT}/vendor/libjansson" "${PATH_TO_LIBCLIENT}/vendor/libmariadb" \
+      "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -ljansson -g
+    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}/${BUILD_DIR}:${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:"${PATH_TO_LIBCLIENT}"/vendor/libjansson:$LD_LIBRARY_PATH
     echo 'Running' "$1" test...
-    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:"${PATH_TO_LIBCLIENT}"/vendor/libjansson:$LD_LIBRARY_PATH
     ./build/"$1".o $2
 }
 
