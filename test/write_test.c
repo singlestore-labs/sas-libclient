@@ -345,11 +345,11 @@ void boundary_test(S2Client *client)
 
 void max_allowed_packet_test(S2Client *client)
 {
-    int blobLength = 12000;
+    int blobLength = 120000;
     int size = 8 + 8 + 8 + blobLength;
     Chunk *chunk = allocChunk(size);
     ExecuteDDLQuery(client, "DROP TABLE IF EXISTS max_allowed_packet_table", &EH.callback);
-    ExecuteDDLQuery(client, "CREATE TABLE IF NOT EXISTS max_allowed_packet_table (id BIGINT, var BLOB)", &EH.callback);
+    ExecuteDDLQuery(client, "CREATE TABLE IF NOT EXISTS max_allowed_packet_table (id BIGINT, var LONGBLOB)", &EH.callback);
     RowSchema *schema = GetTableRowSchema(client, "max_allowed_packet_table", &EH.callback);
     SuperChunkWriter *w = CreateWriter(chunk, schema, &EH.callback);
     WriteInt64(w, 12345678);
@@ -364,7 +364,7 @@ void max_allowed_packet_test(S2Client *client)
     ChunkFree(chunk);
     free(chunk);
 
-    ExecuteDDLQuery(client, "SET GLOBAL MAX_ALLOWED_PACKET = 10240", &EH.callback);
+    ExecuteDDLQuery(client, "SET GLOBAL MAX_ALLOWED_PACKET = 102400", &EH.callback);
 
     S2Client *read_client = S2ClientInit(
         db_creds.host,
