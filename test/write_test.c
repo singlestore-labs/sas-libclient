@@ -345,6 +345,9 @@ void boundary_test(S2Client *client)
 
 void max_allowed_packet_test(S2Client *client)
 {
+    // The blobLength is intentionally set to 120,000 bytes, which exceeds the
+    // MAX_ALLOWED_PACKET setting of 102,400 bytes (set below). This tests the
+    // system's error handling when attempting to write a blob larger than the allowed packet size.
     int blobLength = 120000;
     int size = 8 + 8 + 8 + blobLength;
     Chunk *chunk = allocChunk(size);
