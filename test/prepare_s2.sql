@@ -17,6 +17,6 @@ INSERT INTO t (i, d, d2, t, t2) VALUES (10, 5.1111, 10.8, 'xxxxx', 'cccccccc');
 INSERT INTO t (i, d, d2, t, t2) VALUES (11, 5.11111, 11.8, 'xxxxx', 'ccccccccc');
 INSERT INTO t (i, d, d2, t, t2) VALUES (12, 5.111111, 12.8, 'xxxxx', 'cccccccccc');
 INSERT INTO t (i, d, d2, t, t2) VALUES (13, 5.1111111, 12.8, 'xxxxx', 'ccccccccc');
-INSERT INTO t (i, d, d2, t, t2) VALUES (NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO t (i, d, d2, t, t2) VALUES (NULL, NULL, NULL, NULL, NULL);
 
 SELECT *, partition_id() FROM t;

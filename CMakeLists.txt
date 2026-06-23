@@ -32,12 +32,27 @@ set(LIBCLIENT_SOURCES
 
 add_library(s2client SHARED ${LIBCLIENT_SOURCES})
 
+if(DEFINED ENV{MARIADB_INCLUDE_DIR})
+  set(MARIADB_INCLUDE_DIR $ENV{MARIADB_INCLUDE_DIR})
+else()
+  set(MARIADB_INCLUDE_DIR $ENV{PATH_TO_LIBCLIENT}/vendor/libmariadb/include)
+endif()
+
+if(DEFINED ENV{MARIADB_LIB_DIR})
+  set(MARIADB_LIB_DIR $ENV{MARIADB_LIB_DIR})
+else()
+  set(MARIADB_LIB_DIR $ENV{PATH_TO_LIBCLIENT}/vendor/libmariadb)
+endif()
+
 target_include_directories(
-  s2client PUBLIC $ENV{PATH_TO_LIBCLIENT} vendor/libmariadb/include
-                  vendor/libavro/include vendor/libjansson/include)
+  s2client PUBLIC $ENV{PATH_TO_LIBCLIENT}
+  ${MARIADB_INCLUDE_DIR}
+  vendor/libavro/include
+  vendor/libjansson/include)
 
 target_link_directories(
-  s2client PUBLIC $ENV{PATH_TO_LIBCLIENT}/vendor/libmariadb
+  s2client PUBLIC
+  ${MARIADB_LIB_DIR}
   $ENV{PATH_TO_LIBCLIENT}/vendor/libavro
   $ENV{PATH_TO_LIBCLIENT}/vendor/libjansson)
 
