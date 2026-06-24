@@ -91,7 +91,7 @@ void explain_and_row_schema(S2Client *client)
 
     ExecuteDDLQuery(client, "create table if not exists t1 (id int, c1 int)", &EH.callback);
     ExecuteDDLQuery(client, "create table if not exists t2 (id int, c2 int)", &EH.callback);
-    ExecuteDDLQuery(client, "drop view v1", &EH.callback);
+    ExecuteDDLQuery(client, "drop view if exists v1", &EH.callback);
     ExecuteDDLQuery(client, "create view v1 as select t1.id, c1, c2 from t1 join t2 on t1.id = t2.id", &EH.callback);
 
     queue = QueryGetQueue(client, "explain create result table r as select * from v1",

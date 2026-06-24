@@ -342,7 +342,16 @@ mult_table(
 int get_db_char_size()
 {
     MYSQL *mysql = mysql_init(NULL);
-    mysql_options(mysql, MYSQL_OPT_SSL_CA, db_creds.ssl_ca);
+    if (db_creds.ssl_ca && db_creds.ssl_ca[0] != '\0')
+    {
+        mysql_options(mysql, MYSQL_OPT_SSL_CA, db_creds.ssl_ca);
+    }
+    else
+    {
+        my_bool ssl_enforce = 0;
+        mysql->options.use_ssl = 0;
+        mysql_options(mysql, MYSQL_OPT_SSL_ENFORCE, &ssl_enforce);
+    }
     MYSQL_RES *res;
     MYSQL_ROW row;
     char *collation;

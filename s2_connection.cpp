@@ -90,6 +90,12 @@ S2Connection::Connect(
         mysql_options(s2Connection->m_conn, MYSQL_OPT_SSL_CA, ssl_ca);
         s2Connection->m_conn->options.use_ssl = 1;
     }
+    else
+    {
+        my_bool ssl_enforce = 0;
+        s2Connection->m_conn->options.use_ssl = 0;
+        mysql_options(s2Connection->m_conn, MYSQL_OPT_SSL_ENFORCE, &ssl_enforce);
+    }
 
     if (!mysql_real_connect(s2Connection->m_conn, host, user, password, db, port, nullptr, 0))
     {
