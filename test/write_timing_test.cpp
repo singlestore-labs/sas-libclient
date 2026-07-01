@@ -23,8 +23,10 @@
 #include <string.h>
 #include <sstream>
 
+#include <unistd.h>
+
 #include "avro.h"
-#include "encoding.h"
+#include "avro/encoding.h"
 #include "mysql.h"
 
 #include "s2_connection.hpp"
@@ -95,7 +97,7 @@ std::unique_ptr<S2Connection> PrepareDB()
     printf("Connected!\n");
     for (auto st : ddl_stmts)
     {
-        conn->Prepare(st.c_str(), true);
+        conn->Prepare(st.c_str(), true, false);
     }
     printf("Table created!\n");
     return conn;
@@ -181,11 +183,11 @@ LoadDataTestAvro(
     Column true_columns[] =
         {
             {.type = Int64,
-             .name = "i"},
+             .name = const_cast<char*>("i")},
             {.type = Double,
-             .name = "d"},
+             .name = const_cast<char*>("d")},
             {.type = Variable,
-             .name = "t"}
+             .name = const_cast<char*>("t")}
         };
     RowSchema true_schema =
         {
@@ -226,9 +228,9 @@ LoadDataTestAvro(
     free(buf);
 }
 
-void TestRun(S2Connection* conn)
+void TestRun(S2Connection* conn, const char* file_path)
 {
-    std::ifstream file(FILE_PATH);
+    std::ifstream file(file_path);
     auto dataToWrite = std::make_unique<My3ColData>();
 
     int64_t x;
@@ -246,8 +248,8 @@ void TestRun(S2Connection* conn)
     std::cout << "Finished in " << ((double)std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count())
               << " milliseconds" << std::endl;
 
-    conn->Prepare("SELECT * FROM 3_col_test", false);
-    RowSchema* schema = conn->GetRowSchema();
+    conn->Prepare("SELECT * FROM 3_col_test", false, false);
+    RowSchema* schema = conn->GetRowSchema(true);
 
     // std::cout << "Staring to work on FillAvroBuffer..." << std::endl;
     // funcStart = std::chrono::system_clock::now();
@@ -320,10 +322,19 @@ main(
     int argc,
     char* argv[])
 {
+    const char* file_path = getenv("WRITE_TIMING_CSV");
+    if (!file_path) {
+        file_path = FILE_PATH;
+    }
+    if (access(file_path, R_OK) != 0) {
+        std::cout << "Skipping write_timing_test: data file not found: " << file_path << std::endl;
+        return 0;
+    }
+
     auto conn = PrepareDB();
     if (!conn) return 1;
 
-    TestRun(conn.get());
+    TestRun(conn.get(), file_path);
 
     return 0;
 }
