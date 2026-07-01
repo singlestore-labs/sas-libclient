@@ -37,20 +37,31 @@ place_shared() {
 export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}/${BUILD_DIR}"
 mkdir -p "${LD_LIBRARY_PATH}"
 
+MARIADB_INCLUDE_DIR="${MARIADB_INCLUDE_DIR:-${PATH_TO_LIBCLIENT}/vendor/libmariadb/include}"
+MARIADB_LIB_DIR="${MARIADB_LIB_DIR:-${PATH_TO_LIBCLIENT}/vendor/libmariadb}"
+
 # compile and run the test binaries
+run_test_binary() {
+    local binary=./build/"$1".o
+    local arg="${2:-0}"
+    if [ "${USE_GDB:-}" = "1" ]; then
+        exec gdb -q --args "$binary" "$arg"
+    fi
+    "$binary" "$arg"
+}
+
 test_c() {
-    gcc -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libmariadb" -L "${PATH_TO_LIBCLIENT}/vendor/libavro" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -W -g
+    gcc -I "${PATH_TO_LIBCLIENT}" -I "${MARIADB_INCLUDE_DIR}" -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${MARIADB_LIB_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libavro" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -W -g
     echo 'Running' "$1"...
-    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:"${PATH_TO_LIBCLIENT}"/vendor/libjansson:$LD_LIBRARY_PATH
-    ./build/"$1".o $2
-    # gdb ./build/"$1".o
+    export LD_LIBRARY_PATH="${MARIADB_LIB_DIR}:${PATH_TO_LIBCLIENT}/vendor/libavro:${PATH_TO_LIBCLIENT}/vendor/libjansson:$LD_LIBRARY_PATH"
+    run_test_binary "$1" "$2"
 }
 
 test_cpp() {
-    g++ -I "${PATH_TO_LIBCLIENT}" -I "${PATH_TO_LIBCLIENT}"/vendor/libmariadb/include -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libmariadb" -L "${PATH_TO_LIBCLIENT}/vendor/libavro" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -g
+    g++ -I "${PATH_TO_LIBCLIENT}" -I "${MARIADB_INCLUDE_DIR}" -I "${PATH_TO_LIBCLIENT}"/vendor/libavro/include -L "${PATH_TO_LIBCLIENT}/${BUILD_DIR}" -L "${MARIADB_LIB_DIR}" -L "${PATH_TO_LIBCLIENT}/vendor/libavro" "$1" -o build/"$1".o -ls2client -lpthread -lmariadb -lavro -g
     echo 'Running' "$1" test...
-    export LD_LIBRARY_PATH="${PATH_TO_LIBCLIENT}"/vendor/libmariadb:"${PATH_TO_LIBCLIENT}"/vendor/libavro:"${PATH_TO_LIBCLIENT}"/vendor/libjansson:$LD_LIBRARY_PATH
-    ./build/"$1".o $2
+    export LD_LIBRARY_PATH="${MARIADB_LIB_DIR}:${PATH_TO_LIBCLIENT}/vendor/libavro:${PATH_TO_LIBCLIENT}/vendor/libjansson:$LD_LIBRARY_PATH"
+    run_test_binary "$1" "$2"
 }
 
 if [ $1 = "share" ]
@@ -81,8 +92,8 @@ fi
 
 if [ -e ./test/"$1"_test.c ]; then
     file=test/"$1"_test.c
-    test_c "$file" $2
+    test_c "$file" "${2:-0}"
 else
     file=test/"$1"_test.cpp
-    test_cpp "$file" $2
+    test_cpp "$file" "${2:-0}"
 fi

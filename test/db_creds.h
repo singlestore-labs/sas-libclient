@@ -33,7 +33,8 @@ DBCreds db_creds =
         .ma_port = 3306,
         .db = "testdb",
         .user = "root",
-        .password = "p",
+        .password = "password",
+        .ssl_ca = NULL,
 };
 
 // DBCreds db_creds =

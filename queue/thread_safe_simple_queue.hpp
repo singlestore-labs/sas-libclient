@@ -21,6 +21,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <queue>
+#include <stdexcept>
 
 #include "queue/thread_safe_queue.hpp"
 #include "utils.hpp"
@@ -92,8 +93,9 @@ class ThreadSafeSimpleQueue : public ThreadSafeQueue<T>
         int producerId,
         int valueId)
     {
-        assert(false && "Get by id is not supported by ThreadSafeSimpleQueue");
-        return NULL;
+        (void)producerId;
+        (void)valueId;
+        throw std::logic_error("Get by id is not supported by ThreadSafeSimpleQueue");
     };
 
     // DeleteProducer decreases the number of producers by one

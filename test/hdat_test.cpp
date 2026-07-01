@@ -69,7 +69,7 @@ std::unique_ptr<S2Connection> PrepareDB()
     printf("connected!\n");
     for (auto st : stmts)
     {
-        conn->Prepare(st.c_str(), true);
+        conn->Prepare(st.c_str(), true, false);
     }
 
     return conn;
@@ -81,8 +81,8 @@ testRun(
     S2Connection* conn,
     bool need_to_read)
 {
-    conn->Prepare("SELECT * FROM 6_col_test", true);
-    auto new_schema = conn->GetRowSchema();
+    conn->Prepare("SELECT * FROM 6_col_test", true, true);
+    auto new_schema = conn->GetRowSchema(false);
     Chunk* chunk = nullptr;
 
     try
