@@ -89,6 +89,33 @@ Database credentials for tests come from `test/db_creds.h`. When using `test-in-
 
 Use `./scripts/test-in-docker.sh --help` or `./scripts/s2-docker.sh --help` for all options and environment variables.
 
+## Releasing
+
+Pushing a semver tag (`v*.*.*`) triggers the [Release](.github/workflows/release.yml) GitHub Action. It runs the full test suite first, then builds `libs2client` in the RHEL 9 Docker image with `Release` CMake settings, packages the artifacts, and publishes a GitHub release.
+
+Create and push a release tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Each release includes:
+
+- `libs2client-<version>-linux-amd64.tar.gz` — archive of all files below
+- `libs2client.so`
+- `s2_client_extern.h`, `chunk_extern.h`, `hdat_write_extern.h`
+
+To build the same artifacts locally:
+
+```bash
+./scripts/build-in-docker.sh --cmake-build-type Release share
+```
+
+Output is written to `build/share/`.
+
+Pull requests and pushes to `master` run the [Test](.github/workflows/test.yml) workflow, which executes the C and C++ test suites in Docker against SingleStore. The [Release](.github/workflows/release.yml) workflow runs the same tests before publishing artifacts.
+
 ## Workflow
 
 CAS will have multiple *workers* (kubernetes pods which are supposedly colocated with S2 aggregators, but not necessarily) and each of them will establish a connection to S2 using `S2ClientInit(...)`.
