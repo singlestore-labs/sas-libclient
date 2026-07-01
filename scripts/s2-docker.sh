@@ -6,13 +6,13 @@ S2_DOCKER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 S2_DOCKER_REPO_ROOT="$(cd "$S2_DOCKER_SCRIPT_DIR/.." && pwd)"
 
 s2_docker_load_defaults() {
-    BUILD_IMAGE="${BUILD_IMAGE:-sas-libclient-build:rhel9}"
     S2_IMAGE="${S2_IMAGE:-ghcr.io/singlestore-labs/singlestoredb-dev:latest}"
     S2_VERSION="${S2_VERSION:-}"
     ROOT_PASSWORD="${ROOT_PASSWORD:-password}"
     NETWORK="${NETWORK:-sas-libclient-test}"
     S2_CONTAINER="${S2_CONTAINER:-singlestore-sas}"
     S2_HOST="${S2_HOST:-singlestore-sas}"
+    S2_SQL_CLIENT="${S2_SQL_CLIENT:-/usr/lib/singlestore-client/singlestore-client}"
     DOCKER_PLATFORM="${DOCKER_PLATFORM:-}"
 
     if [[ -z "$DOCKER_PLATFORM" ]] && [[ "$(uname -m)" == "arm64" ]]; then
@@ -26,22 +26,9 @@ s2_docker_platform_args() {
     fi
 }
 
-s2_docker_mysql_image() {
-    if docker image inspect "$BUILD_IMAGE" &>/dev/null; then
-        echo "$BUILD_IMAGE"
-    else
-        echo "$S2_IMAGE"
-    fi
-}
-
-s2_docker_run_mysql() {
-    local image
-    image="$(s2_docker_mysql_image)"
-    docker run --rm --network "$NETWORK" \
-        -v "$S2_DOCKER_REPO_ROOT:/workspace" \
-        -w /workspace \
-        "$image" \
-        mysql -h "$S2_HOST" -u root -p"$ROOT_PASSWORD" "$@"
+s2_docker_run_sql() {
+    docker exec -e MYSQL_PWD="$ROOT_PASSWORD" "$S2_CONTAINER" \
+        "$S2_SQL_CLIENT" -h 127.0.0.1 -P 3306 -u root "$@"
 }
 
 s2_docker_is_running() {
@@ -51,7 +38,7 @@ s2_docker_is_running() {
 
 s2_docker_is_ready() {
     s2_docker_is_running \
-        && s2_docker_run_mysql -e "SELECT 1" &>/dev/null
+        && s2_docker_run_sql -e "SELECT 1" &>/dev/null
 }
 
 s2_docker_wait_for_singlestore() {
@@ -66,7 +53,7 @@ s2_docker_wait_for_singlestore() {
             return 0
         fi
 
-        if s2_docker_run_mysql -e "SELECT 1" &>/dev/null; then
+        if s2_docker_run_sql -e "SELECT 1" &>/dev/null; then
             return 0
         fi
 
@@ -82,7 +69,9 @@ s2_docker_wait_for_singlestore() {
 
 s2_docker_prepare() {
     echo "Preparing test database"
-    s2_docker_run_mysql < "$S2_DOCKER_REPO_ROOT/test/prepare_s2.sql"
+    docker exec -e MYSQL_PWD="$ROOT_PASSWORD" -i "$S2_CONTAINER" \
+        "$S2_SQL_CLIENT" -h 127.0.0.1 -P 3306 -u root \
+        < "$S2_DOCKER_REPO_ROOT/test/prepare_s2.sql"
 }
 
 s2_docker_start() {
@@ -113,7 +102,6 @@ s2_docker_start() {
         --network-alias "$S2_HOST" \
         --network "$NETWORK" \
         "${s2_env_args[@]}" \
-        -v "$S2_DOCKER_REPO_ROOT/test/prepare_s2.sql:/init.sql:ro" \
         "$S2_IMAGE"
 
     s2_docker_wait_for_singlestore
@@ -162,7 +150,6 @@ Environment variables:
   S2_CONTAINER    Docker container name (default: singlestore-sas)
   ROOT_PASSWORD   SingleStore root password (default: password)
   NETWORK         Docker network name (default: sas-libclient-test)
-  BUILD_IMAGE     Optional build image used for mysql client when available
   DOCKER_PLATFORM Set to linux/amd64 on Apple silicon if needed
 
 Examples:
